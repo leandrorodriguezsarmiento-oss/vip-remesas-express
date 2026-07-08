@@ -14,7 +14,126 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      profiles: {
+        Row: {
+          balance_brl: number
+          created_at: string
+          full_name: string | null
+          id: string
+          phone: string | null
+          preferred_language: string
+          updated_at: string
+        }
+        Insert: {
+          balance_brl?: number
+          created_at?: string
+          full_name?: string | null
+          id: string
+          phone?: string | null
+          preferred_language?: string
+          updated_at?: string
+        }
+        Update: {
+          balance_brl?: number
+          created_at?: string
+          full_name?: string | null
+          id?: string
+          phone?: string | null
+          preferred_language?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      recipients: {
+        Row: {
+          account_details: string | null
+          country: string
+          created_at: string
+          delivery_method: string
+          full_name: string
+          id: string
+          phone: string
+          user_id: string
+        }
+        Insert: {
+          account_details?: string | null
+          country: string
+          created_at?: string
+          delivery_method: string
+          full_name: string
+          id?: string
+          phone: string
+          user_id: string
+        }
+        Update: {
+          account_details?: string | null
+          country?: string
+          created_at?: string
+          delivery_method?: string
+          full_name?: string
+          id?: string
+          phone?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      transactions: {
+        Row: {
+          amount_brl: number
+          amount_dest: number
+          created_at: string
+          delivery_method: string
+          dest_currency: string
+          destination_country: string
+          exchange_rate: number
+          fee_brl: number
+          id: string
+          payment_method: string
+          recipient_name: string
+          recipient_phone: string
+          status: Database["public"]["Enums"]["tx_status"]
+          total_brl: number
+          tracking_id: string
+          user_id: string
+        }
+        Insert: {
+          amount_brl: number
+          amount_dest: number
+          created_at?: string
+          delivery_method: string
+          dest_currency: string
+          destination_country: string
+          exchange_rate: number
+          fee_brl?: number
+          id?: string
+          payment_method: string
+          recipient_name: string
+          recipient_phone: string
+          status?: Database["public"]["Enums"]["tx_status"]
+          total_brl: number
+          tracking_id: string
+          user_id: string
+        }
+        Update: {
+          amount_brl?: number
+          amount_dest?: number
+          created_at?: string
+          delivery_method?: string
+          dest_currency?: string
+          destination_country?: string
+          exchange_rate?: number
+          fee_brl?: number
+          id?: string
+          payment_method?: string
+          recipient_name?: string
+          recipient_phone?: string
+          status?: Database["public"]["Enums"]["tx_status"]
+          total_brl?: number
+          tracking_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -23,7 +142,7 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      tx_status: "pending" | "processing" | "completed" | "rejected"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +269,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      tx_status: ["pending", "processing", "completed", "rejected"],
+    },
   },
 } as const
