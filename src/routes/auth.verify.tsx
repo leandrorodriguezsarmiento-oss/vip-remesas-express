@@ -29,7 +29,13 @@ function VerifyCodePage() {
   const [code, setCode] = useState(["", "", "", "", "", ""]);
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
+  const [demoCode, setDemoCode] = useState<string | null>(null);
   const inputsRef = useRef<(HTMLInputElement | null)[]>([]);
+
+  useEffect(() => {
+    setDemoCode(sessionStorage.getItem("vip-demo-code"));
+    inputsRef.current[0]?.focus();
+  }, []);
 
   useEffect(() => {
     inputsRef.current[0]?.focus();
