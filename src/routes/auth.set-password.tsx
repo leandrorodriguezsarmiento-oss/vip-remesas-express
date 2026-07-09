@@ -1,34 +1,50 @@
 import { createFileRoute, useNavigate, redirect, Link } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { setInitialPassword } from "@/lib/auth-verification.functions";
 import { toast } from "sonner";
 import { Loader2, Sparkles, LockKeyhole } from "lucide-react";
+import { z } from "zod";
+
+const searchSchema = z.object({
+  email: z.string().email(),
+});
 
 export const Route = createFileRoute("/auth/set-password")({
   ssr: false,
+  validateSearch: searchSchema,
   beforeLoad: async () => {
     const { data } = await supabase.auth.getSession();
-    if (!data.session) throw redirect({ to: "/auth" });
+    if (data.session) throw redirect({ to: "/dashboard" });
   },
   component: SetPasswordPage,
 });
 
 function SetPasswordPage() {
+  const { email } = Route.useSearch();
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const setPasswordFn = useServerFn(setInitialPassword);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (password.length < 6) return toast.error("Mínimo 6 caracteres");
     if (password !== confirm) return toast.error("Las contraseñas no coinciden");
     setLoading(true);
-    const { error } = await supabase.auth.updateUser({ password });
-    setLoading(false);
-    if (error) return toast.error(error.message);
-    toast.success("Contraseña creada. ¡Bienvenido a VIP Remesas!");
-    navigate({ to: "/dashboard" });
+    try {
+      await setPasswordFn({ data: { email, password } });
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+      toast.success("¡Bienvenido a VIP Remesas!");
+      navigate({ to: "/dashboard" });
+    } catch (err: any) {
+      toast.error(err?.message ?? "No se pudo guardar la contraseña");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
