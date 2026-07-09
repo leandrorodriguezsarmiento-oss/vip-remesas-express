@@ -30,6 +30,7 @@ function AuthPage() {
   const [tab, setTab] = useState<"login" | "signup">("login");
   const [loading, setLoading] = useState(false);
   const [showForgot, setShowForgot] = useState(false);
+  const [pendingVerify, setPendingVerify] = useState<string | null>(null);
   const navigate = useNavigate();
 
   // login
@@ -50,11 +51,15 @@ function AuthPage() {
     setLoading(true);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
-    if (error) return toast.error(error.message);
-    if (!remember) {
-      // best-effort: clear on tab close
-      sessionStorage.setItem("vip-no-remember", "1");
+    if (error) {
+      const msg = error.message.toLowerCase();
+      if (msg.includes("not confirmed") || msg.includes("confirm") || msg.includes("verified")) {
+        setPendingVerify(email);
+        return;
+      }
+      return toast.error(error.message);
     }
+    if (!remember) sessionStorage.setItem("vip-no-remember", "1");
     toast.success("¡Bienvenido de vuelta!");
     navigate({ to: "/dashboard" });
   }
@@ -66,7 +71,7 @@ function AuthPage() {
     });
     if (!parsed.success) return toast.error(parsed.error.issues[0].message);
     setLoading(true);
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email: sEmail,
       password: sPassword,
       options: {
@@ -76,7 +81,13 @@ function AuthPage() {
     });
     setLoading(false);
     if (error) return toast.error(error.message);
-    toast.success("Cuenta creada. Bienvenido a VIP Remesas.");
+    // Con verificación activada: no hay sesión hasta confirmar el correo.
+    if (!data.session) {
+      setPendingVerify(sEmail);
+      toast.success("Cuenta creada. Verifica tu correo para continuar.");
+      return;
+    }
+    toast.success("¡Bienvenido a VIP Remesas!");
     navigate({ to: "/dashboard" });
   }
 
@@ -94,6 +105,7 @@ function AuthPage() {
     navigate({ to: "/dashboard" });
   }
 
+  if (pendingVerify) return <VerifyEmailNotice email={pendingVerify} onBack={() => setPendingVerify(null)} />;
   if (showForgot) return <ForgotPassword onBack={() => setShowForgot(false)} />;
 
   return (
@@ -217,5 +229,50 @@ function SubmitButton({ children, loading }: { children: React.ReactNode; loadin
       {loading && <Loader2 className="h-4 w-4 animate-spin" />}
       {children}
     </button>
+  );
+}
+
+function VerifyEmailNotice({ email, onBack }: { email: string; onBack: () => void }) {
+  const [loading, setLoading] = useState(false);
+  async function resend() {
+    setLoading(true);
+    const { error } = await supabase.auth.resend({
+      type: "signup",
+      email,
+      options: { emailRedirectTo: window.location.origin },
+    });
+    setLoading(false);
+    if (error) return toast.error(error.message);
+    toast.success("Correo de verificación reenviado.");
+  }
+  return (
+    <div className="min-h-screen bg-gradient-vip px-5 py-8">
+      <div className="mx-auto max-w-md">
+        <div className="rounded-2xl border border-gold/40 bg-card p-6 shadow-card text-center">
+          <div className="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-full bg-gradient-gold shadow-gold">
+            <Sparkles className="h-8 w-8 text-primary-foreground" />
+          </div>
+          <h1 className="font-display text-2xl font-bold">Verifica tu correo</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Te enviamos un enlace a <span className="font-semibold text-foreground">{email}</span>.
+            Debes confirmarlo antes de poder iniciar sesión.
+          </p>
+          <div className="mt-6 space-y-2">
+            <button onClick={resend} disabled={loading}
+              className="flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-gold px-4 py-3 text-sm font-semibold text-primary-foreground shadow-gold disabled:opacity-70">
+              {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+              Reenviar correo
+            </button>
+            <button onClick={onBack}
+              className="w-full rounded-lg border border-border bg-background px-4 py-3 text-sm font-medium hover:border-gold">
+              Volver al inicio de sesión
+            </button>
+          </div>
+          <p className="mt-4 text-[11px] text-muted-foreground">
+            ¿No lo ves? Revisa tu carpeta de spam o correo no deseado.
+          </p>
+        </div>
+      </div>
+    </div>
   );
 }
