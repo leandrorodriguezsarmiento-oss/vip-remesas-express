@@ -68,7 +68,7 @@ function TransactionsTab() {
   });
 
   const upd = useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: string }) => {
+    mutationFn: async ({ id, status }: { id: string; status: "pending" | "processing" | "completed" | "rejected" }) => {
       const { error } = await supabase.from("transactions").update({ status }).eq("id", id);
       if (error) throw error;
     },
