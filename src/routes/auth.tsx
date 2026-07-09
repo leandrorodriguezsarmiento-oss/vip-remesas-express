@@ -160,7 +160,7 @@ function AuthPage() {
                       </p>
                       <button
                         type="button"
-                        onClick={() => sendOtp(email, "login")}
+                        onClick={() => sendOtp(email)}
                         disabled={loading}
                         className="mt-3 inline-flex items-center gap-2 rounded-lg bg-gradient-gold px-3 py-2 text-xs font-semibold text-primary-foreground shadow-gold disabled:opacity-70"
                       >
