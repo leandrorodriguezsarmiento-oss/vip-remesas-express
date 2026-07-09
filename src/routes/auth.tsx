@@ -30,6 +30,7 @@ function AuthPage() {
   const [tab, setTab] = useState<"login" | "signup">("login");
   const [loading, setLoading] = useState(false);
   const [showForgot, setShowForgot] = useState(false);
+  const [pendingVerify, setPendingVerify] = useState<string | null>(null);
   const navigate = useNavigate();
 
   // login
