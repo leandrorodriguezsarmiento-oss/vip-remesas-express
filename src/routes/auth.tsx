@@ -51,11 +51,15 @@ function AuthPage() {
     setLoading(true);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
-    if (error) return toast.error(error.message);
-    if (!remember) {
-      // best-effort: clear on tab close
-      sessionStorage.setItem("vip-no-remember", "1");
+    if (error) {
+      const msg = error.message.toLowerCase();
+      if (msg.includes("not confirmed") || msg.includes("confirm") || msg.includes("verified")) {
+        setPendingVerify(email);
+        return;
+      }
+      return toast.error(error.message);
     }
+    if (!remember) sessionStorage.setItem("vip-no-remember", "1");
     toast.success("¡Bienvenido de vuelta!");
     navigate({ to: "/dashboard" });
   }
@@ -67,7 +71,7 @@ function AuthPage() {
     });
     if (!parsed.success) return toast.error(parsed.error.issues[0].message);
     setLoading(true);
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email: sEmail,
       password: sPassword,
       options: {
@@ -77,7 +81,13 @@ function AuthPage() {
     });
     setLoading(false);
     if (error) return toast.error(error.message);
-    toast.success("Cuenta creada. Bienvenido a VIP Remesas.");
+    // Con verificación activada: no hay sesión hasta confirmar el correo.
+    if (!data.session) {
+      setPendingVerify(sEmail);
+      toast.success("Cuenta creada. Verifica tu correo para continuar.");
+      return;
+    }
+    toast.success("¡Bienvenido a VIP Remesas!");
     navigate({ to: "/dashboard" });
   }
 
@@ -95,6 +105,7 @@ function AuthPage() {
     navigate({ to: "/dashboard" });
   }
 
+  if (pendingVerify) return <VerifyEmailNotice email={pendingVerify} onBack={() => setPendingVerify(null)} />;
   if (showForgot) return <ForgotPassword onBack={() => setShowForgot(false)} />;
 
   return (
