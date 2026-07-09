@@ -103,7 +103,7 @@ function TransactionsTab() {
             </div>
           </div>
           <div className="flex flex-wrap gap-1">
-            {["pending", "processing", "completed", "rejected"].map((s) => (
+            {(["pending", "processing", "completed", "rejected"] as const).map((s) => (
               <button key={s}
                 onClick={() => upd.mutate({ id: t.id, status: s })}
                 className={`rounded-full px-2 py-1 text-[10px] font-semibold ${t.status === s ? "bg-gradient-gold text-primary-foreground" : "border border-border bg-background text-muted-foreground"}`}>
