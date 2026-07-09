@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate, redirect } from "@tanstack/react-ro
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable";
-import { Sparkles, Loader2, MailWarning, MailCheck } from "lucide-react";
+import { Sparkles, Loader2, MailWarning } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 
@@ -19,7 +19,6 @@ const signupSchema = z.object({
   fullName: z.string().trim().min(2, "Nombre muy corto").max(80),
   email: z.string().trim().email("Correo inválido").max(255),
   phone: z.string().trim().min(8, "Teléfono inválido").max(20),
-  password: z.string().min(6, "Mínimo 6 caracteres").max(72),
 });
 const loginSchema = z.object({
   email: z.string().trim().email("Correo inválido"),
@@ -30,25 +29,22 @@ function AuthPage() {
   const [tab, setTab] = useState<"login" | "signup">("login");
   const [loading, setLoading] = useState(false);
   const [showForgot, setShowForgot] = useState(false);
-  const [pendingVerify, setPendingVerify] = useState<string | null>(null);
   const navigate = useNavigate();
 
   // login
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [remember, setRemember] = useState(true);
-  const [unverifiedEmail, setUnverifiedEmail] = useState<string | null>(null);
-  const [resending, setResending] = useState(false);
+  const [showOtpOption, setShowOtpOption] = useState(false);
 
   // signup
   const [sFullName, setSFullName] = useState("");
   const [sEmail, setSEmail] = useState("");
   const [sPhone, setSPhone] = useState("");
-  const [sPassword, setSPassword] = useState("");
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
-    setUnverifiedEmail(null);
+    setShowOtpOption(false);
     const parsed = loginSchema.safeParse({ email, password });
     if (!parsed.success) return toast.error(parsed.error.issues[0].message);
     setLoading(true);
@@ -56,9 +52,15 @@ function AuthPage() {
     setLoading(false);
     if (error) {
       const msg = error.message.toLowerCase();
-      if (msg.includes("not confirmed") || msg.includes("confirm") || msg.includes("verified") || msg.includes("verificado")) {
-        setUnverifiedEmail(email);
-        return;
+      if (
+        msg.includes("not confirmed") ||
+        msg.includes("confirm") ||
+        msg.includes("verified") ||
+        msg.includes("verificado") ||
+        msg.includes("invalid login credentials")
+      ) {
+        setShowOtpOption(true);
+        return toast.error("No pudimos validar tus datos. Envía un código de acceso a tu correo.");
       }
       return toast.error(error.message);
     }
@@ -67,43 +69,35 @@ function AuthPage() {
     navigate({ to: "/dashboard" });
   }
 
-  async function resendVerification(targetEmail: string) {
-    setResending(true);
-    const { error } = await supabase.auth.resend({
-      type: "signup",
+  async function sendOtp(targetEmail: string, mode: "signup" | "login") {
+    setLoading(true);
+    const { error } = await supabase.auth.signInWithOtp({
       email: targetEmail,
-      options: { emailRedirectTo: window.location.origin },
+      options: {
+        shouldCreateUser: mode === "signup",
+        data:
+          mode === "signup"
+            ? { full_name: sFullName, phone: sPhone }
+            : undefined,
+      },
     });
-    setResending(false);
+    setLoading(false);
     if (error) return toast.error(error.message);
-    toast.success("Correo de verificación reenviado. Revisa tu bandeja de entrada.");
+    navigate({
+      to: "/auth/verify",
+      search: { email: targetEmail, mode },
+    });
   }
 
   async function handleSignup(e: React.FormEvent) {
     e.preventDefault();
     const parsed = signupSchema.safeParse({
-      fullName: sFullName, email: sEmail, phone: sPhone, password: sPassword,
+      fullName: sFullName,
+      email: sEmail,
+      phone: sPhone,
     });
     if (!parsed.success) return toast.error(parsed.error.issues[0].message);
-    setLoading(true);
-    const { data, error } = await supabase.auth.signUp({
-      email: sEmail,
-      password: sPassword,
-      options: {
-        emailRedirectTo: window.location.origin,
-        data: { full_name: sFullName, phone: sPhone },
-      },
-    });
-    setLoading(false);
-    if (error) return toast.error(error.message);
-    // Con verificación activada: no hay sesión hasta confirmar el correo.
-    if (!data.session) {
-      setPendingVerify(sEmail);
-      toast.success("Cuenta creada. Verifica tu correo para continuar.");
-      return;
-    }
-    toast.success("¡Bienvenido a VIP Remesas!");
-    navigate({ to: "/dashboard" });
+    await sendOtp(sEmail, "signup");
   }
 
   async function handleGoogle() {
@@ -120,7 +114,6 @@ function AuthPage() {
     navigate({ to: "/dashboard" });
   }
 
-  if (pendingVerify) return <VerifyEmailNotice email={pendingVerify} onBack={() => setPendingVerify(null)} onResend={() => resendVerification(pendingVerify)} resending={resending} />;
   if (showForgot) return <ForgotPassword onBack={() => setShowForgot(false)} />;
 
   return (
@@ -136,34 +129,34 @@ function AuthPage() {
         <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
           <div className="mb-6 grid grid-cols-2 rounded-lg bg-secondary p-1">
             <button
-              onClick={() => { setTab("login"); setUnverifiedEmail(null); }}
+              onClick={() => { setTab("login"); setShowOtpOption(false); }}
               className={`rounded-md px-4 py-2 text-sm font-medium transition ${tab === "login" ? "bg-gradient-gold text-primary-foreground shadow-gold" : "text-muted-foreground"}`}
             >Entrar</button>
             <button
-              onClick={() => { setTab("signup"); setUnverifiedEmail(null); }}
+              onClick={() => { setTab("signup"); setShowOtpOption(false); }}
               className={`rounded-md px-4 py-2 text-sm font-medium transition ${tab === "signup" ? "bg-gradient-gold text-primary-foreground shadow-gold" : "text-muted-foreground"}`}
             >Crear cuenta</button>
           </div>
 
           {tab === "login" ? (
             <form onSubmit={handleLogin} className="space-y-4">
-              {unverifiedEmail && (
+              {showOtpOption && (
                 <div className="rounded-xl border border-gold/40 bg-gold/10 p-4 text-sm">
                   <div className="flex items-start gap-3">
                     <MailWarning className="mt-0.5 h-5 w-5 shrink-0 text-gold" />
                     <div className="flex-1">
-                      <p className="font-semibold text-foreground">Cuenta no verificada</p>
+                      <p className="font-semibold text-foreground">Cuenta sin acceso</p>
                       <p className="mt-1 text-muted-foreground">
-                        Tu correo <span className="font-medium text-foreground">{unverifiedEmail}</span> aún no ha sido confirmado. Revisa tu bandeja de entrada (y spam) o reenvía el enlace.
+                        No pudimos validar tu correo o contraseña. Te enviaremos un código de acceso a <span className="font-medium text-foreground">{email}</span>.
                       </p>
                       <button
                         type="button"
-                        onClick={() => resendVerification(unverifiedEmail)}
-                        disabled={resending}
+                        onClick={() => sendOtp(email, "login")}
+                        disabled={loading}
                         className="mt-3 inline-flex items-center gap-2 rounded-lg bg-gradient-gold px-3 py-2 text-xs font-semibold text-primary-foreground shadow-gold disabled:opacity-70"
                       >
-                        {resending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                        Reenviar correo de verificación
+                        {loading && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                        Enviar código de acceso
                       </button>
                     </div>
                   </div>
@@ -188,7 +181,9 @@ function AuthPage() {
               <Field label="Nombre completo" value={sFullName} onChange={setSFullName} placeholder="João da Silva" />
               <Field label="Correo electrónico" type="email" value={sEmail} onChange={setSEmail} placeholder="tu@correo.com" />
               <Field label="Teléfono" value={sPhone} onChange={setSPhone} placeholder="+55 11 90000-0000" />
-              <Field label="Contraseña" type="password" value={sPassword} onChange={setSPassword} placeholder="Mínimo 6 caracteres" />
+              <p className="text-xs text-muted-foreground">
+                Te enviaremos un código de verificación a tu correo. Después podrás crear tu contraseña.
+              </p>
               <SubmitButton loading={loading}>Crear cuenta VIP</SubmitButton>
             </form>
           )}
@@ -266,38 +261,5 @@ function SubmitButton({ children, loading }: { children: React.ReactNode; loadin
       {loading && <Loader2 className="h-4 w-4 animate-spin" />}
       {children}
     </button>
-  );
-}
-
-function VerifyEmailNotice({ email, onBack, onResend, resending }: { email: string; onBack: () => void; onResend: () => void; resending: boolean }) {
-  return (
-    <div className="min-h-screen bg-gradient-vip px-5 py-8">
-      <div className="mx-auto max-w-md">
-        <div className="rounded-2xl border border-gold/40 bg-card p-6 shadow-card text-center">
-          <div className="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-full bg-gradient-gold shadow-gold">
-            <MailCheck className="h-8 w-8 text-primary-foreground" />
-          </div>
-          <h1 className="font-display text-2xl font-bold">Verifica tu correo</h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Te enviamos un enlace a <span className="font-semibold text-foreground">{email}</span>.
-            Haz clic en el enlace para activar tu cuenta y poder iniciar sesión.
-          </p>
-          <div className="mt-6 space-y-2">
-            <button onClick={onResend} disabled={resending}
-              className="flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-gold px-4 py-3 text-sm font-semibold text-primary-foreground shadow-gold disabled:opacity-70">
-              {resending && <Loader2 className="h-4 w-4 animate-spin" />}
-              Reenviar correo
-            </button>
-            <button onClick={onBack}
-              className="w-full rounded-lg border border-border bg-background px-4 py-3 text-sm font-medium hover:border-gold">
-              Volver al inicio de sesión
-            </button>
-          </div>
-          <p className="mt-4 text-[11px] text-muted-foreground">
-            ¿No lo ves? Revisa tu carpeta de spam o correo no deseado.
-          </p>
-        </div>
-      </div>
-    </div>
   );
 }
