@@ -1,7 +1,9 @@
 import { createFileRoute, Link, useNavigate, redirect } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable";
+import { sendVerificationCode } from "@/lib/auth-verification.functions";
 import { Sparkles, Loader2, MailWarning } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
