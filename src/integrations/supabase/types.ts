@@ -44,6 +44,87 @@ export type Database = {
         }
         Relationships: []
       }
+      promos: {
+        Row: {
+          active: boolean
+          bonus_label: string | null
+          created_at: string
+          description: string | null
+          ends_at: string | null
+          id: string
+          image_url: string | null
+          price_brl: number
+          starts_at: string | null
+          title: string
+        }
+        Insert: {
+          active?: boolean
+          bonus_label?: string | null
+          created_at?: string
+          description?: string | null
+          ends_at?: string | null
+          id?: string
+          image_url?: string | null
+          price_brl: number
+          starts_at?: string | null
+          title: string
+        }
+        Update: {
+          active?: boolean
+          bonus_label?: string | null
+          created_at?: string
+          description?: string | null
+          ends_at?: string | null
+          id?: string
+          image_url?: string | null
+          price_brl?: number
+          starts_at?: string | null
+          title?: string
+        }
+        Relationships: []
+      }
+      rates: {
+        Row: {
+          active: boolean
+          dest_currency: string
+          id: string
+          method_category: string
+          min_amount: number
+          origin_country: string
+          origin_currency: string
+          rate: number
+          time_max_minutes: number
+          time_min_minutes: number
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          dest_currency: string
+          id?: string
+          method_category: string
+          min_amount?: number
+          origin_country: string
+          origin_currency: string
+          rate: number
+          time_max_minutes?: number
+          time_min_minutes?: number
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          dest_currency?: string
+          id?: string
+          method_category?: string
+          min_amount?: number
+          origin_country?: string
+          origin_currency?: string
+          rate?: number
+          time_max_minutes?: number
+          time_min_minutes?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       recipients: {
         Row: {
           account_details: string | null
@@ -88,7 +169,13 @@ export type Database = {
           exchange_rate: number
           fee_brl: number
           id: string
+          method_category: string
+          notes: string | null
+          origin_country: string
+          origin_currency: string
           payment_method: string
+          pix_code: string | null
+          recipient_card: string | null
           recipient_name: string
           recipient_phone: string
           status: Database["public"]["Enums"]["tx_status"]
@@ -106,7 +193,13 @@ export type Database = {
           exchange_rate: number
           fee_brl?: number
           id?: string
+          method_category?: string
+          notes?: string | null
+          origin_country?: string
+          origin_currency?: string
           payment_method: string
+          pix_code?: string | null
+          recipient_card?: string | null
           recipient_name: string
           recipient_phone: string
           status?: Database["public"]["Enums"]["tx_status"]
@@ -124,7 +217,13 @@ export type Database = {
           exchange_rate?: number
           fee_brl?: number
           id?: string
+          method_category?: string
+          notes?: string | null
+          origin_country?: string
+          origin_currency?: string
           payment_method?: string
+          pix_code?: string | null
+          recipient_card?: string | null
           recipient_name?: string
           recipient_phone?: string
           status?: Database["public"]["Enums"]["tx_status"]
@@ -134,14 +233,42 @@ export type Database = {
         }
         Relationships: []
       }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
+      app_role: "admin" | "user"
       tx_status: "pending" | "processing" | "completed" | "rejected"
     }
     CompositeTypes: {
@@ -270,6 +397,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      app_role: ["admin", "user"],
       tx_status: ["pending", "processing", "completed", "rejected"],
     },
   },
