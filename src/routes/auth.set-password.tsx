@@ -41,7 +41,12 @@ function SetPasswordPage() {
       toast.success("¡Bienvenido a VIP Remesas!");
       navigate({ to: "/dashboard" });
     } catch (err: any) {
-      toast.error(err?.message ?? "No se pudo guardar la contraseña");
+      const msg = err?.message ?? "";
+      if (msg.toLowerCase().includes("weak") || msg.toLowerCase().includes("guess") || msg.toLowerCase().includes("pwned")) {
+        toast.error("Contraseña muy débil. Usa una combinación de letras, números y símbolos.");
+      } else {
+        toast.error(msg || "No se pudo guardar la contraseña");
+      }
     } finally {
       setLoading(false);
     }
