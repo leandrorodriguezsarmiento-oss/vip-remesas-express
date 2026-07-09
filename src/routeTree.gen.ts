@@ -13,6 +13,7 @@ import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthIndexRouteImport } from './routes/auth.index'
 import { Route as AuthVerifyRouteImport } from './routes/auth.verify'
 import { Route as AuthSetPasswordRouteImport } from './routes/auth.set-password'
 import { Route as AuthenticatedSendRouteImport } from './routes/_authenticated/send'
@@ -40,6 +41,11 @@ const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AuthIndexRoute = AuthIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AuthRoute,
 } as any)
 const AuthVerifyRoute = AuthVerifyRouteImport.update({
   id: '/verify',
@@ -94,11 +100,11 @@ export interface FileRoutesByFullPath {
   '/send': typeof AuthenticatedSendRoute
   '/auth/set-password': typeof AuthSetPasswordRoute
   '/auth/verify': typeof AuthVerifyRoute
+  '/auth/': typeof AuthIndexRoute
   '/transaction/$id': typeof AuthenticatedTransactionIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/auth': typeof AuthRouteWithChildren
   '/reset-password': typeof ResetPasswordRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
@@ -107,6 +113,7 @@ export interface FileRoutesByTo {
   '/send': typeof AuthenticatedSendRoute
   '/auth/set-password': typeof AuthSetPasswordRoute
   '/auth/verify': typeof AuthVerifyRoute
+  '/auth': typeof AuthIndexRoute
   '/transaction/$id': typeof AuthenticatedTransactionIdRoute
 }
 export interface FileRoutesById {
@@ -122,6 +129,7 @@ export interface FileRoutesById {
   '/_authenticated/send': typeof AuthenticatedSendRoute
   '/auth/set-password': typeof AuthSetPasswordRoute
   '/auth/verify': typeof AuthVerifyRoute
+  '/auth/': typeof AuthIndexRoute
   '/_authenticated/transaction/$id': typeof AuthenticatedTransactionIdRoute
 }
 export interface FileRouteTypes {
@@ -137,11 +145,11 @@ export interface FileRouteTypes {
     | '/send'
     | '/auth/set-password'
     | '/auth/verify'
+    | '/auth/'
     | '/transaction/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/auth'
     | '/reset-password'
     | '/admin'
     | '/dashboard'
@@ -150,6 +158,7 @@ export interface FileRouteTypes {
     | '/send'
     | '/auth/set-password'
     | '/auth/verify'
+    | '/auth'
     | '/transaction/$id'
   id:
     | '__root__'
@@ -164,6 +173,7 @@ export interface FileRouteTypes {
     | '/_authenticated/send'
     | '/auth/set-password'
     | '/auth/verify'
+    | '/auth/'
     | '/_authenticated/transaction/$id'
   fileRoutesById: FileRoutesById
 }
@@ -203,6 +213,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/auth/': {
+      id: '/auth/'
+      path: '/'
+      fullPath: '/auth/'
+      preLoaderRoute: typeof AuthIndexRouteImport
+      parentRoute: typeof AuthRoute
     }
     '/auth/verify': {
       id: '/auth/verify'
@@ -287,11 +304,13 @@ const AuthenticatedRouteRouteWithChildren =
 interface AuthRouteChildren {
   AuthSetPasswordRoute: typeof AuthSetPasswordRoute
   AuthVerifyRoute: typeof AuthVerifyRoute
+  AuthIndexRoute: typeof AuthIndexRoute
 }
 
 const AuthRouteChildren: AuthRouteChildren = {
   AuthSetPasswordRoute: AuthSetPasswordRoute,
   AuthVerifyRoute: AuthVerifyRoute,
+  AuthIndexRoute: AuthIndexRoute,
 }
 
 const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
@@ -305,3 +324,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
