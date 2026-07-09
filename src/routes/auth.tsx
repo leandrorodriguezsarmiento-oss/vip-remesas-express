@@ -97,9 +97,10 @@ function AuthPage() {
     if (!parsed.success) return toast.error(parsed.error.issues[0].message);
     setLoading(true);
     try {
-      await sendCode({
+      const result = (await sendCode({
         data: { email: sEmail, type: "email", fullName: sFullName, phone: sPhone },
-      });
+      })) as { email: string; code: string } | undefined;
+      if (result?.code) sessionStorage.setItem("vip-demo-code", result.code);
       toast.success("Código enviado. Revisa tu correo.");
       navigate({ to: "/auth/verify", search: { email: sEmail } });
     } catch (err: any) {
