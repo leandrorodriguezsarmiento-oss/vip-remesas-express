@@ -3,6 +3,17 @@ import { z } from "zod";
 
 const CODE_TTL_MINUTES = 10;
 
+type VerificationCodeRow = {
+  id: string;
+  user_id: string;
+  email: string;
+  code: string;
+  type: string;
+  expires_at: string;
+  verified: boolean;
+  created_at: string;
+};
+
 function generateCode(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
@@ -58,8 +69,8 @@ export const sendVerificationCode = createServerFn({ method: "POST" })
     const code = generateCode();
     const expiresAt = new Date(Date.now() + CODE_TTL_MINUTES * 60 * 1000).toISOString();
 
-    const { error: insertError } = await supabaseAdmin
-      .from("verification_codes" as any)
+    const { error: insertError } = await (supabaseAdmin as any)
+      .from("verification_codes")
       .insert({
         user_id: userId,
         email: data.email,
@@ -88,22 +99,22 @@ export const verifyVerificationCode = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    const { data: rows, error: selectError } = await supabaseAdmin
-      .from("verification_codes" as any)
+    const { data: rows, error: selectError } = (await (supabaseAdmin as any)
+      .from("verification_codes")
       .select("*")
       .eq("email", data.email)
       .eq("code", data.code)
       .eq("verified", false)
       .gt("expires_at", new Date().toISOString())
       .order("created_at", { ascending: false })
-      .limit(1);
+      .limit(1)) as { data: VerificationCodeRow[] | null; error: any };
     if (selectError) throw selectError;
     if (!rows || rows.length === 0) throw new Error("Código inválido o expirado");
 
     const row = rows[0];
 
     const [{ error: updateError }, { error: confirmError }] = await Promise.all([
-      supabaseAdmin.from("verification_codes" as any).update({ verified: true }).eq("id", row.id),
+      (supabaseAdmin as any).from("verification_codes").update({ verified: true }).eq("id", row.id),
       supabaseAdmin.auth.admin.updateUserById(row.user_id, { email_confirm: true }),
     ]);
     if (updateError) throw updateError;
