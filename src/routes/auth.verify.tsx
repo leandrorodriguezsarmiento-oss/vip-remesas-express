@@ -1,13 +1,14 @@
-import { createFileRoute, useNavigate, useSearch, redirect, Link } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, redirect, Link } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { sendVerificationCode, verifyVerificationCode } from "@/lib/auth-verification.functions";
 import { toast } from "sonner";
 import { Loader2, MailCheck, Sparkles } from "lucide-react";
 import { z } from "zod";
 
 const searchSchema = z.object({
   email: z.string().email(),
-  mode: z.enum(["signup", "login"]).optional().default("login"),
 });
 
 export const Route = createFileRoute("/auth/verify")({
@@ -21,8 +22,10 @@ export const Route = createFileRoute("/auth/verify")({
 });
 
 function VerifyCodePage() {
-  const { email, mode } = Route.useSearch();
+  const { email } = Route.useSearch();
   const navigate = useNavigate();
+  const verifyCode = useServerFn(verifyVerificationCode);
+  const sendCode = useServerFn(sendVerificationCode);
   const [code, setCode] = useState(["", "", "", "", "", ""]);
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
@@ -53,39 +56,29 @@ function VerifyCodePage() {
     const token = code.join("");
     if (token.length !== 6) return toast.error("Ingresa los 6 dígitos");
     setLoading(true);
-    const { data, error } = await supabase.auth.verifyOtp({
-      type: "email",
-      token,
-      email,
-    });
-    setLoading(false);
-    if (error) {
-      toast.error(error.message);
+    try {
+      await verifyCode({ data: { email, code: token } });
+      toast.success("Código confirmado");
+      navigate({ to: "/auth/set-password", search: { email } });
+    } catch (err: any) {
+      toast.error(err?.message ?? "Código inválido");
       setCode(["", "", "", "", "", ""]);
       inputsRef.current[0]?.focus();
-      return;
-    }
-    if (!data.session) {
-      toast.error("No se pudo completar la verificación. Intenta de nuevo.");
-      return;
-    }
-    toast.success("Código confirmado");
-    if (mode === "signup") {
-      navigate({ to: "/auth/set-password" });
-    } else {
-      navigate({ to: "/dashboard" });
+    } finally {
+      setLoading(false);
     }
   }
 
   async function resend() {
     setResending(true);
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: { shouldCreateUser: mode === "signup" },
-    });
-    setResending(false);
-    if (error) return toast.error(error.message);
-    toast.success("Código reenviado. Revisa tu correo.");
+    try {
+      await sendCode({ data: { email, type: "email" } });
+      toast.success("Código reenviado. Revisa tu correo.");
+    } catch (err: any) {
+      toast.error(err?.message ?? "No se pudo reenviar el código");
+    } finally {
+      setResending(false);
+    }
   }
 
   return (
@@ -153,6 +146,10 @@ function VerifyCodePage() {
 
           <p className="mt-4 text-[11px] text-muted-foreground">
             ¿No lo ves? Revisa tu carpeta de spam o correo no deseado.
+          </p>
+
+          <p className="mt-3 text-[11px] text-gold/80">
+            Modo demo: el código aparece en la respuesta del servidor. En producción se enviará por email/WhatsApp.
           </p>
         </div>
       </div>
