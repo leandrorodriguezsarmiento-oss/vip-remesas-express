@@ -74,13 +74,17 @@ function AuthPage() {
 
   async function sendOtp(targetEmail: string) {
     setLoading(true);
-    const { error } = await sendCode({ data: { email: targetEmail, type: "email" } });
-    setLoading(false);
-    if (error) return toast.error(error.message);
-    navigate({
-      to: "/auth/verify",
-      search: { email: targetEmail },
-    });
+    try {
+      await sendCode({ data: { email: targetEmail, type: "email" } });
+      navigate({
+        to: "/auth/verify",
+        search: { email: targetEmail },
+      });
+    } catch (err: any) {
+      toast.error(err?.message ?? "No se pudo enviar el código");
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function handleSignup(e: React.FormEvent) {
@@ -92,13 +96,17 @@ function AuthPage() {
     });
     if (!parsed.success) return toast.error(parsed.error.issues[0].message);
     setLoading(true);
-    const { error } = await sendCode({
-      data: { email: sEmail, type: "email", fullName: sFullName, phone: sPhone },
-    });
-    setLoading(false);
-    if (error) return toast.error(error.message);
-    toast.success("Código enviado. Revisa tu correo.");
-    navigate({ to: "/auth/verify", search: { email: sEmail } });
+    try {
+      await sendCode({
+        data: { email: sEmail, type: "email", fullName: sFullName, phone: sPhone },
+      });
+      toast.success("Código enviado. Revisa tu correo.");
+      navigate({ to: "/auth/verify", search: { email: sEmail } });
+    } catch (err: any) {
+      toast.error(err?.message ?? "No se pudo crear la cuenta");
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function handleGoogle() {
