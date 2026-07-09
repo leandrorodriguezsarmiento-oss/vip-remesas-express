@@ -78,7 +78,9 @@ function VerifyCodePage() {
   async function resend() {
     setResending(true);
     try {
-      await sendCode({ data: { email, type: "email" } });
+      const result = (await sendCode({ data: { email, type: "email" } })) as { code: string } | undefined;
+      if (result?.code) sessionStorage.setItem("vip-demo-code", result.code);
+      setDemoCode(result?.code ?? null);
       toast.success("Código reenviado. Revisa tu correo.");
     } catch (err: any) {
       toast.error(err?.message ?? "No se pudo reenviar el código");
