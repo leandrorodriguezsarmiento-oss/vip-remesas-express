@@ -1,109 +1,112 @@
 // ============================================================================
-// VIP Remesas — datos de negocio y "slots de integración"
+// VIP Remesas — modelo de negocio (BR / EU / US → Cuba)
 // ----------------------------------------------------------------------------
-// Reemplaza las tasas mock con una API real (por ejemplo openexchangerates.org,
-// exchangerate.host, o tu propio proveedor) en `fetchExchangeRates`.
-// Reemplaza `createPayment` con la pasarela real (Stripe, Mercado Pago, PIX...).
+// Las tasas viven en la tabla `rates` (editables desde el panel admin).
+// Este archivo sólo expone tipos, catálogo y utilidades de formato + slots
+// de integración (PIX y Cubacel).
 // ============================================================================
 
-export type CountryCode = "CU" | "VE" | "CO" | "MX";
+export type OriginCode = "BR" | "EU" | "US";
+export type MethodCategory = "transferencia" | "efectivo";
+export type DestCurrency = "CUP" | "MLC" | "USD";
 
-export interface CountryOption {
-  code: CountryCode;
+export interface OriginOption {
+  code: OriginCode;
   name: string;
-  currency: string;
+  currency: string; // BRL | EUR | USD
   flag: string;
-  deliveryMethods: string[];
+  symbol: string;
 }
 
-export const COUNTRIES: CountryOption[] = [
+export const ORIGINS: OriginOption[] = [
+  { code: "BR", name: "Brasil",         currency: "BRL", flag: "🇧🇷", symbol: "R$" },
+  { code: "EU", name: "Europa",         currency: "EUR", flag: "🇪🇺", symbol: "€"  },
+  { code: "US", name: "Estados Unidos", currency: "USD", flag: "🇺🇸", symbol: "$"  },
+];
+
+export function getOrigin(code: OriginCode): OriginOption {
+  return ORIGINS.find((o) => o.code === code)!;
+}
+
+export interface MethodCategoryOption {
+  id: MethodCategory;
+  label: string;
+  description: string;
+  currencies: DestCurrency[];
+}
+
+export const METHOD_CATEGORIES: MethodCategoryOption[] = [
   {
-    code: "CU",
-    name: "Cuba",
-    currency: "CUP",
-    flag: "🇨🇺",
-    deliveryMethods: ["Entrega en casa", "Tarjeta MLC", "Transferencia CUP"],
+    id: "transferencia",
+    label: "Transferencia",
+    description: "A tarjeta MLC / cuenta CUP / USD clásica",
+    currencies: ["CUP", "MLC", "USD"],
   },
   {
-    code: "VE",
-    name: "Venezuela",
-    currency: "VES",
-    flag: "🇻🇪",
-    deliveryMethods: ["Depósito bancario", "Pago Móvil", "Entrega en casa"],
-  },
-  {
-    code: "CO",
-    name: "Colombia",
-    currency: "COP",
-    flag: "🇨🇴",
-    deliveryMethods: ["Depósito bancario", "Nequi", "Daviplata"],
-  },
-  {
-    code: "MX",
-    name: "México",
-    currency: "MXN",
-    flag: "🇲🇽",
-    deliveryMethods: ["Depósito bancario", "Entrega en casa"],
+    id: "efectivo",
+    label: "Efectivo",
+    description: "Entrega en mano al destinatario",
+    currencies: ["CUP", "USD"],
   },
 ];
 
-// ---------------- MOCK EXCHANGE RATES (1 BRL = X moneda destino) ------------
-// TODO: Reemplazar por API real de tasas. Este es el ÚNICO lugar a tocar.
-const MOCK_RATES: Record<CountryCode, number> = {
-  CU: 48.0,
-  VE: 7.35,
-  CO: 815.2,
-  MX: 3.48,
+export const CURRENCY_LABEL: Record<DestCurrency, string> = {
+  CUP: "CUP (Peso cubano)",
+  MLC: "MLC (Moneda Libremente Convertible)",
+  USD: "USD (Dólar clásico)",
 };
 
-export async function fetchExchangeRates(): Promise<Record<CountryCode, number>> {
-  // 🔌 SLOT DE INTEGRACIÓN: sustituir por fetch a proveedor real.
-  // const res = await fetch("https://api.exchangerate.host/latest?base=BRL");
-  // return parseRates(await res.json());
-  return MOCK_RATES;
+// ---------------- Cotización ----------------
+
+export interface RateRow {
+  id: string;
+  origin_country: string;
+  origin_currency: string;
+  method_category: string;
+  dest_currency: string;
+  rate: number;
+  time_min_minutes: number;
+  time_max_minutes: number;
+  min_amount: number;
+  active: boolean;
 }
 
-export function getRate(country: CountryCode): number {
-  return MOCK_RATES[country];
+export function findRate(
+  rates: RateRow[] | undefined,
+  origin: OriginCode,
+  method: MethodCategory,
+  dest: DestCurrency,
+): RateRow | undefined {
+  return rates?.find(
+    (r) =>
+      r.origin_country === origin &&
+      r.method_category === method &&
+      r.dest_currency === dest &&
+      r.active,
+  );
 }
 
-// Comisión: 5% con mínimo R$ 5.
-export function calcFee(amountBrl: number): number {
-  return Math.max(5, +(amountBrl * 0.05).toFixed(2));
+export interface Quote {
+  amountOrigin: number;
+  amountDest: number;
+  rate: number;
+  timeLabel: string;
+  currency: DestCurrency;
+  minAmount: number;
 }
 
-export function calcQuote(amountBrl: number, country: CountryCode) {
-  const rate = getRate(country);
-  const fee = calcFee(amountBrl);
-  const amountDest = +(amountBrl * rate).toFixed(2);
-  const total = +(amountBrl + fee).toFixed(2);
+export function calcQuote(amountOrigin: number, rate: RateRow): Quote {
   return {
-    rate,
-    fee,
-    amountDest,
-    total,
-    currency: COUNTRIES.find((c) => c.code === country)!.currency,
+    amountOrigin,
+    amountDest: +(amountOrigin * rate.rate).toFixed(2),
+    rate: rate.rate,
+    timeLabel: `${rate.time_min_minutes}–${rate.time_max_minutes} min`,
+    currency: rate.dest_currency as DestCurrency,
+    minAmount: Number(rate.min_amount),
   };
 }
 
-export const PAYMENT_METHODS = [
-  { id: "pix", label: "PIX", description: "Transferencia instantánea" },
-  { id: "credit", label: "Tarjeta de crédito", description: "Visa · Mastercard · Elo" },
-  { id: "debit", label: "Tarjeta de débito", description: "Débito bancario" },
-] as const;
-
-export type PaymentMethodId = (typeof PAYMENT_METHODS)[number]["id"];
-
-// ---------------- PASARELA DE PAGOS (mock) ---------------------------------
-// 🔌 SLOT DE INTEGRACIÓN: reemplazar por Stripe / Mercado Pago / PIX real.
-export async function createPayment(_input: {
-  method: PaymentMethodId;
-  totalBrl: number;
-  trackingId: string;
-}): Promise<{ ok: true; providerRef: string }> {
-  await new Promise((r) => setTimeout(r, 700));
-  return { ok: true, providerRef: `MOCK-${Date.now()}` };
-}
+// ---------------- Utilidades ----------------
 
 export function generateTrackingId(): string {
   const rand = Math.random().toString(36).slice(2, 8).toUpperCase();
@@ -111,14 +114,44 @@ export function generateTrackingId(): string {
   return `VIP-${ts}${rand}`;
 }
 
-export function formatBRL(n: number): string {
-  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(n);
-}
-
-export function formatCurrency(n: number, currency: string): string {
+export function formatMoney(n: number, currency: string): string {
   try {
-    return new Intl.NumberFormat("es-ES", { style: "currency", currency, maximumFractionDigits: 2 }).format(n);
+    const locale = currency === "BRL" ? "pt-BR" : currency === "EUR" ? "es-ES" : "en-US";
+    return new Intl.NumberFormat(locale, {
+      style: "currency",
+      currency,
+      maximumFractionDigits: 2,
+    }).format(n);
   } catch {
     return `${n.toFixed(2)} ${currency}`;
   }
+}
+
+// Kept for backwards compatibility with older components:
+export const formatBRL = (n: number) => formatMoney(n, "BRL");
+export const formatCurrency = (n: number, currency: string) => formatMoney(n, currency);
+
+// ---------------- PIX (mock) ----------------
+// 🔌 SLOT DE INTEGRACIÓN: sustituir por generación real de cobro PIX
+// (por ejemplo Mercado Pago /v1/payments o Gerencianet Pix).
+export function generatePixCode(trackingId: string, amountBrl: number): string {
+  // Formato simplificado tipo copia-y-pega. Reemplazar por el EMV real.
+  const nonce = Math.random().toString(36).slice(2, 10).toUpperCase();
+  return `00020126360014BR.GOV.BCB.PIX0114VIPREMESAS${trackingId}5204000053039865802BR5910VIPREMESAS6009SAOPAULO62150511${nonce}630400${amountBrl.toFixed(2).replace(".", "")}`;
+}
+
+// 🔌 SLOT DE INTEGRACIÓN: webhook / polling que confirme que el PIX
+// entró y marque la transacción como `processing` → `completed`.
+export async function checkPixPayment(_trackingId: string): Promise<{ paid: boolean }> {
+  await new Promise((r) => setTimeout(r, 800));
+  return { paid: true };
+}
+
+// 🔌 SLOT DE INTEGRACIÓN: API real de Cubacel para lanzar recarga.
+export async function sendCubacelRecharge(_input: {
+  phone: string;
+  promoId: string;
+}): Promise<{ ok: true; providerRef: string }> {
+  await new Promise((r) => setTimeout(r, 700));
+  return { ok: true, providerRef: `CUBACEL-${Date.now()}` };
 }
