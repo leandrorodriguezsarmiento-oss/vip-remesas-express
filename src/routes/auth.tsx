@@ -32,6 +32,7 @@ function AuthPage() {
   const [loading, setLoading] = useState(false);
   const [showForgot, setShowForgot] = useState(false);
   const navigate = useNavigate();
+  const sendCode = useServerFn(sendVerificationCode);
 
   // login
   const [email, setEmail] = useState("");
@@ -71,23 +72,14 @@ function AuthPage() {
     navigate({ to: "/dashboard" });
   }
 
-  async function sendOtp(targetEmail: string, mode: "signup" | "login") {
+  async function sendOtp(targetEmail: string) {
     setLoading(true);
-    const { error } = await supabase.auth.signInWithOtp({
-      email: targetEmail,
-      options: {
-        shouldCreateUser: mode === "signup",
-        data:
-          mode === "signup"
-            ? { full_name: sFullName, phone: sPhone }
-            : undefined,
-      },
-    });
+    const { error } = await sendCode({ data: { email: targetEmail, type: "email" } });
     setLoading(false);
     if (error) return toast.error(error.message);
     navigate({
       to: "/auth/verify",
-      search: { email: targetEmail, mode },
+      search: { email: targetEmail },
     });
   }
 
@@ -99,7 +91,14 @@ function AuthPage() {
       phone: sPhone,
     });
     if (!parsed.success) return toast.error(parsed.error.issues[0].message);
-    await sendOtp(sEmail, "signup");
+    setLoading(true);
+    const { error } = await sendCode({
+      data: { email: sEmail, type: "email", fullName: sFullName, phone: sPhone },
+    });
+    setLoading(false);
+    if (error) return toast.error(error.message);
+    toast.success("Código enviado. Revisa tu correo.");
+    navigate({ to: "/auth/verify", search: { email: sEmail } });
   }
 
   async function handleGoogle() {
