@@ -1,8 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { formatBRL, formatCurrency, COUNTRIES, getRate } from "@/lib/remittance";
-import { ArrowUpRight, Plus, TrendingUp } from "lucide-react";
+import {
+  ORIGINS, formatMoney, type OriginCode, type DestCurrency,
+  type RateRow, findRate,
+} from "@/lib/remittance";
+import { ArrowUpRight, Send, Smartphone, TrendingUp } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   component: Dashboard,
@@ -20,17 +23,28 @@ function Dashboard() {
     },
   });
 
+  const rates = useQuery<RateRow[]>({
+    queryKey: ["rates"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("rates").select("*").eq("active", true);
+      if (error) throw error;
+      return data as unknown as RateRow[];
+    },
+  });
+
   const txs = useQuery({
     queryKey: ["transactions-recent", user.id],
     queryFn: async () => {
-      const { data, error } = await supabase.from("transactions").select("*").order("created_at", { ascending: false }).limit(4);
+      const { data, error } = await supabase
+        .from("transactions").select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false }).limit(4);
       if (error) throw error;
       return data;
     },
   });
 
   const firstName = profile.data?.full_name?.split(" ")[0] || "VIP";
-  const balance = Number(profile.data?.balance_brl ?? 0);
 
   return (
     <div className="space-y-6">
@@ -39,44 +53,68 @@ function Dashboard() {
         <h1 className="font-display text-2xl font-bold">{firstName} 👋</h1>
       </div>
 
-      {/* Balance card */}
+      {/* Hero */}
       <div className="relative overflow-hidden rounded-2xl border border-gold/40 bg-gradient-gold p-6 shadow-gold">
         <div className="absolute -right-8 -top-8 h-32 w-32 rounded-full bg-white/10 blur-2xl" />
-        <p className="text-xs font-medium uppercase tracking-wider text-black/70">Tu saldo</p>
-        <p className="mt-1 font-display text-4xl font-bold text-black">{formatBRL(balance)}</p>
-        <p className="mt-1 text-xs text-black/70">Cuenta VIP · Real Brasileño</p>
+        <p className="text-xs font-medium uppercase tracking-wider text-black/70">Envía a Cuba</p>
+        <p className="mt-1 font-display text-3xl font-bold text-black">Desde 20 en 15 min</p>
+        <p className="mt-1 text-xs text-black/70">Brasil · Europa · Estados Unidos → Cuba</p>
       </div>
 
-      {/* Send button */}
-      <Link
-        to="/send"
-        className="flex items-center justify-between rounded-2xl border border-gold/40 bg-card p-5 shadow-card transition hover:border-gold"
-      >
-        <div>
-          <p className="font-display text-lg font-bold">Nueva remesa</p>
-          <p className="text-xs text-muted-foreground">Envía en minutos</p>
-        </div>
-        <div className="grid h-12 w-12 place-items-center rounded-full bg-gradient-gold shadow-gold">
-          <Plus className="h-6 w-6 text-primary-foreground" />
-        </div>
-      </Link>
+      {/* Quick actions */}
+      <div className="grid grid-cols-2 gap-3">
+        <Link to="/send" className="flex items-center justify-between rounded-2xl border border-gold/40 bg-card p-4 shadow-card hover:border-gold">
+          <div>
+            <p className="font-display text-base font-bold">Remesas</p>
+            <p className="text-[11px] text-muted-foreground">Envía ahora</p>
+          </div>
+          <div className="grid h-10 w-10 place-items-center rounded-full bg-gradient-gold shadow-gold">
+            <Send className="h-5 w-5 text-primary-foreground" />
+          </div>
+        </Link>
+        <Link to="/recargas" className="flex items-center justify-between rounded-2xl border border-gold/40 bg-card p-4 shadow-card hover:border-gold">
+          <div>
+            <p className="font-display text-base font-bold">Recargas</p>
+            <p className="text-[11px] text-muted-foreground">Cubacel</p>
+          </div>
+          <div className="grid h-10 w-10 place-items-center rounded-full bg-gradient-gold shadow-gold">
+            <Smartphone className="h-5 w-5 text-primary-foreground" />
+          </div>
+        </Link>
+      </div>
 
-      {/* Rates */}
+      {/* Rates preview */}
       <section>
         <div className="mb-2 flex items-center justify-between">
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Tasa del día</h2>
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Tasas de hoy</h2>
           <TrendingUp className="h-4 w-4 text-gold" />
         </div>
-        <div className="grid grid-cols-2 gap-3">
-          {COUNTRIES.map((c) => (
-            <div key={c.code} className="rounded-xl border border-border bg-card p-3">
-              <div className="flex items-center gap-2 text-sm font-medium">
-                <span className="text-lg">{c.flag}</span> {c.name}
+        <div className="space-y-2">
+          {ORIGINS.map((o) => {
+            const rCup = findRate(rates.data, o.code as OriginCode, "transferencia", "CUP" as DestCurrency);
+            const rMlc = findRate(rates.data, o.code as OriginCode, "transferencia", "MLC" as DestCurrency);
+            return (
+              <div key={o.code} className="rounded-xl border border-border bg-card p-3">
+                <div className="flex items-center gap-2 text-sm font-semibold">
+                  <span className="text-lg">{o.flag}</span> {o.name} → 🇨🇺 Cuba
+                </div>
+                <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <div className="text-muted-foreground">1 {o.currency} · CUP</div>
+                    <div className="font-display text-lg font-bold text-gold">
+                      {rCup ? rCup.rate.toFixed(2) : "—"}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-muted-foreground">1 {o.currency} · MLC</div>
+                    <div className="font-display text-lg font-bold text-gold">
+                      {rMlc ? rMlc.rate.toFixed(2) : "—"}
+                    </div>
+                  </div>
+                </div>
               </div>
-              <div className="mt-1 text-xs text-muted-foreground">1 BRL =</div>
-              <div className="font-display text-lg font-bold text-gold">{getRate(c.code).toFixed(2)} {c.currency}</div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </section>
 
@@ -102,7 +140,9 @@ function Dashboard() {
                   <div className="text-xs text-muted-foreground">{t.destination_country} · {t.tracking_id}</div>
                 </div>
                 <div className="text-right">
-                  <div className="text-sm font-semibold text-gold">{formatBRL(Number(t.total_brl))}</div>
+                  <div className="text-sm font-semibold text-gold">
+                    {formatMoney(Number(t.total_brl), (t as { origin_currency?: string }).origin_currency || "BRL")}
+                  </div>
                   <StatusBadge status={t.status} />
                 </div>
                 <ArrowUpRight className="ml-2 h-4 w-4 text-muted-foreground" />
@@ -131,6 +171,3 @@ export function StatusBadge({ status }: { status: string }) {
     </span>
   );
 }
-
-// silence unused
-void formatCurrency;

@@ -1,62 +1,145 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, useMemo } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import {
-  COUNTRIES, calcQuote, formatBRL, formatCurrency, generateTrackingId,
-  createPayment, PAYMENT_METHODS, type CountryCode, type PaymentMethodId,
+  ORIGINS, METHOD_CATEGORIES, CURRENCY_LABEL, formatMoney,
+  findRate, calcQuote, generateTrackingId, generatePixCode, checkPixPayment,
+  getOrigin, type OriginCode, type MethodCategory, type DestCurrency, type RateRow,
 } from "@/lib/remittance";
 import { toast } from "sonner";
-import { ArrowLeft, ArrowRight, Check, Loader2, Sparkles } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Copy, Loader2, Sparkles } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/send")({
   component: SendFlow,
 });
 
+type Recipient = { name: string; phone: string; card: string; notes: string };
+type Saved = {
+  id: string; full_name: string; phone: string; account_details: string | null;
+  delivery_method: string; country: string;
+};
+
 function SendFlow() {
   const { user } = Route.useRouteContext();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
 
-  const [country, setCountry] = useState<CountryCode | null>(null);
+  const [origin, setOrigin] = useState<OriginCode | null>(null);
+  const [method, setMethod] = useState<MethodCategory | null>(null);
+  const [currency, setCurrency] = useState<DestCurrency | null>(null);
   const [amount, setAmount] = useState("");
-  const [recipient, setRecipient] = useState({ name: "", phone: "", method: "" });
-  const [payment, setPayment] = useState<PaymentMethodId | null>(null);
+  const [recipient, setRecipient] = useState<Recipient>({ name: "", phone: "", card: "", notes: "" });
+  const [saveRecipient, setSaveRecipient] = useState(true);
   const [tracking, setTracking] = useState<string | null>(null);
+  const [pixCode, setPixCode] = useState<string | null>(null);
+
+  const rates = useQuery<RateRow[]>({
+    queryKey: ["rates"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("rates").select("*").eq("active", true);
+      if (error) throw error;
+      return data as unknown as RateRow[];
+    },
+  });
+
+  const savedRecipients = useQuery<Saved[]>({
+    queryKey: ["recipients", user.id],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("recipients")
+        .select("*").eq("user_id", user.id).order("created_at", { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as unknown as Saved[];
+    },
+  });
+
+  const rate = useMemo(
+    () => origin && method && currency ? findRate(rates.data, origin, method, currency) : undefined,
+    [rates.data, origin, method, currency],
+  );
 
   const amountNum = Number(amount.replace(",", ".")) || 0;
-  const quote = useMemo(() => (country && amountNum > 0 ? calcQuote(amountNum, country) : null), [country, amountNum]);
+  const quote = useMemo(() => (rate && amountNum > 0 ? calcQuote(amountNum, rate) : null), [rate, amountNum]);
+  const originOpt = origin ? getOrigin(origin) : null;
+  const minAmount = Number(rate?.min_amount ?? 20);
+  const belowMin = amountNum > 0 && amountNum < minAmount;
 
-  async function confirm() {
-    if (!country || !quote || !payment) return;
+  const availableCurrencies = useMemo(() => {
+    if (!method) return [] as DestCurrency[];
+    return METHOD_CATEGORIES.find((m) => m.id === method)!.currencies;
+  }, [method]);
+
+  async function createOrder() {
+    if (!origin || !method || !currency || !rate || !quote || !originOpt) return;
     setLoading(true);
     try {
-      // 🔌 SLOT DE INTEGRACIÓN: pasarela de pago real
       const id = generateTrackingId();
-      const pay = await createPayment({ method: payment, totalBrl: quote.total, trackingId: id });
-      if (!pay.ok) throw new Error("Pago rechazado");
+      const pix = generatePixCode(id, amountNum);
 
       const { error } = await supabase.from("transactions").insert({
         user_id: user.id,
         tracking_id: id,
-        destination_country: COUNTRIES.find((c) => c.code === country)!.name,
+        origin_country: origin,
+        origin_currency: originOpt.currency,
+        destination_country: "Cuba",
+        method_category: method,
+        delivery_method: currency, // reutilizamos como sub-tipo
         recipient_name: recipient.name,
         recipient_phone: recipient.phone,
-        delivery_method: recipient.method,
+        recipient_card: recipient.card || null,
+        notes: recipient.notes || null,
         amount_brl: amountNum,
         amount_dest: quote.amountDest,
-        dest_currency: quote.currency,
-        exchange_rate: quote.rate,
-        fee_brl: quote.fee,
-        total_brl: quote.total,
-        payment_method: payment,
-        status: "processing",
+        dest_currency: currency,
+        exchange_rate: rate.rate,
+        fee_brl: 0,
+        total_brl: amountNum,
+        payment_method: "pix",
+        pix_code: pix,
+        status: "pending",
       });
       if (error) throw error;
+
+      if (saveRecipient && recipient.name) {
+        await supabase.from("recipients").insert({
+          user_id: user.id,
+          full_name: recipient.name,
+          phone: recipient.phone,
+          country: "CU",
+          delivery_method: `${method}·${currency}`,
+          account_details: recipient.card || null,
+        });
+      }
+
       setTracking(id);
+      setPixCode(pix);
+      setStep(6);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Error al crear la orden");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function confirmPaid() {
+    if (!tracking) return;
+    setLoading(true);
+    try {
+      // 🔌 SLOT INTEGRACIÓN: aquí normalmente el webhook del proveedor PIX
+      // marca el pago; usamos mock para demostración.
+      const res = await checkPixPayment(tracking);
+      if (!res.paid) throw new Error("Aún no vemos el pago");
+      await supabase.from("transactions")
+        .update({ status: "processing" })
+        .eq("tracking_id", tracking);
+      await queryClient.invalidateQueries({ queryKey: ["transactions-recent"] });
+      toast.success("Pago recibido. Procesando tu remesa.");
       setStep(7);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Error al procesar");
+      toast.error(e instanceof Error ? e.message : "Error");
     } finally {
       setLoading(false);
     }
@@ -64,7 +147,7 @@ function SendFlow() {
 
   return (
     <div className="space-y-5">
-      {step < 7 && (
+      {step < 6 && (
         <div className="flex items-center gap-2">
           {step > 1 ? (
             <button onClick={() => setStep(step - 1)} className="rounded-md p-2 hover:bg-accent">
@@ -76,25 +159,26 @@ function SendFlow() {
             </button>
           )}
           <div className="flex-1">
-            <div className="text-xs text-muted-foreground">Paso {step} de 6</div>
+            <div className="text-xs text-muted-foreground">Paso {step} de 5</div>
             <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-secondary">
-              <div className="h-full bg-gradient-gold transition-all" style={{ width: `${(step / 6) * 100}%` }} />
+              <div className="h-full bg-gradient-gold transition-all" style={{ width: `${(step / 5) * 100}%` }} />
             </div>
           </div>
         </div>
       )}
 
+      {/* Paso 1: origen */}
       {step === 1 && (
-        <Step title="¿A dónde envías?" subtitle="Selecciona el país de destino">
+        <Step title="¿Desde dónde envías?" subtitle="Selecciona el país de origen">
           <div className="space-y-2">
-            {COUNTRIES.map((c) => (
-              <button key={c.code}
-                onClick={() => { setCountry(c.code); setRecipient((r) => ({ ...r, method: "" })); setStep(2); }}
-                className={`flex w-full items-center gap-3 rounded-xl border p-4 text-left transition ${country === c.code ? "border-gold bg-accent" : "border-border bg-card hover:border-gold/60"}`}>
-                <span className="text-3xl">{c.flag}</span>
+            {ORIGINS.map((o) => (
+              <button key={o.code}
+                onClick={() => { setOrigin(o.code); setStep(2); }}
+                className={`flex w-full items-center gap-3 rounded-xl border p-4 text-left transition ${origin === o.code ? "border-gold bg-accent" : "border-border bg-card hover:border-gold/60"}`}>
+                <span className="text-3xl">{o.flag}</span>
                 <div className="flex-1">
-                  <div className="font-semibold">{c.name}</div>
-                  <div className="text-xs text-muted-foreground">Moneda: {c.currency}</div>
+                  <div className="font-semibold">{o.name}</div>
+                  <div className="text-xs text-muted-foreground">Envías en {o.currency} → recibes en Cuba</div>
                 </div>
                 <ArrowRight className="h-4 w-4 text-gold" />
               </button>
@@ -103,104 +187,177 @@ function SendFlow() {
         </Step>
       )}
 
-      {step === 2 && country && (
-        <Step title="Monto a enviar" subtitle={`Tasa: 1 BRL = ${quote?.rate.toFixed(2) ?? "..."} ${COUNTRIES.find(c => c.code === country)!.currency}`}>
-          <label className="block">
-            <span className="mb-1.5 block text-xs font-medium text-muted-foreground">Envías (R$)</span>
-            <input inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0,00"
-              className="w-full rounded-xl border border-border bg-background px-4 py-4 font-display text-2xl font-bold outline-none focus:border-gold" />
-          </label>
-          {quote && (
-            <div className="mt-4 rounded-xl border border-gold/40 bg-card p-4">
-              <div className="text-xs text-muted-foreground">Recibe</div>
-              <div className="mt-1 font-display text-2xl font-bold text-gold">
-                {formatCurrency(quote.amountDest, quote.currency)}
-              </div>
-            </div>
-          )}
-          <NextBtn disabled={amountNum <= 0} onClick={() => setStep(3)}>Continuar</NextBtn>
-        </Step>
-      )}
-
-      {step === 3 && country && (
-        <Step title="Datos del destinatario" subtitle="¿Quién recibe la remesa?">
-          <Input label="Nombre completo" value={recipient.name} onChange={(v) => setRecipient({ ...recipient, name: v })} placeholder="María Pérez" />
-          <Input label="Teléfono" value={recipient.phone} onChange={(v) => setRecipient({ ...recipient, phone: v })} placeholder="+53 55 000 000" />
-          <div>
-            <span className="mb-1.5 block text-xs font-medium text-muted-foreground">Método de entrega</span>
-            <div className="space-y-2">
-              {COUNTRIES.find(c => c.code === country)!.deliveryMethods.map((m) => (
-                <button key={m} onClick={() => setRecipient({ ...recipient, method: m })}
-                  className={`flex w-full items-center justify-between rounded-xl border p-3 text-left text-sm ${recipient.method === m ? "border-gold bg-accent" : "border-border bg-card"}`}>
-                  {m} {recipient.method === m && <Check className="h-4 w-4 text-gold" />}
-                </button>
-              ))}
-            </div>
-          </div>
-          <NextBtn disabled={!recipient.name || !recipient.phone || !recipient.method} onClick={() => setStep(4)}>Continuar</NextBtn>
-        </Step>
-      )}
-
-      {step === 4 && quote && country && (
-        <Step title="Resumen" subtitle="Revisa los detalles antes de continuar">
-          <div className="rounded-xl border border-border bg-card p-4 space-y-2 text-sm">
-            <Row k="Destinatario" v={recipient.name} />
-            <Row k="País" v={COUNTRIES.find(c => c.code === country)!.name} />
-            <Row k="Entrega" v={recipient.method} />
-            <hr className="border-border" />
-            <Row k="Envías" v={formatBRL(amountNum)} />
-            <Row k="Comisión" v={formatBRL(quote.fee)} />
-            <Row k="Tasa" v={`1 BRL = ${quote.rate.toFixed(2)} ${quote.currency}`} />
-            <hr className="border-border" />
-            <Row k="Total a pagar" v={formatBRL(quote.total)} strong />
-            <Row k="Recibe" v={formatCurrency(quote.amountDest, quote.currency)} strong />
-          </div>
-          <NextBtn onClick={() => setStep(5)}>Elegir método de pago</NextBtn>
-        </Step>
-      )}
-
-      {step === 5 && (
-        <Step title="Método de pago" subtitle="¿Cómo prefieres pagar?">
+      {/* Paso 2: transferencia / efectivo */}
+      {step === 2 && (
+        <Step title="¿Cómo lo reciben?" subtitle="Transferencia o efectivo">
           <div className="space-y-2">
-            {PAYMENT_METHODS.map((m) => (
-              <button key={m.id} onClick={() => setPayment(m.id)}
-                className={`flex w-full items-center justify-between rounded-xl border p-4 text-left ${payment === m.id ? "border-gold bg-accent" : "border-border bg-card"}`}>
-                <div>
+            {METHOD_CATEGORIES.map((m) => (
+              <button key={m.id}
+                onClick={() => { setMethod(m.id); setCurrency(null); setStep(3); }}
+                className={`flex w-full items-center gap-3 rounded-xl border p-4 text-left transition ${method === m.id ? "border-gold bg-accent" : "border-border bg-card hover:border-gold/60"}`}>
+                <div className="flex-1">
                   <div className="font-semibold">{m.label}</div>
                   <div className="text-xs text-muted-foreground">{m.description}</div>
+                  <div className="mt-1 text-[10px] text-muted-foreground">Monedas: {m.currencies.join(" · ")}</div>
                 </div>
-                {payment === m.id && <Check className="h-4 w-4 text-gold" />}
+                <ArrowRight className="h-4 w-4 text-gold" />
               </button>
             ))}
           </div>
-          <NextBtn disabled={!payment} onClick={() => setStep(6)}>Continuar</NextBtn>
         </Step>
       )}
 
-      {step === 6 && quote && (
-        <Step title="Confirmar envío" subtitle="Un último paso">
-          <div className="rounded-2xl border border-gold/40 bg-gradient-gold p-6 text-center shadow-gold">
-            <p className="text-xs uppercase tracking-wider text-black/70">Total a pagar</p>
-            <p className="mt-1 font-display text-4xl font-bold text-black">{formatBRL(quote.total)}</p>
+      {/* Paso 3: moneda + calculadora */}
+      {step === 3 && origin && method && originOpt && (
+        <Step title="Elige moneda y monto" subtitle={`${originOpt.name} → Cuba · ${method === "transferencia" ? "Transferencia" : "Efectivo"}`}>
+          <div>
+            <span className="mb-1.5 block text-xs font-medium text-muted-foreground">Moneda de destino</span>
+            <div className="grid grid-cols-3 gap-2">
+              {availableCurrencies.map((c) => (
+                <button key={c} onClick={() => setCurrency(c)}
+                  className={`rounded-xl border p-3 text-center text-sm font-semibold ${currency === c ? "border-gold bg-accent text-gold" : "border-border bg-card"}`}>
+                  {c}
+                </button>
+              ))}
+            </div>
+            {currency && (
+              <p className="mt-1 text-[11px] text-muted-foreground">{CURRENCY_LABEL[currency]}</p>
+            )}
           </div>
-          <button onClick={confirm} disabled={loading}
-            className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-gold px-4 py-4 text-base font-semibold text-primary-foreground shadow-gold disabled:opacity-70">
-            {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}
-            Confirmar y enviar
-          </button>
-          <p className="mt-3 text-center text-xs text-muted-foreground">
-            Pasarela de pagos en modo demostración. Sustituye <code>createPayment()</code> por Stripe/Mercado Pago.
-          </p>
+
+          <label className="block">
+            <span className="mb-1.5 block text-xs font-medium text-muted-foreground">
+              Envías ({originOpt.symbol}) · mínimo {originOpt.symbol}{minAmount}
+            </span>
+            <input inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0,00"
+              className="w-full rounded-xl border border-border bg-background px-4 py-4 font-display text-2xl font-bold outline-none focus:border-gold" />
+            {belowMin && <p className="mt-1 text-xs text-destructive">El mínimo es {originOpt.symbol}{minAmount}</p>}
+          </label>
+
+          {quote && rate && !belowMin && (
+            <div className="rounded-xl border border-gold/40 bg-card p-4 space-y-2">
+              <Row k="Recibe" v={formatMoney(quote.amountDest, currency!)} strong />
+              <Row k="Tasa" v={`1 ${originOpt.currency} = ${rate.rate} ${currency}`} />
+              <Row k="Tiempo estimado" v={quote.timeLabel} />
+            </div>
+          )}
+
+          <NextBtn disabled={!currency || !quote || belowMin} onClick={() => setStep(4)}>
+            Calcular y continuar
+          </NextBtn>
         </Step>
       )}
 
+      {/* Paso 4: destinatario */}
+      {step === 4 && (
+        <Step title="Datos del destinatario" subtitle="¿A quién le envías?">
+          {savedRecipients.data && savedRecipients.data.length > 0 && (
+            <div className="mb-2">
+              <span className="mb-1.5 block text-xs font-medium text-muted-foreground">Guardados</span>
+              <div className="flex flex-wrap gap-2">
+                {savedRecipients.data.map((r) => (
+                  <button key={r.id}
+                    onClick={() => setRecipient({
+                      name: r.full_name, phone: r.phone,
+                      card: r.account_details ?? "", notes: "",
+                    })}
+                    className="rounded-full border border-border bg-card px-3 py-1 text-xs hover:border-gold">
+                    {r.full_name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          <Input label="Nombre completo" value={recipient.name} onChange={(v) => setRecipient({ ...recipient, name: v })} placeholder="María Pérez" />
+          <Input label="Teléfono" value={recipient.phone} onChange={(v) => setRecipient({ ...recipient, phone: v })} placeholder="+53 55 000 000" />
+          {method === "transferencia" && (
+            <Input
+              label={currency === "MLC" ? "Tarjeta MLC" : currency === "USD" ? "Cuenta USD clásica" : "Tarjeta CUP"}
+              value={recipient.card}
+              onChange={(v) => setRecipient({ ...recipient, card: v })}
+              placeholder="XXXX XXXX XXXX XXXX" />
+          )}
+          <label className="flex items-center gap-2 text-sm text-muted-foreground">
+            <input type="checkbox" checked={saveRecipient} onChange={(e) => setSaveRecipient(e.target.checked)}
+              className="h-4 w-4 accent-[color:var(--gold)]" />
+            Guardar destinatario para próximas remesas
+          </label>
+          <NextBtn
+            disabled={!recipient.name || !recipient.phone || (method === "transferencia" && !recipient.card)}
+            onClick={() => setStep(5)}
+          >
+            Continuar
+          </NextBtn>
+        </Step>
+      )}
+
+      {/* Paso 5: resumen + crear orden */}
+      {step === 5 && originOpt && quote && rate && currency && method && (
+        <Step title="Confirmar remesa" subtitle="Revisa antes de generar el pago">
+          <div className="rounded-xl border border-border bg-card p-4 space-y-2 text-sm">
+            <Row k="Destinatario" v={recipient.name} />
+            <Row k="Teléfono" v={recipient.phone} />
+            {recipient.card && <Row k="Tarjeta / Cuenta" v={recipient.card} />}
+            <hr className="border-border" />
+            <Row k="Origen" v={originOpt.name} />
+            <Row k="Método" v={method === "transferencia" ? "Transferencia" : "Efectivo"} />
+            <Row k="Moneda" v={currency} />
+            <hr className="border-border" />
+            <Row k="Envías" v={formatMoney(amountNum, originOpt.currency)} />
+            <Row k="Tasa" v={`1 ${originOpt.currency} = ${rate.rate} ${currency}`} />
+            <Row k="Tiempo" v={quote.timeLabel} />
+            <Row k="Recibe" v={formatMoney(quote.amountDest, currency)} strong />
+          </div>
+          <button onClick={createOrder} disabled={loading}
+            className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-gold px-4 py-4 text-base font-semibold text-primary-foreground shadow-gold disabled:opacity-70">
+            {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}
+            Crear orden y pagar con PIX
+          </button>
+        </Step>
+      )}
+
+      {/* Paso 6: PIX */}
+      {step === 6 && pixCode && tracking && originOpt && (
+        <div className="space-y-4">
+          <div>
+            <h1 className="font-display text-2xl font-bold">Paga con PIX</h1>
+            <p className="mt-1 text-sm text-muted-foreground">Copia el código y pégalo en tu app de banco.</p>
+          </div>
+          <div className="rounded-2xl border border-gold/40 bg-gradient-gold p-5 text-center shadow-gold">
+            <p className="text-xs uppercase tracking-wider text-black/70">Total a pagar</p>
+            <p className="mt-1 font-display text-3xl font-bold text-black">
+              {formatMoney(amountNum, originOpt.currency)}
+            </p>
+            <p className="mt-1 text-[11px] text-black/70">Código: {tracking}</p>
+          </div>
+          <div className="rounded-xl border border-border bg-card p-4">
+            <p className="text-xs text-muted-foreground">PIX copia y pega</p>
+            <p className="mt-1 break-all font-mono text-[11px] leading-relaxed">{pixCode}</p>
+            <button
+              onClick={() => { navigator.clipboard.writeText(pixCode); toast.success("Código copiado"); }}
+              className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-background px-4 py-2 text-sm font-medium hover:border-gold">
+              <Copy className="h-4 w-4" /> Copiar código PIX
+            </button>
+          </div>
+          <p className="text-center text-[11px] text-muted-foreground">
+            🔌 Slot integración: cuando conectes tu API PIX real, el webhook confirmará el pago automáticamente.
+          </p>
+          <button onClick={confirmPaid} disabled={loading}
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-gold px-4 py-3.5 text-sm font-semibold text-primary-foreground shadow-gold disabled:opacity-70">
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+            Ya pagué, verificar
+          </button>
+        </div>
+      )}
+
+      {/* Paso 7: éxito */}
       {step === 7 && tracking && (
         <div className="pt-6 text-center">
           <div className="mx-auto mb-4 grid h-20 w-20 place-items-center rounded-full bg-gradient-gold shadow-gold">
             <Check className="h-10 w-10 text-primary-foreground" />
           </div>
           <h1 className="font-display text-3xl font-bold">¡Enviado!</h1>
-          <p className="mt-2 text-sm text-muted-foreground">Tu remesa está en camino.</p>
+          <p className="mt-2 text-sm text-muted-foreground">Tu remesa está siendo procesada.</p>
           <div className="mx-auto mt-6 max-w-xs rounded-2xl border border-gold/40 bg-card p-5">
             <p className="text-xs text-muted-foreground">Código de seguimiento</p>
             <p className="mt-1 font-display text-xl font-bold text-gold">{tracking}</p>
