@@ -154,9 +154,12 @@ function VerifyCodePage() {
             ¿No lo ves? Revisa tu carpeta de spam o correo no deseado.
           </p>
 
-          <p className="mt-3 text-[11px] text-gold/80">
-            Modo demo: el código aparece en la respuesta del servidor. En producción se enviará por email/WhatsApp.
-          </p>
+          {demoCode && (
+            <div className="mt-4 rounded-lg border border-dashed border-gold/50 bg-gold/10 p-3 text-center">
+              <p className="text-[11px] uppercase tracking-wide text-gold">Código de prueba (demo)</p>
+              <p className="mt-1 font-mono text-lg font-bold tracking-widest text-foreground">{demoCode}</p>
+            </div>
+          )}
         </div>
       </div>
     </div>
