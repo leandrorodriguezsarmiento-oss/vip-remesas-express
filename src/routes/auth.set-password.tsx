@@ -1,0 +1,87 @@
+import { createFileRoute, useNavigate, redirect, Link } from "@tanstack/react-router";
+import { useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { Loader2, Sparkles, LockKeyhole } from "lucide-react";
+
+export const Route = createFileRoute("/auth/set-password")({
+  ssr: false,
+  beforeLoad: async () => {
+    const { data } = await supabase.auth.getSession();
+    if (!data.session) throw redirect({ to: "/auth" });
+  },
+  component: SetPasswordPage,
+});
+
+function SetPasswordPage() {
+  const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (password.length < 6) return toast.error("Mínimo 6 caracteres");
+    if (password !== confirm) return toast.error("Las contraseñas no coinciden");
+    setLoading(true);
+    const { error } = await supabase.auth.updateUser({ password });
+    setLoading(false);
+    if (error) return toast.error(error.message);
+    toast.success("Contraseña creada. ¡Bienvenido a VIP Remesas!");
+    navigate({ to: "/dashboard" });
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-vip px-5 py-8">
+      <div className="mx-auto max-w-md">
+        <Link to="/" className="mb-8 flex items-center gap-2">
+          <div className="grid h-9 w-9 place-items-center rounded-lg bg-gradient-gold shadow-gold">
+            <Sparkles className="h-5 w-5 text-primary-foreground" />
+          </div>
+          <span className="font-display text-lg font-bold">VIP Remesas</span>
+        </Link>
+
+        <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
+          <div className="mb-4 grid h-14 w-14 place-items-center rounded-full bg-gradient-gold shadow-gold">
+            <LockKeyhole className="h-7 w-7 text-primary-foreground" />
+          </div>
+          <h1 className="font-display text-2xl font-bold">Crea tu contraseña</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Tu correo ya está verificado. Define una contraseña segura para proteger tu cuenta.
+          </p>
+
+          <form onSubmit={submit} className="mt-6 space-y-4">
+            <label className="block">
+              <span className="mb-1.5 block text-xs font-medium text-muted-foreground">Contraseña</span>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Mínimo 6 caracteres"
+                className="w-full rounded-lg border border-border bg-background px-4 py-3 text-sm outline-none transition focus:border-gold"
+              />
+            </label>
+            <label className="block">
+              <span className="mb-1.5 block text-xs font-medium text-muted-foreground">Confirmar contraseña</span>
+              <input
+                type="password"
+                value={confirm}
+                onChange={(e) => setConfirm(e.target.value)}
+                placeholder="Repite tu contraseña"
+                className="w-full rounded-lg border border-border bg-background px-4 py-3 text-sm outline-none transition focus:border-gold"
+              />
+            </label>
+            <button
+              type="submit"
+              disabled={loading}
+              className="flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-gold px-4 py-3 text-sm font-semibold text-primary-foreground shadow-gold disabled:opacity-70"
+            >
+              {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+              Guardar contraseña
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+}

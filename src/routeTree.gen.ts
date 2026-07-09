@@ -13,6 +13,7 @@ import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthVerifyRouteImport } from './routes/auth.verify'
 import { Route as AuthenticatedSendRouteImport } from './routes/_authenticated/send'
 import { Route as AuthenticatedRecargasRouteImport } from './routes/_authenticated/recargas'
 import { Route as AuthenticatedHistoryRouteImport } from './routes/_authenticated/history'
@@ -38,6 +39,11 @@ const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AuthVerifyRoute = AuthVerifyRouteImport.update({
+  id: '/verify',
+  path: '/verify',
+  getParentRoute: () => AuthRoute,
 } as any)
 const AuthenticatedSendRoute = AuthenticatedSendRouteImport.update({
   id: '/send',
@@ -73,37 +79,40 @@ const AuthenticatedTransactionIdRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/auth': typeof AuthRoute
+  '/auth': typeof AuthRouteWithChildren
   '/reset-password': typeof ResetPasswordRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/history': typeof AuthenticatedHistoryRoute
   '/recargas': typeof AuthenticatedRecargasRoute
   '/send': typeof AuthenticatedSendRoute
+  '/auth/verify': typeof AuthVerifyRoute
   '/transaction/$id': typeof AuthenticatedTransactionIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/auth': typeof AuthRoute
+  '/auth': typeof AuthRouteWithChildren
   '/reset-password': typeof ResetPasswordRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/history': typeof AuthenticatedHistoryRoute
   '/recargas': typeof AuthenticatedRecargasRoute
   '/send': typeof AuthenticatedSendRoute
+  '/auth/verify': typeof AuthVerifyRoute
   '/transaction/$id': typeof AuthenticatedTransactionIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
-  '/auth': typeof AuthRoute
+  '/auth': typeof AuthRouteWithChildren
   '/reset-password': typeof ResetPasswordRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/history': typeof AuthenticatedHistoryRoute
   '/_authenticated/recargas': typeof AuthenticatedRecargasRoute
   '/_authenticated/send': typeof AuthenticatedSendRoute
+  '/auth/verify': typeof AuthVerifyRoute
   '/_authenticated/transaction/$id': typeof AuthenticatedTransactionIdRoute
 }
 export interface FileRouteTypes {
@@ -117,6 +126,7 @@ export interface FileRouteTypes {
     | '/history'
     | '/recargas'
     | '/send'
+    | '/auth/verify'
     | '/transaction/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -128,6 +138,7 @@ export interface FileRouteTypes {
     | '/history'
     | '/recargas'
     | '/send'
+    | '/auth/verify'
     | '/transaction/$id'
   id:
     | '__root__'
@@ -140,13 +151,14 @@ export interface FileRouteTypes {
     | '/_authenticated/history'
     | '/_authenticated/recargas'
     | '/_authenticated/send'
+    | '/auth/verify'
     | '/_authenticated/transaction/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
-  AuthRoute: typeof AuthRoute
+  AuthRoute: typeof AuthRouteWithChildren
   ResetPasswordRoute: typeof ResetPasswordRoute
 }
 
@@ -179,6 +191,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/auth/verify': {
+      id: '/auth/verify'
+      path: '/verify'
+      fullPath: '/auth/verify'
+      preLoaderRoute: typeof AuthVerifyRouteImport
+      parentRoute: typeof AuthRoute
     }
     '/_authenticated/send': {
       id: '/_authenticated/send'
@@ -246,10 +265,20 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
 const AuthenticatedRouteRouteWithChildren =
   AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
 
+interface AuthRouteChildren {
+  AuthVerifyRoute: typeof AuthVerifyRoute
+}
+
+const AuthRouteChildren: AuthRouteChildren = {
+  AuthVerifyRoute: AuthVerifyRoute,
+}
+
+const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
-  AuthRoute: AuthRoute,
+  AuthRoute: AuthRouteWithChildren,
   ResetPasswordRoute: ResetPasswordRoute,
 }
 export const routeTree = rootRouteImport
