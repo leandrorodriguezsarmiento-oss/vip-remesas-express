@@ -521,16 +521,19 @@ function RecargasTab() {
     queryKey: ["admin-recargas"],
     queryFn: async () => {
       const { data, error } = await supabase.from("recargas_requests")
-        .select("*, profiles:user_id(full_name, phone)")
-        .order("created_at", { ascending: false }).limit(100);
+        .select("*").order("created_at", { ascending: false }).limit(100);
       if (error) throw error;
-      return data as Array<{
-        id: string; user_id: string; phone: string; promo_title: string;
-        price_brl: number; status: string; created_at: string; provider_ref: string | null;
-        profiles: { full_name: string | null; phone: string | null } | null;
-      }>;
+      const userIds = Array.from(new Set((data ?? []).map((r) => r.user_id)));
+      let profilesById: Record<string, { full_name: string | null; phone: string | null }> = {};
+      if (userIds.length) {
+        const { data: profs } = await supabase.from("profiles")
+          .select("id, full_name, phone").in("id", userIds);
+        profilesById = Object.fromEntries((profs ?? []).map((p) => [p.id, { full_name: p.full_name, phone: p.phone }]));
+      }
+      return (data ?? []).map((r) => ({ ...r, profile: profilesById[r.user_id] ?? null }));
     },
   });
+
   const upd = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: "pending" | "processing" | "completed" | "rejected" }) => {
       const { error } = await supabase.from("recargas_requests").update({ status }).eq("id", id);
