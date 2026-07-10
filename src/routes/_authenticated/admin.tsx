@@ -381,14 +381,34 @@ function ApiTab() {
             className="h-3 w-3 accent-[color:var(--gold)]" />
           Configuración activa
         </label>
-        <button onClick={() => save.mutate()}
-          className="flex w-full items-center justify-center gap-1 rounded-lg bg-gradient-gold px-3 py-2 text-xs font-semibold text-primary-foreground shadow-gold">
-          <Check className="h-3 w-3" /> Guardar
-        </button>
+        <div className="flex gap-2">
+          <button onClick={() => save.mutate()}
+            className="flex flex-1 items-center justify-center gap-1 rounded-lg bg-gradient-gold px-3 py-2 text-xs font-semibold text-primary-foreground shadow-gold">
+            <Check className="h-3 w-3" /> Guardar
+          </button>
+          <button
+            onClick={async () => {
+              if (!baseUrl) return toast.error("Falta URL base");
+              const t = toast.loading("Sincronizando API…");
+              try {
+                const res = await fetch(baseUrl, { method: "GET" });
+                toast.dismiss(t);
+                if (res.ok) toast.success(`API OK (${res.status})`);
+                else toast.error(`API respondió ${res.status}`);
+              } catch (e) {
+                toast.dismiss(t);
+                toast.error(e instanceof Error ? e.message : "No se pudo conectar");
+              }
+            }}
+            className="flex items-center justify-center gap-1 rounded-lg border border-gold/40 bg-card px-3 py-2 text-xs font-semibold text-gold">
+            <RefreshCw className="h-3 w-3" /> Sincronizar
+          </button>
+        </div>
       </div>
     </div>
   );
 }
+
 
 // ----------------- Banners -----------------
 function BannersTab() {
