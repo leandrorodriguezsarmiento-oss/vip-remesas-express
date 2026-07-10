@@ -276,6 +276,8 @@ function PromosTab() {
 
 // ----------------- Usuarios -----------------
 function UsersTab() {
+  const qc = useQueryClient();
+  const delUser = useServerFn(deleteUserAsAdmin);
   const q = useQuery({
     queryKey: ["admin-users"],
     queryFn: async () => {
@@ -285,20 +287,37 @@ function UsersTab() {
       return data;
     },
   });
+  const del = useMutation({
+    mutationFn: async (userId: string) => delUser({ data: { userId } }),
+    onSuccess: () => { toast.success("Usuario eliminado"); qc.invalidateQueries({ queryKey: ["admin-users"] }); },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Error"),
+  });
   if (q.isLoading) return <p className="text-sm text-muted-foreground">Cargando…</p>;
   return (
     <div className="space-y-2">
       {q.data?.map((u) => (
-        <div key={u.id} className="rounded-xl border border-border bg-card p-3">
-          <div className="text-sm font-semibold">{u.full_name || "(sin nombre)"}</div>
-          <div className="text-[11px] text-muted-foreground">{u.phone || "sin teléfono"}</div>
-          <div className="text-[10px] text-muted-foreground">Alta: {new Date(u.created_at).toLocaleDateString("es")}</div>
+        <div key={u.id} className="flex items-center justify-between rounded-xl border border-border bg-card p-3">
+          <div className="min-w-0">
+            <div className="text-sm font-semibold truncate">{u.full_name || "(sin nombre)"}</div>
+            <div className="text-[11px] text-muted-foreground">{u.phone || "sin teléfono"}</div>
+            <div className="text-[10px] text-muted-foreground">Alta: {new Date(u.created_at).toLocaleDateString("es")}</div>
+          </div>
+          <button
+            onClick={() => {
+              if (confirm(`¿Eliminar a ${u.full_name || "este usuario"}? Se borran sus remesas y datos.`)) {
+                del.mutate(u.id);
+              }
+            }}
+            className="rounded-md p-2 text-destructive hover:bg-destructive/10">
+            <Trash2 className="h-4 w-4" />
+          </button>
         </div>
       ))}
       {q.data && q.data.length === 0 && <p className="text-sm text-muted-foreground">Aún no hay usuarios.</p>}
     </div>
   );
 }
+
 
 // ----------------- API Recargas -----------------
 function ApiTab() {
