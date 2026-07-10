@@ -1,10 +1,12 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { formatMoney } from "@/lib/remittance";
+import { deleteUserAsAdmin } from "@/lib/admin.functions";
 import { toast } from "sonner";
-import { Shield, Loader2, Trash2, Plus, Check } from "lucide-react";
+import { Shield, Loader2, Trash2, Plus, Check, RefreshCw, Smartphone, Zap, BarChart3 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   beforeLoad: async ({ context }) => {
@@ -19,7 +21,7 @@ export const Route = createFileRoute("/_authenticated/admin")({
   component: AdminPanel,
 });
 
-type Tab = "tx" | "rates" | "promos" | "users" | "api" | "banners";
+type Tab = "tx" | "recargas" | "rates" | "promos" | "users" | "api" | "banners" | "payments" | "reports";
 
 function AdminPanel() {
   const [tab, setTab] = useState<Tab>("tx");
@@ -37,8 +39,9 @@ function AdminPanel() {
 
       <div className="flex gap-1 overflow-x-auto rounded-xl bg-secondary p-1 text-[10px] font-medium">
         {[
-          ["tx", "Remesas"], ["rates", "Tasas"], ["promos", "Promos"],
-          ["banners", "Banners"], ["users", "Usuarios"], ["api", "API"],
+          ["tx", "Remesas"], ["recargas", "Recargas"], ["reports", "Reportes"],
+          ["rates", "Tasas"], ["promos", "Promos"], ["banners", "Banners"],
+          ["payments", "Pagos US/EU"], ["users", "Usuarios"], ["api", "API"],
         ].map(([id, label]) => (
           <button key={id} onClick={() => setTab(id as Tab)}
             className={`shrink-0 rounded-lg px-3 py-2 ${tab === id ? "bg-gradient-gold text-primary-foreground shadow-gold" : "text-muted-foreground"}`}>
@@ -48,14 +51,18 @@ function AdminPanel() {
       </div>
 
       {tab === "tx" && <TransactionsTab />}
+      {tab === "recargas" && <RecargasTab />}
+      {tab === "reports" && <ReportsTab />}
       {tab === "rates" && <RatesTab />}
       {tab === "promos" && <PromosTab />}
       {tab === "banners" && <BannersTab />}
+      {tab === "payments" && <PaymentMethodsTab />}
       {tab === "users" && <UsersTab />}
       {tab === "api" && <ApiTab />}
     </div>
   );
 }
+
 
 // ----------------- Transacciones -----------------
 function TransactionsTab() {
