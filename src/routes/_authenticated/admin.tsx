@@ -415,8 +415,11 @@ function BannersTab() {
         cacheControl: "3600", upsert: false, contentType: file.type,
       });
       if (upErr) throw upErr;
-      const { data: pub } = supabase.storage.from("banners").getPublicUrl(path);
-      upsert.mutate({ image_url: pub.publicUrl, title, link_url: link });
+      // Signed URL válido 10 años (bucket privado con lectura pública vía RLS)
+      const { data: signed, error: sErr } = await supabase.storage.from("banners")
+        .createSignedUrl(path, 60 * 60 * 24 * 365 * 10);
+      if (sErr || !signed) throw sErr ?? new Error("No se pudo firmar la imagen");
+      upsert.mutate({ image_url: signed.signedUrl, title, link_url: link });
       setTitle(""); setLink("");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "No se pudo subir la imagen");
