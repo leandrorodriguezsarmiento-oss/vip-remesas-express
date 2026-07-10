@@ -131,14 +131,34 @@ export function formatMoney(n: number, currency: string): string {
 export const formatBRL = (n: number) => formatMoney(n, "BRL");
 export const formatCurrency = (n: number, currency: string) => formatMoney(n, currency);
 
-// ---------------- PIX (mock) ----------------
-// 🔌 SLOT DE INTEGRACIÓN: sustituir por generación real de cobro PIX
-// (por ejemplo Mercado Pago /v1/payments o Gerencianet Pix).
-export function generatePixCode(trackingId: string, amountBrl: number): string {
-  // Formato simplificado tipo copia-y-pega. Reemplazar por el EMV real.
-  const nonce = Math.random().toString(36).slice(2, 10).toUpperCase();
-  return `00020126360014BR.GOV.BCB.PIX0114VIPREMESAS${trackingId}5204000053039865802BR5910VIPREMESAS6009SAOPAULO62150511${nonce}630400${amountBrl.toFixed(2).replace(".", "")}`;
+// ---------------- PIX (llave real VIP Remesas) ----------------
+// Llave estática (sin monto ni CRC). Insertamos el campo 54 (monto) y
+// recalculamos el CRC16-CCITT (poli 0x1021, init 0xFFFF) para que la app
+// bancaria del cliente lea el monto exacto al pegar el código.
+const PIX_STATIC_BR =
+  "00020126360014br.gov.bcb.pix0114+55959810067755204000053039865802BR5908ARANCH996009Sao Paulo610901227-20062240520daqr33445318438073686";
+
+function pixCrc16(payload: string): string {
+  let crc = 0xffff;
+  for (let i = 0; i < payload.length; i++) {
+    crc ^= payload.charCodeAt(i) << 8;
+    for (let j = 0; j < 8; j++) {
+      crc = (crc & 0x8000) ? ((crc << 1) ^ 0x1021) & 0xffff : (crc << 1) & 0xffff;
+    }
+  }
+  return crc.toString(16).toUpperCase().padStart(4, "0");
 }
+
+// Genera un PIX copia y pega con el monto embebido en BRL.
+export function generatePixCode(_trackingId: string, amountBrl: number): string {
+  const amount = amountBrl.toFixed(2);
+  const amountField = `54${amount.length.toString().padStart(2, "0")}${amount}`;
+  // Insertamos el campo 54 justo antes de 5802BR (país)
+  const [before, after] = PIX_STATIC_BR.split("5802BR");
+  const withoutCrc = `${before}${amountField}5802BR${after}6304`;
+  return withoutCrc + pixCrc16(withoutCrc);
+}
+
 
 // 🔌 SLOT DE INTEGRACIÓN: webhook / polling que confirme que el PIX
 // entró y marque la transacción como `processing` → `completed`.
