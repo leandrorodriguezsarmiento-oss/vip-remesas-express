@@ -19,7 +19,7 @@ export const Route = createFileRoute("/_authenticated/admin")({
   component: AdminPanel,
 });
 
-type Tab = "tx" | "rates" | "promos" | "users";
+type Tab = "tx" | "rates" | "promos" | "users" | "api";
 
 function AdminPanel() {
   const [tab, setTab] = useState<Tab>("tx");
@@ -35,12 +35,12 @@ function AdminPanel() {
         </div>
       </div>
 
-      <div className="grid grid-cols-4 rounded-xl bg-secondary p-1 text-[11px] font-medium">
+      <div className="grid grid-cols-5 rounded-xl bg-secondary p-1 text-[10px] font-medium">
         {[
-          ["tx", "Remesas"], ["rates", "Tasas"], ["promos", "Promos"], ["users", "Usuarios"],
+          ["tx", "Remesas"], ["rates", "Tasas"], ["promos", "Promos"], ["users", "Usuarios"], ["api", "API"],
         ].map(([id, label]) => (
           <button key={id} onClick={() => setTab(id as Tab)}
-            className={`rounded-lg px-2 py-2 ${tab === id ? "bg-gradient-gold text-primary-foreground shadow-gold" : "text-muted-foreground"}`}>
+            className={`rounded-lg px-1 py-2 ${tab === id ? "bg-gradient-gold text-primary-foreground shadow-gold" : "text-muted-foreground"}`}>
             {label}
           </button>
         ))}
@@ -50,6 +50,7 @@ function AdminPanel() {
       {tab === "rates" && <RatesTab />}
       {tab === "promos" && <PromosTab />}
       {tab === "users" && <UsersTab />}
+      {tab === "api" && <ApiTab />}
     </div>
   );
 }
