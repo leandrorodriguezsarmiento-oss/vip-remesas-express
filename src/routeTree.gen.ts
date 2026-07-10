@@ -14,8 +14,6 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthIndexRouteImport } from './routes/auth.index'
-import { Route as AuthVerifyRouteImport } from './routes/auth.verify'
-import { Route as AuthSetPasswordRouteImport } from './routes/auth.set-password'
 import { Route as AuthenticatedSendRouteImport } from './routes/_authenticated/send'
 import { Route as AuthenticatedRecargasRouteImport } from './routes/_authenticated/recargas'
 import { Route as AuthenticatedHistoryRouteImport } from './routes/_authenticated/history'
@@ -45,16 +43,6 @@ const IndexRoute = IndexRouteImport.update({
 const AuthIndexRoute = AuthIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => AuthRoute,
-} as any)
-const AuthVerifyRoute = AuthVerifyRouteImport.update({
-  id: '/verify',
-  path: '/verify',
-  getParentRoute: () => AuthRoute,
-} as any)
-const AuthSetPasswordRoute = AuthSetPasswordRouteImport.update({
-  id: '/set-password',
-  path: '/set-password',
   getParentRoute: () => AuthRoute,
 } as any)
 const AuthenticatedSendRoute = AuthenticatedSendRouteImport.update({
@@ -98,8 +86,6 @@ export interface FileRoutesByFullPath {
   '/history': typeof AuthenticatedHistoryRoute
   '/recargas': typeof AuthenticatedRecargasRoute
   '/send': typeof AuthenticatedSendRoute
-  '/auth/set-password': typeof AuthSetPasswordRoute
-  '/auth/verify': typeof AuthVerifyRoute
   '/auth/': typeof AuthIndexRoute
   '/transaction/$id': typeof AuthenticatedTransactionIdRoute
 }
@@ -111,8 +97,6 @@ export interface FileRoutesByTo {
   '/history': typeof AuthenticatedHistoryRoute
   '/recargas': typeof AuthenticatedRecargasRoute
   '/send': typeof AuthenticatedSendRoute
-  '/auth/set-password': typeof AuthSetPasswordRoute
-  '/auth/verify': typeof AuthVerifyRoute
   '/auth': typeof AuthIndexRoute
   '/transaction/$id': typeof AuthenticatedTransactionIdRoute
 }
@@ -127,8 +111,6 @@ export interface FileRoutesById {
   '/_authenticated/history': typeof AuthenticatedHistoryRoute
   '/_authenticated/recargas': typeof AuthenticatedRecargasRoute
   '/_authenticated/send': typeof AuthenticatedSendRoute
-  '/auth/set-password': typeof AuthSetPasswordRoute
-  '/auth/verify': typeof AuthVerifyRoute
   '/auth/': typeof AuthIndexRoute
   '/_authenticated/transaction/$id': typeof AuthenticatedTransactionIdRoute
 }
@@ -143,8 +125,6 @@ export interface FileRouteTypes {
     | '/history'
     | '/recargas'
     | '/send'
-    | '/auth/set-password'
-    | '/auth/verify'
     | '/auth/'
     | '/transaction/$id'
   fileRoutesByTo: FileRoutesByTo
@@ -156,8 +136,6 @@ export interface FileRouteTypes {
     | '/history'
     | '/recargas'
     | '/send'
-    | '/auth/set-password'
-    | '/auth/verify'
     | '/auth'
     | '/transaction/$id'
   id:
@@ -171,8 +149,6 @@ export interface FileRouteTypes {
     | '/_authenticated/history'
     | '/_authenticated/recargas'
     | '/_authenticated/send'
-    | '/auth/set-password'
-    | '/auth/verify'
     | '/auth/'
     | '/_authenticated/transaction/$id'
   fileRoutesById: FileRoutesById
@@ -219,20 +195,6 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/auth/'
       preLoaderRoute: typeof AuthIndexRouteImport
-      parentRoute: typeof AuthRoute
-    }
-    '/auth/verify': {
-      id: '/auth/verify'
-      path: '/verify'
-      fullPath: '/auth/verify'
-      preLoaderRoute: typeof AuthVerifyRouteImport
-      parentRoute: typeof AuthRoute
-    }
-    '/auth/set-password': {
-      id: '/auth/set-password'
-      path: '/set-password'
-      fullPath: '/auth/set-password'
-      preLoaderRoute: typeof AuthSetPasswordRouteImport
       parentRoute: typeof AuthRoute
     }
     '/_authenticated/send': {
@@ -302,14 +264,10 @@ const AuthenticatedRouteRouteWithChildren =
   AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
 
 interface AuthRouteChildren {
-  AuthSetPasswordRoute: typeof AuthSetPasswordRoute
-  AuthVerifyRoute: typeof AuthVerifyRoute
   AuthIndexRoute: typeof AuthIndexRoute
 }
 
 const AuthRouteChildren: AuthRouteChildren = {
-  AuthSetPasswordRoute: AuthSetPasswordRoute,
-  AuthVerifyRoute: AuthVerifyRoute,
   AuthIndexRoute: AuthIndexRoute,
 }
 

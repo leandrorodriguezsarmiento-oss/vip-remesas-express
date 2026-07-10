@@ -1,10 +1,8 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable";
-import { sendVerificationCode } from "@/lib/auth-verification.functions";
-import { Sparkles, Loader2, MailWarning } from "lucide-react";
+import { Sparkles, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 
@@ -17,6 +15,7 @@ const signupSchema = z.object({
   fullName: z.string().trim().min(2, "Nombre muy corto").max(80),
   email: z.string().trim().email("Correo inválido").max(255),
   phone: z.string().trim().min(8, "Teléfono inválido").max(20),
+  password: z.string().min(6, "Mínimo 6 caracteres").max(72),
 });
 const loginSchema = z.object({
   email: z.string().trim().email("Correo inválido"),
@@ -28,59 +27,29 @@ function AuthPage() {
   const [loading, setLoading] = useState(false);
   const [showForgot, setShowForgot] = useState(false);
   const navigate = useNavigate();
-  const sendCode = useServerFn(sendVerificationCode);
 
   // login
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [remember, setRemember] = useState(true);
-  const [showOtpOption, setShowOtpOption] = useState(false);
 
   // signup
   const [sFullName, setSFullName] = useState("");
   const [sEmail, setSEmail] = useState("");
   const [sPhone, setSPhone] = useState("");
+  const [sPassword, setSPassword] = useState("");
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
-    setShowOtpOption(false);
     const parsed = loginSchema.safeParse({ email, password });
     if (!parsed.success) return toast.error(parsed.error.issues[0].message);
     setLoading(true);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
-    if (error) {
-      const msg = error.message.toLowerCase();
-      if (
-        msg.includes("not confirmed") ||
-        msg.includes("confirm") ||
-        msg.includes("verified") ||
-        msg.includes("verificado") ||
-        msg.includes("invalid login credentials")
-      ) {
-        setShowOtpOption(true);
-        return toast.error("No pudimos validar tus datos. Envía un código de acceso a tu correo.");
-      }
-      return toast.error(error.message);
-    }
+    if (error) return toast.error(error.message);
     if (!remember) sessionStorage.setItem("vip-no-remember", "1");
     toast.success("¡Bienvenido de vuelta!");
     navigate({ to: "/dashboard" });
-  }
-
-  async function sendOtp(targetEmail: string) {
-    setLoading(true);
-    try {
-      await sendCode({ data: { email: targetEmail, type: "email" } });
-      navigate({
-        to: "/auth/verify",
-        search: { email: targetEmail },
-      });
-    } catch (err: any) {
-      toast.error(err?.message ?? "No se pudo enviar el código");
-    } finally {
-      setLoading(false);
-    }
   }
 
   async function handleSignup(e: React.FormEvent) {
@@ -89,21 +58,22 @@ function AuthPage() {
       fullName: sFullName,
       email: sEmail,
       phone: sPhone,
+      password: sPassword,
     });
     if (!parsed.success) return toast.error(parsed.error.issues[0].message);
     setLoading(true);
-    try {
-      const result = (await sendCode({
-        data: { email: sEmail, type: "email", fullName: sFullName, phone: sPhone },
-      })) as { email: string; code: string } | undefined;
-      if (result?.code) sessionStorage.setItem("vip-demo-code", result.code);
-      toast.success("Código enviado. Revisa tu correo.");
-      navigate({ to: "/auth/verify", search: { email: sEmail } });
-    } catch (err: any) {
-      toast.error(err?.message ?? "No se pudo crear la cuenta");
-    } finally {
-      setLoading(false);
-    }
+    const { error } = await supabase.auth.signUp({
+      email: sEmail,
+      password: sPassword,
+      options: {
+        emailRedirectTo: window.location.origin,
+        data: { full_name: sFullName, phone: sPhone },
+      },
+    });
+    setLoading(false);
+    if (error) return toast.error(error.message);
+    toast.success("¡Cuenta creada!");
+    navigate({ to: "/dashboard" });
   }
 
   async function handleGoogle() {
@@ -135,39 +105,17 @@ function AuthPage() {
         <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
           <div className="mb-6 grid grid-cols-2 rounded-lg bg-secondary p-1">
             <button
-              onClick={() => { setTab("login"); setShowOtpOption(false); }}
+              onClick={() => setTab("login")}
               className={`rounded-md px-4 py-2 text-sm font-medium transition ${tab === "login" ? "bg-gradient-gold text-primary-foreground shadow-gold" : "text-muted-foreground"}`}
             >Entrar</button>
             <button
-              onClick={() => { setTab("signup"); setShowOtpOption(false); }}
+              onClick={() => setTab("signup")}
               className={`rounded-md px-4 py-2 text-sm font-medium transition ${tab === "signup" ? "bg-gradient-gold text-primary-foreground shadow-gold" : "text-muted-foreground"}`}
             >Crear cuenta</button>
           </div>
 
           {tab === "login" ? (
             <form onSubmit={handleLogin} className="space-y-4">
-              {showOtpOption && (
-                <div className="rounded-xl border border-gold/40 bg-gold/10 p-4 text-sm">
-                  <div className="flex items-start gap-3">
-                    <MailWarning className="mt-0.5 h-5 w-5 shrink-0 text-gold" />
-                    <div className="flex-1">
-                      <p className="font-semibold text-foreground">Cuenta sin acceso</p>
-                      <p className="mt-1 text-muted-foreground">
-                        No pudimos validar tu correo o contraseña. Te enviaremos un código de acceso a <span className="font-medium text-foreground">{email}</span>.
-                      </p>
-                      <button
-                        type="button"
-                        onClick={() => sendOtp(email)}
-                        disabled={loading}
-                        className="mt-3 inline-flex items-center gap-2 rounded-lg bg-gradient-gold px-3 py-2 text-xs font-semibold text-primary-foreground shadow-gold disabled:opacity-70"
-                      >
-                        {loading && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                        Enviar código de acceso
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
               <Field label="Correo electrónico" type="email" value={email} onChange={setEmail} placeholder="tu@correo.com" />
               <Field label="Contraseña" type="password" value={password} onChange={setPassword} placeholder="••••••••" />
               <div className="flex items-center justify-between text-sm">
@@ -187,8 +135,9 @@ function AuthPage() {
               <Field label="Nombre completo" value={sFullName} onChange={setSFullName} placeholder="João da Silva" />
               <Field label="Correo electrónico" type="email" value={sEmail} onChange={setSEmail} placeholder="tu@correo.com" />
               <Field label="Teléfono" value={sPhone} onChange={setSPhone} placeholder="+55 11 90000-0000" />
+              <Field label="Contraseña" type="password" value={sPassword} onChange={setSPassword} placeholder="Mínimo 6 caracteres" />
               <p className="text-xs text-muted-foreground">
-                Te enviaremos un código de verificación a tu correo. Después podrás crear tu contraseña.
+                La verificación de correo es opcional. Podrás usar tu cuenta de inmediato.
               </p>
               <SubmitButton loading={loading}>Crear cuenta VIP</SubmitButton>
             </form>
