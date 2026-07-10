@@ -77,12 +77,17 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
-      { name: "theme-color", content: "#1A1A1A" },
+      { name: "theme-color", content: "#10B981" },
+      { name: "mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-status-bar-style", content: "default" },
+      { name: "apple-mobile-web-app-title", content: "VIP Remesas" },
+      { name: "application-name", content: "VIP Remesas" },
       { title: "VIP Remesas — Envía dinero a Cuba y Latinoamérica" },
       {
         name: "description",
         content:
-          "Plataforma VIP para enviar remesas desde Brasil a Cuba, Venezuela, Colombia y México. Rápido, seguro y con la mejor tasa.",
+          "Envía remesas desde Brasil a Cuba, Venezuela, Colombia y México. Rápido, seguro y con la mejor tasa.",
       },
       { property: "og:title", content: "VIP Remesas — Remesas premium desde Brasil" },
       { property: "og:description", content: "Envía dinero a Cuba y Latinoamérica en minutos." },
@@ -91,7 +96,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     ],
     links: [
       { rel: "stylesheet", href: appCss },
-      { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
+      { rel: "manifest", href: "/manifest.webmanifest" },
+      { rel: "icon", href: "/favicon.png", type: "image/png" },
+      { rel: "apple-touch-icon", href: "/apple-touch-icon.png", sizes: "180x180" },
     ],
   }),
   shellComponent: RootShell,
