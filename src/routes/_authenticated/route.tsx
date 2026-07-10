@@ -33,6 +33,28 @@ function AuthedLayout() {
     },
   });
 
+  const [showNotif, setShowNotif] = useState(false);
+  const notifs = useQuery({
+    queryKey: ["notifications", user.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("notifications")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(20);
+      if (error) throw error;
+      return data;
+    },
+    refetchInterval: 30000,
+  });
+  const unread = notifs.data?.filter((n) => !n.read).length ?? 0;
+
+  async function markAllRead() {
+    await supabase.from("notifications").update({ read: true }).eq("user_id", user.id).eq("read", false);
+    queryClient.invalidateQueries({ queryKey: ["notifications", user.id] });
+  }
+
   async function signOut() {
     await queryClient.cancelQueries();
     queryClient.clear();
@@ -58,6 +80,17 @@ function AuthedLayout() {
           <span className="font-display text-base font-bold">VIP Remesas</span>
         </Link>
         <div className="flex items-center gap-1">
+          <button
+            onClick={() => { setShowNotif((s) => !s); if (unread > 0) markAllRead(); }}
+            className="relative rounded-md p-2 text-muted-foreground hover:text-gold"
+            aria-label="Notificaciones">
+            <Bell className="h-5 w-5" />
+            {unread > 0 && (
+              <span className="absolute -right-0.5 -top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-destructive px-1 text-[9px] font-bold text-destructive-foreground">
+                {unread}
+              </span>
+            )}
+          </button>
           {isAdmin.data && (
             <Link to="/admin"
               className="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold text-gold hover:bg-accent"
@@ -70,6 +103,29 @@ function AuthedLayout() {
           </button>
         </div>
       </header>
+
+      {showNotif && (
+        <div className="mx-auto mt-2 max-w-md px-5">
+          <div className="rounded-xl border border-gold/40 bg-card p-3 shadow-card">
+            <div className="mb-2 flex items-center justify-between">
+              <p className="text-xs font-semibold uppercase text-muted-foreground">Notificaciones</p>
+              <button onClick={() => setShowNotif(false)} className="text-xs text-gold">Cerrar</button>
+            </div>
+            {notifs.data && notifs.data.length === 0 && (
+              <p className="text-xs text-muted-foreground">Sin notificaciones aún.</p>
+            )}
+            <ul className="space-y-2">
+              {notifs.data?.map((n) => (
+                <li key={n.id} className="rounded-lg border border-border bg-background/60 p-2">
+                  <div className="text-sm font-semibold">{n.title}</div>
+                  {n.body && <div className="text-[11px] text-muted-foreground">{n.body}</div>}
+                  <div className="text-[10px] text-muted-foreground">{new Date(n.created_at).toLocaleString("es")}</div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
 
       <main className="mx-auto max-w-md px-5 pt-6">
         <Outlet />
