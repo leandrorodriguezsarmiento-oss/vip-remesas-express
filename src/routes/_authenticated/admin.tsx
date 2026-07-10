@@ -19,7 +19,7 @@ export const Route = createFileRoute("/_authenticated/admin")({
   component: AdminPanel,
 });
 
-type Tab = "tx" | "rates" | "promos" | "users";
+type Tab = "tx" | "rates" | "promos" | "users" | "api";
 
 function AdminPanel() {
   const [tab, setTab] = useState<Tab>("tx");
@@ -35,12 +35,12 @@ function AdminPanel() {
         </div>
       </div>
 
-      <div className="grid grid-cols-4 rounded-xl bg-secondary p-1 text-[11px] font-medium">
+      <div className="grid grid-cols-5 rounded-xl bg-secondary p-1 text-[10px] font-medium">
         {[
-          ["tx", "Remesas"], ["rates", "Tasas"], ["promos", "Promos"], ["users", "Usuarios"],
+          ["tx", "Remesas"], ["rates", "Tasas"], ["promos", "Promos"], ["users", "Usuarios"], ["api", "API"],
         ].map(([id, label]) => (
           <button key={id} onClick={() => setTab(id as Tab)}
-            className={`rounded-lg px-2 py-2 ${tab === id ? "bg-gradient-gold text-primary-foreground shadow-gold" : "text-muted-foreground"}`}>
+            className={`rounded-lg px-1 py-2 ${tab === id ? "bg-gradient-gold text-primary-foreground shadow-gold" : "text-muted-foreground"}`}>
             {label}
           </button>
         ))}
@@ -50,6 +50,7 @@ function AdminPanel() {
       {tab === "rates" && <RatesTab />}
       {tab === "promos" && <PromosTab />}
       {tab === "users" && <UsersTab />}
+      {tab === "api" && <ApiTab />}
     </div>
   );
 }
@@ -286,6 +287,77 @@ function UsersTab() {
         </div>
       ))}
       {q.data && q.data.length === 0 && <p className="text-sm text-muted-foreground">Aún no hay usuarios.</p>}
+    </div>
+  );
+}
+
+// ----------------- API Recargas -----------------
+function ApiTab() {
+  const qc = useQueryClient();
+  const q = useQuery({
+    queryKey: ["admin-recargas-config"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("recargas_config").select("*").limit(1).maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+  const [provider, setProvider] = useState("");
+  const [baseUrl, setBaseUrl] = useState("");
+  const [keyName, setKeyName] = useState("");
+  const [notes, setNotes] = useState("");
+  const [active, setActive] = useState(true);
+
+  // hydrate once
+  if (q.data && provider === "" && (q.data.provider ?? "") !== "") {
+    setProvider(q.data.provider ?? "");
+    setBaseUrl(q.data.api_base_url ?? "");
+    setKeyName(q.data.api_key_name ?? "");
+    setNotes(q.data.notes ?? "");
+    setActive(q.data.active);
+  }
+
+  const save = useMutation({
+    mutationFn: async () => {
+      if (!q.data) {
+        const { error } = await supabase.from("recargas_config").insert({
+          provider, api_base_url: baseUrl, api_key_name: keyName, notes, active,
+        });
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("recargas_config").update({
+          provider, api_base_url: baseUrl, api_key_name: keyName, notes, active,
+          updated_at: new Date().toISOString(),
+        }).eq("id", q.data.id);
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => { toast.success("Configuración guardada"); qc.invalidateQueries({ queryKey: ["admin-recargas-config"] }); },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Error"),
+  });
+
+  return (
+    <div className="space-y-3">
+      <div className="rounded-xl border border-gold/40 bg-card p-3 space-y-2">
+        <p className="text-xs font-semibold uppercase text-muted-foreground">Proveedor de recargas Cubacel</p>
+        <p className="text-[11px] text-muted-foreground">
+          Cuando elijas proveedor (Ding, DTOne, etc.) pega aquí su URL base y el nombre del secret con la API key.
+          Luego pídeme añadir ese secret y conectaré la llamada real en el flujo de recargas.
+        </p>
+        <MiniInput label="Proveedor (ej. ding, dtone, mock)" value={provider} onChange={setProvider} />
+        <MiniInput label="URL base API" value={baseUrl} onChange={setBaseUrl} />
+        <MiniInput label="Nombre del secret (ej. DING_API_KEY)" value={keyName} onChange={setKeyName} />
+        <MiniInput label="Notas" value={notes} onChange={setNotes} />
+        <label className="flex items-center gap-2 text-[11px] text-muted-foreground">
+          <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)}
+            className="h-3 w-3 accent-[color:var(--gold)]" />
+          Configuración activa
+        </label>
+        <button onClick={() => save.mutate()}
+          className="flex w-full items-center justify-center gap-1 rounded-lg bg-gradient-gold px-3 py-2 text-xs font-semibold text-primary-foreground shadow-gold">
+          <Check className="h-3 w-3" /> Guardar
+        </button>
+      </div>
     </div>
   );
 }
