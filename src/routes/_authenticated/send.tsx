@@ -77,7 +77,7 @@ function SendFlow() {
     setLoading(true);
     try {
       const id = generateTrackingId();
-      const pix = generatePixCode(id, amountNum);
+      const pix = origin === "BR" ? generatePixCode(id, amountNum) : null;
 
       const { error } = await supabase.from("transactions").insert({
         user_id: user.id,
@@ -86,7 +86,7 @@ function SendFlow() {
         origin_currency: originOpt.currency,
         destination_country: "Cuba",
         method_category: method,
-        delivery_method: currency, // reutilizamos como sub-tipo
+        delivery_method: currency,
         recipient_name: recipient.name,
         recipient_phone: recipient.phone,
         recipient_card: recipient.card || null,
@@ -97,7 +97,7 @@ function SendFlow() {
         exchange_rate: rate.rate,
         fee_brl: 0,
         total_brl: amountNum,
-        payment_method: "pix",
+        payment_method: origin === "BR" ? "pix" : origin === "US" ? "zelle" : "sepa",
         pix_code: pix,
         status: "pending",
       });
@@ -123,6 +123,7 @@ function SendFlow() {
       setLoading(false);
     }
   }
+
 
   async function confirmPaid() {
     if (!tracking) return;
