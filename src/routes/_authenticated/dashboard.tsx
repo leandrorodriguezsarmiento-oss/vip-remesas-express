@@ -6,6 +6,7 @@ import {
   type RateRow, findRate,
 } from "@/lib/remittance";
 import { ArrowUpRight, Send, Smartphone, TrendingUp } from "lucide-react";
+import { BannerCarousel } from "@/components/BannerCarousel";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   component: Dashboard,
@@ -53,12 +54,15 @@ function Dashboard() {
         <h1 className="font-display text-2xl font-bold">{firstName} 👋</h1>
       </div>
 
+      {/* Banners */}
+      <BannerCarousel />
+
       {/* Hero */}
-      <div className="relative overflow-hidden rounded-2xl border border-gold/40 bg-gradient-gold p-6 shadow-gold">
-        <div className="absolute -right-8 -top-8 h-32 w-32 rounded-full bg-white/10 blur-2xl" />
-        <p className="text-xs font-medium uppercase tracking-wider text-black/70">Envía a Cuba</p>
-        <p className="mt-1 font-display text-3xl font-bold text-black">Desde 20 en 15 min</p>
-        <p className="mt-1 text-xs text-black/70">Brasil · Europa · Estados Unidos → Cuba</p>
+      <div className="relative overflow-hidden rounded-2xl border border-primary/30 bg-gradient-gold p-6 shadow-gold">
+        <div className="absolute -right-8 -top-8 h-32 w-32 rounded-full bg-white/20 blur-2xl" />
+        <p className="text-xs font-medium uppercase tracking-wider text-white/90">Envía a Cuba</p>
+        <p className="mt-1 font-display text-3xl font-bold text-white">Desde 20 en 15 min</p>
+        <p className="mt-1 text-xs text-white/85">Brasil · Europa · Estados Unidos → Cuba</p>
       </div>
 
       {/* Quick actions */}
