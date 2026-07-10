@@ -89,10 +89,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         content:
           "Envía remesas desde Brasil a Cuba, Venezuela, Colombia y México. Rápido, seguro y con la mejor tasa.",
       },
-      { property: "og:title", content: "VIP Remesas — Remesas premium desde Brasil" },
-      { property: "og:description", content: "Envía dinero a Cuba y Latinoamérica en minutos." },
+      { property: "og:title", content: "VIP Remesas — Envía dinero a Cuba y Latinoamérica" },
+      { property: "og:description", content: "Envía remesas desde Brasil a Cuba, Venezuela, Colombia y México. Rápido, seguro y con la mejor tasa." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:title", content: "VIP Remesas — Envía dinero a Cuba y Latinoamérica" },
+      { name: "twitter:description", content: "Envía remesas desde Brasil a Cuba, Venezuela, Colombia y México. Rápido, seguro y con la mejor tasa." },
+      { property: "og:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/afe80f2f-571b-400a-a0b6-dcc0a2746fab" },
+      { name: "twitter:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/afe80f2f-571b-400a-a0b6-dcc0a2746fab" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
