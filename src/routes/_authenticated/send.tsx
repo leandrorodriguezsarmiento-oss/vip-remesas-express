@@ -329,12 +329,18 @@ function SendFlow() {
         </Step>
       )}
 
-      {/* Paso 6: PIX */}
-      {step === 6 && pixCode && tracking && originOpt && (
+      {/* Paso 6: pago */}
+      {step === 6 && tracking && originOpt && (
         <div className="space-y-4">
           <div>
-            <h1 className="font-display text-2xl font-bold">Paga con PIX</h1>
-            <p className="mt-1 text-sm text-muted-foreground">Copia el código y pégalo en tu app de banco.</p>
+            <h1 className="font-display text-2xl font-bold">
+              {origin === "BR" ? "Paga con PIX" : "Datos para transferir"}
+            </h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {origin === "BR"
+                ? "Copia el código y pégalo en tu app de banco — el monto ya viene incluido."
+                : "Transfiere el total exacto usando estos datos. Pon tu código de seguimiento como concepto."}
+            </p>
           </div>
           <div className="rounded-2xl border border-gold/40 bg-gradient-gold p-5 text-center shadow-gold">
             <p className="text-xs uppercase tracking-wider text-black/70">Total a pagar</p>
@@ -343,18 +349,45 @@ function SendFlow() {
             </p>
             <p className="mt-1 text-[11px] text-black/70">Código: {tracking}</p>
           </div>
-          <div className="rounded-xl border border-border bg-card p-4">
-            <p className="text-xs text-muted-foreground">PIX copia y pega</p>
-            <p className="mt-1 break-all font-mono text-[11px] leading-relaxed">{pixCode}</p>
-            <button
-              onClick={() => { navigator.clipboard.writeText(pixCode); toast.success("Código copiado"); }}
-              className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-background px-4 py-2 text-sm font-medium hover:border-gold">
-              <Copy className="h-4 w-4" /> Copiar código PIX
-            </button>
-          </div>
-          <p className="text-center text-[11px] text-muted-foreground">
-            🔌 Slot integración: cuando conectes tu API PIX real, el webhook confirmará el pago automáticamente.
-          </p>
+
+          {origin === "BR" && pixCode && (
+            <div className="rounded-xl border border-border bg-card p-4">
+              <p className="text-xs text-muted-foreground">PIX copia y pega (monto incluido)</p>
+              <p className="mt-1 break-all font-mono text-[11px] leading-relaxed">{pixCode}</p>
+              <button
+                onClick={() => { navigator.clipboard.writeText(pixCode); toast.success("Código copiado"); }}
+                className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-background px-4 py-2 text-sm font-medium hover:border-gold">
+                <Copy className="h-4 w-4" /> Copiar código PIX
+              </button>
+            </div>
+          )}
+
+          {origin !== "BR" && (
+            <div className="space-y-2">
+              {paymentMethods.isLoading && <p className="text-sm text-muted-foreground">Cargando datos…</p>}
+              {paymentMethods.data && paymentMethods.data.length === 0 && (
+                <div className="rounded-xl border border-dashed border-border bg-card/60 p-4 text-sm text-muted-foreground">
+                  Aún no hay métodos de pago configurados para este origen. El admin debe añadirlos.
+                </div>
+              )}
+              {paymentMethods.data?.map((pm) => (
+                <div key={pm.id} className="rounded-xl border border-border bg-card p-4">
+                  <div className="flex items-center justify-between">
+                    <p className="font-semibold text-gold">{pm.label}</p>
+                    <button
+                      onClick={() => { navigator.clipboard.writeText(pm.instructions); toast.success("Datos copiados"); }}
+                      className="rounded-md p-1 hover:bg-accent">
+                      <Copy className="h-4 w-4" />
+                    </button>
+                  </div>
+                  <pre className="mt-2 whitespace-pre-wrap break-words font-mono text-[11px] leading-relaxed text-muted-foreground">
+{pm.instructions}
+                  </pre>
+                </div>
+              ))}
+            </div>
+          )}
+
           <button onClick={confirmPaid} disabled={loading}
             className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-gold px-4 py-3.5 text-sm font-semibold text-primary-foreground shadow-gold disabled:opacity-70">
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
@@ -362,6 +395,7 @@ function SendFlow() {
           </button>
         </div>
       )}
+
 
       {/* Paso 7: éxito */}
       {step === 7 && tracking && (
