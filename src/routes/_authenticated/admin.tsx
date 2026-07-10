@@ -560,7 +560,7 @@ function RecargasTab() {
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
               <div className="text-sm font-semibold truncate">
-                {r.profiles?.full_name || "Usuario"} · {r.phone}
+                {r.profile?.full_name || "Usuario"} · {r.phone}
               </div>
               <div className="text-[11px] text-muted-foreground">{r.promo_title}</div>
               <div className="text-[10px] text-muted-foreground">{new Date(r.created_at).toLocaleString("es")}</div>
