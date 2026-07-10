@@ -1,7 +1,8 @@
 import { createFileRoute, Outlet, Link, redirect, useNavigate, useLocation } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
-import { Home, Send, ClockIcon, LogOut, Sparkles, Smartphone, Shield } from "lucide-react";
+import { Home, Send, ClockIcon, LogOut, Sparkles, Smartphone, Shield, Bell } from "lucide-react";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
