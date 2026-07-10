@@ -364,5 +364,107 @@ function ApiTab() {
   );
 }
 
+// ----------------- Banners -----------------
+function BannersTab() {
+  const qc = useQueryClient();
+  const q = useQuery({
+    queryKey: ["admin-banners"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("banners").select("*").order("sort_order");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const [uploading, setUploading] = useState(false);
+  const [title, setTitle] = useState("");
+  const [link, setLink] = useState("");
+
+  const upsert = useMutation({
+    mutationFn: async (b: { id?: string; image_url: string; title: string; link_url: string; active?: boolean; sort_order?: number }) => {
+      if (b.id) {
+        const { error } = await supabase.from("banners").update({
+          title: b.title || null, link_url: b.link_url || null, active: b.active, sort_order: b.sort_order,
+        }).eq("id", b.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("banners").insert({
+          image_url: b.image_url, title: b.title || null, link_url: b.link_url || null,
+        });
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["admin-banners"] }); qc.invalidateQueries({ queryKey: ["banners", "active"] }); toast.success("Banner guardado"); },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Error"),
+  });
+
+  const del = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("banners").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["admin-banners"] }); qc.invalidateQueries({ queryKey: ["banners", "active"] }); toast.success("Banner eliminado"); },
+  });
+
+  const onFile = async (file: File) => {
+    setUploading(true);
+    try {
+      const ext = file.name.split(".").pop() || "jpg";
+      const path = `${Date.now()}.${ext}`;
+      const { error: upErr } = await supabase.storage.from("banners").upload(path, file, {
+        cacheControl: "3600", upsert: false, contentType: file.type,
+      });
+      if (upErr) throw upErr;
+      const { data: pub } = supabase.storage.from("banners").getPublicUrl(path);
+      upsert.mutate({ image_url: pub.publicUrl, title, link_url: link });
+      setTitle(""); setLink("");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "No se pudo subir la imagen");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="rounded-xl border border-primary/40 bg-card p-3 space-y-2">
+        <p className="text-xs font-semibold uppercase text-muted-foreground">Nuevo banner</p>
+        <MiniInput label="Título (opcional)" value={title} onChange={setTitle} />
+        <MiniInput label="Enlace (opcional, https://...)" value={link} onChange={setLink} />
+        <label className={`flex w-full cursor-pointer items-center justify-center gap-1 rounded-lg bg-gradient-gold px-3 py-2 text-xs font-semibold text-primary-foreground shadow-gold ${uploading ? "opacity-60" : ""}`}>
+          <Plus className="h-3 w-3" /> {uploading ? "Subiendo…" : "Subir imagen y crear"}
+          <input type="file" accept="image/*" className="hidden" disabled={uploading}
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) void onFile(f); e.currentTarget.value = ""; }} />
+        </label>
+        <p className="text-[10px] text-muted-foreground">Recomendado 1600×700, formato JPG o PNG, menos de 2 MB.</p>
+      </div>
+
+      {q.data?.map((b) => (
+        <div key={b.id} className="rounded-xl border border-border bg-card p-3 space-y-2">
+          <img src={b.image_url} alt={b.title ?? ""} className="aspect-[16/7] w-full rounded-lg object-cover" />
+          <div className="grid grid-cols-2 gap-2">
+            <MiniInput label="Título" value={b.title ?? ""} onChange={(v) => upsert.mutate({ id: b.id, image_url: b.image_url, title: v, link_url: b.link_url ?? "", active: b.active, sort_order: b.sort_order })} />
+            <MiniInput label="Orden" value={String(b.sort_order)} onChange={(v) => upsert.mutate({ id: b.id, image_url: b.image_url, title: b.title ?? "", link_url: b.link_url ?? "", active: b.active, sort_order: Number(v) || 0 })} />
+          </div>
+          <MiniInput label="Enlace" value={b.link_url ?? ""} onChange={(v) => upsert.mutate({ id: b.id, image_url: b.image_url, title: b.title ?? "", link_url: v, active: b.active, sort_order: b.sort_order })} />
+          <div className="flex items-center justify-between">
+            <label className="flex items-center gap-2 text-[11px] text-muted-foreground">
+              <input type="checkbox" checked={b.active}
+                onChange={(e) => upsert.mutate({ id: b.id, image_url: b.image_url, title: b.title ?? "", link_url: b.link_url ?? "", active: e.target.checked, sort_order: b.sort_order })}
+                className="h-3 w-3 accent-[color:var(--gold)]" />
+              Activo
+            </label>
+            <button onClick={() => del.mutate(b.id)} className="rounded-md p-1 text-destructive hover:bg-destructive/10">
+              <Trash2 className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      ))}
+      {q.data && q.data.length === 0 && <p className="text-sm text-muted-foreground">Aún no hay banners. Sube el primero arriba.</p>}
+    </div>
+  );
+}
+
 // silence the Loader2 tree-shake in some paths
 void Loader2;
+
