@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { formatMoney, sendCubacelRecharge } from "@/lib/remittance";
+import { formatMoney } from "@/lib/remittance";
 import { Smartphone, Loader2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
@@ -21,6 +21,7 @@ type Promo = {
 };
 
 function Recargas() {
+  const { user } = Route.useRouteContext();
   const promos = useQuery<Promo[]>({
     queryKey: ["promos"],
     queryFn: async () => {
@@ -39,10 +40,16 @@ function Recargas() {
     if (!selected || !phone) return;
     setLoading(true);
     try {
-      // 🔌 SLOT INTEGRACIÓN: sustituir por la API real de Cubacel
-      const res = await sendCubacelRecharge({ phone, promoId: selected.id });
-      if (!res.ok) throw new Error("Falló la recarga");
-      toast.success(`Recarga enviada a ${phone}`);
+      const { error } = await supabase.from("recargas_requests").insert({
+        user_id: user.id,
+        phone,
+        promo_id: selected.id,
+        promo_title: selected.title,
+        price_brl: selected.price_brl,
+        status: "pending",
+      });
+      if (error) throw error;
+      toast.success(`Solicitud enviada. El admin procesará la recarga a ${phone}.`);
       setSelected(null);
       setPhone("");
     } catch (e) {
@@ -51,6 +58,7 @@ function Recargas() {
       setLoading(false);
     }
   }
+
 
   return (
     <div className="space-y-5">

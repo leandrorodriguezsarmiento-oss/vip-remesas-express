@@ -85,6 +85,39 @@ export type Database = {
           },
         ]
       }
+      payment_methods: {
+        Row: {
+          active: boolean
+          created_at: string
+          id: string
+          instructions: string
+          label: string
+          origin_country: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          instructions: string
+          label: string
+          origin_country: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          instructions?: string
+          label?: string
+          origin_country?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           balance_brl: number
@@ -228,6 +261,56 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      recargas_requests: {
+        Row: {
+          created_at: string
+          id: string
+          notes: string | null
+          phone: string
+          price_brl: number
+          promo_id: string | null
+          promo_title: string
+          provider_ref: string | null
+          status: Database["public"]["Enums"]["recarga_status"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          phone: string
+          price_brl: number
+          promo_id?: string | null
+          promo_title: string
+          provider_ref?: string | null
+          status?: Database["public"]["Enums"]["recarga_status"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          phone?: string
+          price_brl?: number
+          promo_id?: string | null
+          promo_title?: string
+          provider_ref?: string | null
+          status?: Database["public"]["Enums"]["recarga_status"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recargas_requests_promo_id_fkey"
+            columns: ["promo_id"]
+            isOneToOne: false
+            referencedRelation: "promos"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       recipients: {
         Row: {
@@ -406,6 +489,7 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "user"
+      recarga_status: "pending" | "processing" | "completed" | "rejected"
       tx_status: "pending" | "processing" | "completed" | "rejected"
     }
     CompositeTypes: {
@@ -535,6 +619,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "user"],
+      recarga_status: ["pending", "processing", "completed", "rejected"],
       tx_status: ["pending", "processing", "completed", "rejected"],
     },
   },

@@ -1,10 +1,12 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { formatMoney } from "@/lib/remittance";
+import { deleteUserAsAdmin } from "@/lib/admin.functions";
 import { toast } from "sonner";
-import { Shield, Loader2, Trash2, Plus, Check } from "lucide-react";
+import { Shield, Loader2, Trash2, Plus, Check, RefreshCw, Smartphone, Zap, BarChart3 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   beforeLoad: async ({ context }) => {
@@ -19,7 +21,7 @@ export const Route = createFileRoute("/_authenticated/admin")({
   component: AdminPanel,
 });
 
-type Tab = "tx" | "rates" | "promos" | "users" | "api" | "banners";
+type Tab = "tx" | "recargas" | "rates" | "promos" | "users" | "api" | "banners" | "payments" | "reports";
 
 function AdminPanel() {
   const [tab, setTab] = useState<Tab>("tx");
@@ -37,8 +39,9 @@ function AdminPanel() {
 
       <div className="flex gap-1 overflow-x-auto rounded-xl bg-secondary p-1 text-[10px] font-medium">
         {[
-          ["tx", "Remesas"], ["rates", "Tasas"], ["promos", "Promos"],
-          ["banners", "Banners"], ["users", "Usuarios"], ["api", "API"],
+          ["tx", "Remesas"], ["recargas", "Recargas"], ["reports", "Reportes"],
+          ["rates", "Tasas"], ["promos", "Promos"], ["banners", "Banners"],
+          ["payments", "Pagos US/EU"], ["users", "Usuarios"], ["api", "API"],
         ].map(([id, label]) => (
           <button key={id} onClick={() => setTab(id as Tab)}
             className={`shrink-0 rounded-lg px-3 py-2 ${tab === id ? "bg-gradient-gold text-primary-foreground shadow-gold" : "text-muted-foreground"}`}>
@@ -48,14 +51,18 @@ function AdminPanel() {
       </div>
 
       {tab === "tx" && <TransactionsTab />}
+      {tab === "recargas" && <RecargasTab />}
+      {tab === "reports" && <ReportsTab />}
       {tab === "rates" && <RatesTab />}
       {tab === "promos" && <PromosTab />}
       {tab === "banners" && <BannersTab />}
+      {tab === "payments" && <PaymentMethodsTab />}
       {tab === "users" && <UsersTab />}
       {tab === "api" && <ApiTab />}
     </div>
   );
 }
+
 
 // ----------------- Transacciones -----------------
 function TransactionsTab() {
@@ -269,6 +276,8 @@ function PromosTab() {
 
 // ----------------- Usuarios -----------------
 function UsersTab() {
+  const qc = useQueryClient();
+  const delUser = useServerFn(deleteUserAsAdmin);
   const q = useQuery({
     queryKey: ["admin-users"],
     queryFn: async () => {
@@ -278,20 +287,37 @@ function UsersTab() {
       return data;
     },
   });
+  const del = useMutation({
+    mutationFn: async (userId: string) => delUser({ data: { userId } }),
+    onSuccess: () => { toast.success("Usuario eliminado"); qc.invalidateQueries({ queryKey: ["admin-users"] }); },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Error"),
+  });
   if (q.isLoading) return <p className="text-sm text-muted-foreground">Cargando…</p>;
   return (
     <div className="space-y-2">
       {q.data?.map((u) => (
-        <div key={u.id} className="rounded-xl border border-border bg-card p-3">
-          <div className="text-sm font-semibold">{u.full_name || "(sin nombre)"}</div>
-          <div className="text-[11px] text-muted-foreground">{u.phone || "sin teléfono"}</div>
-          <div className="text-[10px] text-muted-foreground">Alta: {new Date(u.created_at).toLocaleDateString("es")}</div>
+        <div key={u.id} className="flex items-center justify-between rounded-xl border border-border bg-card p-3">
+          <div className="min-w-0">
+            <div className="text-sm font-semibold truncate">{u.full_name || "(sin nombre)"}</div>
+            <div className="text-[11px] text-muted-foreground">{u.phone || "sin teléfono"}</div>
+            <div className="text-[10px] text-muted-foreground">Alta: {new Date(u.created_at).toLocaleDateString("es")}</div>
+          </div>
+          <button
+            onClick={() => {
+              if (confirm(`¿Eliminar a ${u.full_name || "este usuario"}? Se borran sus remesas y datos.`)) {
+                del.mutate(u.id);
+              }
+            }}
+            className="rounded-md p-2 text-destructive hover:bg-destructive/10">
+            <Trash2 className="h-4 w-4" />
+          </button>
         </div>
       ))}
       {q.data && q.data.length === 0 && <p className="text-sm text-muted-foreground">Aún no hay usuarios.</p>}
     </div>
   );
 }
+
 
 // ----------------- API Recargas -----------------
 function ApiTab() {
@@ -355,14 +381,34 @@ function ApiTab() {
             className="h-3 w-3 accent-[color:var(--gold)]" />
           Configuración activa
         </label>
-        <button onClick={() => save.mutate()}
-          className="flex w-full items-center justify-center gap-1 rounded-lg bg-gradient-gold px-3 py-2 text-xs font-semibold text-primary-foreground shadow-gold">
-          <Check className="h-3 w-3" /> Guardar
-        </button>
+        <div className="flex gap-2">
+          <button onClick={() => save.mutate()}
+            className="flex flex-1 items-center justify-center gap-1 rounded-lg bg-gradient-gold px-3 py-2 text-xs font-semibold text-primary-foreground shadow-gold">
+            <Check className="h-3 w-3" /> Guardar
+          </button>
+          <button
+            onClick={async () => {
+              if (!baseUrl) return toast.error("Falta URL base");
+              const t = toast.loading("Sincronizando API…");
+              try {
+                const res = await fetch(baseUrl, { method: "GET" });
+                toast.dismiss(t);
+                if (res.ok) toast.success(`API OK (${res.status})`);
+                else toast.error(`API respondió ${res.status}`);
+              } catch (e) {
+                toast.dismiss(t);
+                toast.error(e instanceof Error ? e.message : "No se pudo conectar");
+              }
+            }}
+            className="flex items-center justify-center gap-1 rounded-lg border border-gold/40 bg-card px-3 py-2 text-xs font-semibold text-gold">
+            <RefreshCw className="h-3 w-3" /> Sincronizar
+          </button>
+        </div>
       </div>
     </div>
   );
 }
+
 
 // ----------------- Banners -----------------
 function BannersTab() {
@@ -468,6 +514,259 @@ function BannersTab() {
   );
 }
 
-// silence the Loader2 tree-shake in some paths
-void Loader2;
+// ----------------- Recargas Cubacel pendientes -----------------
+function RecargasTab() {
+  const qc = useQueryClient();
+  const q = useQuery({
+    queryKey: ["admin-recargas"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("recargas_requests")
+        .select("*").order("created_at", { ascending: false }).limit(100);
+      if (error) throw error;
+      const userIds = Array.from(new Set((data ?? []).map((r) => r.user_id)));
+      let profilesById: Record<string, { full_name: string | null; phone: string | null }> = {};
+      if (userIds.length) {
+        const { data: profs } = await supabase.from("profiles")
+          .select("id, full_name, phone").in("id", userIds);
+        profilesById = Object.fromEntries((profs ?? []).map((p) => [p.id, { full_name: p.full_name, phone: p.phone }]));
+      }
+      return (data ?? []).map((r) => ({ ...r, profile: profilesById[r.user_id] ?? null }));
+    },
+  });
+
+  const upd = useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: "pending" | "processing" | "completed" | "rejected" }) => {
+      const { error } = await supabase.from("recargas_requests").update({ status }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => { toast.success("Estado actualizado"); qc.invalidateQueries({ queryKey: ["admin-recargas"] }); },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Error"),
+  });
+
+  if (q.isLoading) return <p className="text-sm text-muted-foreground">Cargando…</p>;
+  const pendingCount = q.data?.filter((r) => r.status === "pending").length ?? 0;
+
+  return (
+    <div className="space-y-3">
+      <div className="rounded-xl border border-gold/40 bg-card p-3 flex items-center gap-2">
+        <Smartphone className="h-5 w-5 text-gold" />
+        <div className="flex-1">
+          <p className="text-xs uppercase text-muted-foreground">Recargas pendientes</p>
+          <p className="font-display text-xl font-bold text-gold">{pendingCount}</p>
+        </div>
+      </div>
+      {q.data?.map((r) => (
+        <div key={r.id} className="rounded-xl border border-border bg-card p-3 space-y-2">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <div className="text-sm font-semibold truncate">
+                {r.profile?.full_name || "Usuario"} · {r.phone}
+              </div>
+              <div className="text-[11px] text-muted-foreground">{r.promo_title}</div>
+              <div className="text-[10px] text-muted-foreground">{new Date(r.created_at).toLocaleString("es")}</div>
+            </div>
+            <div className="text-right">
+              <div className="text-sm font-bold text-gold">{formatMoney(Number(r.price_brl), "BRL")}</div>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-1">
+            {(["pending", "processing", "completed", "rejected"] as const).map((s) => (
+              <button key={s} onClick={() => upd.mutate({ id: r.id, status: s })}
+                className={`rounded-full px-2 py-1 text-[10px] font-semibold ${r.status === s ? "bg-gradient-gold text-primary-foreground" : "border border-border bg-background text-muted-foreground"}`}>
+                {s}
+              </button>
+            ))}
+          </div>
+        </div>
+      ))}
+      {q.data && q.data.length === 0 && <p className="text-sm text-muted-foreground">Sin recargas pendientes.</p>}
+    </div>
+  );
+}
+
+// ----------------- Reportes: totales por día -----------------
+function ReportsTab() {
+  const q = useQuery({
+    queryKey: ["admin-reports"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("transactions")
+        .select("total_brl, origin_currency, status, created_at")
+        .order("created_at", { ascending: false }).limit(500);
+      if (error) throw error;
+      return data;
+    },
+  });
+  if (q.isLoading) return <p className="text-sm text-muted-foreground">Cargando…</p>;
+
+  // Agrupar por día (últimos 14)
+  const byDay = new Map<string, { total: number; count: number; completed: number }>();
+  q.data?.forEach((t) => {
+    const day = new Date(t.created_at).toISOString().slice(0, 10);
+    const b = byDay.get(day) ?? { total: 0, count: 0, completed: 0 };
+    b.total += Number(t.total_brl);
+    b.count += 1;
+    if (t.status === "completed") b.completed += 1;
+    byDay.set(day, b);
+  });
+  const days = Array.from(byDay.entries()).sort((a, b) => b[0].localeCompare(a[0])).slice(0, 14);
+  const grandTotal = days.reduce((s, [, v]) => s + v.total, 0);
+  const grandCount = days.reduce((s, [, v]) => s + v.count, 0);
+
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 gap-2">
+        <div className="rounded-xl border border-gold/40 bg-card p-3">
+          <p className="text-[10px] uppercase text-muted-foreground">Total procesado</p>
+          <p className="font-display text-lg font-bold text-gold">{formatMoney(grandTotal, "BRL")}</p>
+        </div>
+        <div className="rounded-xl border border-gold/40 bg-card p-3">
+          <p className="text-[10px] uppercase text-muted-foreground">Remesas</p>
+          <p className="font-display text-lg font-bold text-gold">{grandCount}</p>
+        </div>
+      </div>
+      <div className="rounded-xl border border-border bg-card overflow-hidden">
+        <div className="flex items-center gap-2 border-b border-border p-3">
+          <BarChart3 className="h-4 w-4 text-gold" />
+          <p className="text-xs font-semibold uppercase text-muted-foreground">Totales por día</p>
+        </div>
+        <ul className="divide-y divide-border text-sm">
+          {days.map(([day, v]) => (
+            <li key={day} className="flex items-center justify-between p-3">
+              <div>
+                <div className="font-medium">{new Date(day).toLocaleDateString("es", { weekday: "short", day: "numeric", month: "short" })}</div>
+                <div className="text-[11px] text-muted-foreground">{v.count} remesas · {v.completed} completadas</div>
+              </div>
+              <div className="font-display text-base font-bold text-gold">{formatMoney(v.total, "BRL")}</div>
+            </li>
+          ))}
+          {days.length === 0 && <li className="p-4 text-center text-sm text-muted-foreground">Sin datos aún.</li>}
+        </ul>
+      </div>
+    </div>
+  );
+}
+
+// ----------------- Métodos de pago US / EU -----------------
+function PaymentMethodsTab() {
+  const qc = useQueryClient();
+  const q = useQuery({
+    queryKey: ["admin-payment-methods"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("payment_methods").select("*")
+        .order("origin_country").order("sort_order");
+      if (error) throw error;
+      return data;
+    },
+  });
+  const save = useMutation({
+    mutationFn: async (p: { id?: string; origin_country: string; label: string; instructions: string; active: boolean; sort_order: number }) => {
+      if (p.id) {
+        const { error } = await supabase.from("payment_methods").update({
+          label: p.label, instructions: p.instructions, active: p.active, sort_order: p.sort_order, origin_country: p.origin_country,
+        }).eq("id", p.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("payment_methods").insert(p);
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => { toast.success("Guardado"); qc.invalidateQueries({ queryKey: ["admin-payment-methods"] }); qc.invalidateQueries({ queryKey: ["payment-methods"] }); },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Error"),
+  });
+  const del = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("payment_methods").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => { toast.success("Eliminado"); qc.invalidateQueries({ queryKey: ["admin-payment-methods"] }); qc.invalidateQueries({ queryKey: ["payment-methods"] }); },
+  });
+
+  const [origin, setOrigin] = useState("US");
+  const [label, setLabel] = useState("");
+  const [instructions, setInstructions] = useState("");
+
+  return (
+    <div className="space-y-3">
+      <div className="rounded-xl border border-gold/40 bg-card p-3 space-y-2">
+        <p className="text-xs font-semibold uppercase text-muted-foreground">Nuevo método de pago</p>
+        <div className="grid grid-cols-2 gap-2">
+          <label className="block">
+            <span className="mb-0.5 block text-[10px] text-muted-foreground">Origen</span>
+            <select value={origin} onChange={(e) => setOrigin(e.target.value)}
+              className="w-full rounded-md border border-border bg-background px-2 py-1 text-xs">
+              <option value="US">US</option>
+              <option value="EU">EU</option>
+              <option value="BR">BR</option>
+            </select>
+          </label>
+          <MiniInput label="Etiqueta (Zelle, IBAN…)" value={label} onChange={setLabel} />
+        </div>
+        <label className="block">
+          <span className="mb-0.5 block text-[10px] text-muted-foreground">Instrucciones (multilínea)</span>
+          <textarea value={instructions} onChange={(e) => setInstructions(e.target.value)} rows={4}
+            className="w-full rounded-md border border-border bg-background px-2 py-1 text-xs focus:border-gold outline-none font-mono"
+            placeholder="Titular:&#10;Email/IBAN:&#10;Banco:" />
+        </label>
+        <button
+          onClick={() => {
+            if (!label || !instructions) return toast.error("Falta etiqueta o instrucciones");
+            save.mutate({ origin_country: origin, label, instructions, active: true, sort_order: 99 });
+            setLabel(""); setInstructions("");
+          }}
+          className="flex w-full items-center justify-center gap-1 rounded-lg bg-gradient-gold px-3 py-1.5 text-xs font-semibold text-primary-foreground shadow-gold">
+          <Plus className="h-3 w-3" /> Añadir
+        </button>
+      </div>
+
+      {q.data?.map((p) => (
+        <PaymentEditor key={p.id} row={p} onSave={(v) => save.mutate({ id: p.id, ...v })} onDelete={() => del.mutate(p.id)} />
+      ))}
+    </div>
+  );
+}
+
+function PaymentEditor({ row, onSave, onDelete }: {
+  row: { id: string; origin_country: string; label: string; instructions: string; active: boolean; sort_order: number };
+  onSave: (v: { origin_country: string; label: string; instructions: string; active: boolean; sort_order: number }) => void;
+  onDelete: () => void;
+}) {
+  const [label, setLabel] = useState(row.label);
+  const [instructions, setInstructions] = useState(row.instructions);
+  const [active, setActive] = useState(row.active);
+  const [sortOrder, setSortOrder] = useState(String(row.sort_order));
+  return (
+    <div className="rounded-xl border border-border bg-card p-3 space-y-2">
+      <div className="flex items-center justify-between text-xs">
+        <span className="font-semibold text-gold">{row.origin_country}</span>
+        <label className="flex items-center gap-1 text-[10px] text-muted-foreground">
+          <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)}
+            className="h-3 w-3 accent-[color:var(--gold)]" />
+          Activo
+        </label>
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <MiniInput label="Etiqueta" value={label} onChange={setLabel} />
+        <MiniInput label="Orden" value={sortOrder} onChange={setSortOrder} />
+      </div>
+      <label className="block">
+        <span className="mb-0.5 block text-[10px] text-muted-foreground">Instrucciones</span>
+        <textarea value={instructions} onChange={(e) => setInstructions(e.target.value)} rows={5}
+          className="w-full rounded-md border border-border bg-background px-2 py-1 text-xs focus:border-gold outline-none font-mono" />
+      </label>
+      <div className="flex gap-2">
+        <button onClick={() => onSave({ origin_country: row.origin_country, label, instructions, active, sort_order: Number(sortOrder) || 0 })}
+          className="flex flex-1 items-center justify-center gap-1 rounded-lg bg-gradient-gold px-3 py-1.5 text-[11px] font-semibold text-primary-foreground shadow-gold">
+          <Check className="h-3 w-3" /> Guardar
+        </button>
+        <button onClick={onDelete} className="rounded-lg border border-destructive/40 bg-card px-3 py-1.5 text-destructive">
+          <Trash2 className="h-3 w-3" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// silence tree-shake
+void Loader2; void Zap;
+
 
