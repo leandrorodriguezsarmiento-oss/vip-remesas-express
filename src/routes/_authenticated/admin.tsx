@@ -19,7 +19,7 @@ export const Route = createFileRoute("/_authenticated/admin")({
   component: AdminPanel,
 });
 
-type Tab = "tx" | "rates" | "promos" | "users" | "api";
+type Tab = "tx" | "rates" | "promos" | "users" | "api" | "banners";
 
 function AdminPanel() {
   const [tab, setTab] = useState<Tab>("tx");
@@ -35,12 +35,13 @@ function AdminPanel() {
         </div>
       </div>
 
-      <div className="grid grid-cols-5 rounded-xl bg-secondary p-1 text-[10px] font-medium">
+      <div className="flex gap-1 overflow-x-auto rounded-xl bg-secondary p-1 text-[10px] font-medium">
         {[
-          ["tx", "Remesas"], ["rates", "Tasas"], ["promos", "Promos"], ["users", "Usuarios"], ["api", "API"],
+          ["tx", "Remesas"], ["rates", "Tasas"], ["promos", "Promos"],
+          ["banners", "Banners"], ["users", "Usuarios"], ["api", "API"],
         ].map(([id, label]) => (
           <button key={id} onClick={() => setTab(id as Tab)}
-            className={`rounded-lg px-1 py-2 ${tab === id ? "bg-gradient-gold text-primary-foreground shadow-gold" : "text-muted-foreground"}`}>
+            className={`shrink-0 rounded-lg px-3 py-2 ${tab === id ? "bg-gradient-gold text-primary-foreground shadow-gold" : "text-muted-foreground"}`}>
             {label}
           </button>
         ))}
@@ -49,6 +50,7 @@ function AdminPanel() {
       {tab === "tx" && <TransactionsTab />}
       {tab === "rates" && <RatesTab />}
       {tab === "promos" && <PromosTab />}
+      {tab === "banners" && <BannersTab />}
       {tab === "users" && <UsersTab />}
       {tab === "api" && <ApiTab />}
     </div>
