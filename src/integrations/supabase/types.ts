@@ -14,6 +14,44 @@ export type Database = {
   }
   public: {
     Tables: {
+      notifications: {
+        Row: {
+          body: string | null
+          created_at: string
+          id: string
+          read: boolean
+          title: string
+          tx_id: string | null
+          user_id: string
+        }
+        Insert: {
+          body?: string | null
+          created_at?: string
+          id?: string
+          read?: boolean
+          title: string
+          tx_id?: string | null
+          user_id: string
+        }
+        Update: {
+          body?: string | null
+          created_at?: string
+          id?: string
+          read?: boolean
+          title?: string
+          tx_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_tx_id_fkey"
+            columns: ["tx_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           balance_brl: number
@@ -121,6 +159,39 @@ export type Database = {
           rate?: number
           time_max_minutes?: number
           time_min_minutes?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      recargas_config: {
+        Row: {
+          active: boolean
+          api_base_url: string | null
+          api_key_name: string | null
+          created_at: string
+          id: string
+          notes: string | null
+          provider: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          api_base_url?: string | null
+          api_key_name?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          provider?: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          api_base_url?: string | null
+          api_key_name?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          provider?: string
           updated_at?: string
         }
         Relationships: []
