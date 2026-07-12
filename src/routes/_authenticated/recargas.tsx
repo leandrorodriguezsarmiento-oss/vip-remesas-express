@@ -1,8 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { formatMoney } from "@/lib/remittance";
+import { createRechargeRequest } from "@/lib/orders.functions";
 import { Smartphone, Loader2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
@@ -21,7 +23,8 @@ type Promo = {
 };
 
 function Recargas() {
-  const { user } = Route.useRouteContext();
+  const _ctx = Route.useRouteContext();
+  void _ctx;
   const promos = useQuery<Promo[]>({
     queryKey: ["promos"],
     queryFn: async () => {
@@ -35,20 +38,15 @@ function Recargas() {
   const [selected, setSelected] = useState<Promo | null>(null);
   const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
+  const submitRecharge = useServerFn(createRechargeRequest);
 
   async function recharge() {
     if (!selected || !phone) return;
     setLoading(true);
     try {
-      const { error } = await supabase.from("recargas_requests").insert({
-        user_id: user.id,
-        phone,
-        promo_id: selected.id,
-        promo_title: selected.title,
-        price_brl: selected.price_brl,
-        status: "pending",
-      });
-      if (error) throw error;
+      // Server function looks up the authoritative promo (title/price) so a
+      // manipulated client cannot claim a cheaper price than what admin sees.
+      await submitRecharge({ data: { promoId: selected.id, phone } });
       toast.success(`Solicitud enviada. El admin procesará la recarga a ${phone}.`);
       setSelected(null);
       setPhone("");

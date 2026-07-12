@@ -1,12 +1,14 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import {
   ORIGINS, METHOD_CATEGORIES, CURRENCY_LABEL, formatMoney,
-  findRate, calcQuote, generateTrackingId, generatePixCode, checkPixPayment,
+  findRate, calcQuote, checkPixPayment,
   getOrigin, type OriginCode, type MethodCategory, type DestCurrency, type RateRow,
 } from "@/lib/remittance";
+import { createTransaction } from "@/lib/orders.functions";
 import { toast } from "sonner";
 import { ArrowLeft, ArrowRight, Check, Copy, Loader2, Sparkles } from "lucide-react";
 
@@ -27,6 +29,7 @@ function SendFlow() {
 
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  const createTx = useServerFn(createTransaction);
 
   const [origin, setOrigin] = useState<OriginCode | null>(null);
   const [method, setMethod] = useState<MethodCategory | null>(null);
@@ -88,32 +91,23 @@ function SendFlow() {
     if (!origin || !method || !currency || !rate || !quote || !originOpt) return;
     setLoading(true);
     try {
-      const id = generateTrackingId();
-      const pix = origin === "BR" ? generatePixCode(id, amountNum) : null;
-
-      const { error } = await supabase.from("transactions").insert({
-        user_id: user.id,
-        tracking_id: id,
-        origin_country: origin,
-        origin_currency: originOpt.currency,
-        destination_country: "Cuba",
-        method_category: method,
-        delivery_method: currency,
-        recipient_name: recipient.name,
-        recipient_phone: recipient.phone,
-        recipient_card: recipient.card || null,
-        notes: recipient.notes || null,
-        amount_brl: amountNum,
-        amount_dest: quote.amountDest,
-        dest_currency: currency,
-        exchange_rate: rate.rate,
-        fee_brl: 0,
-        total_brl: amountNum,
-        payment_method: origin === "BR" ? "pix" : origin === "US" ? "zelle" : "sepa",
-        pix_code: pix,
-        status: "pending",
+      // Server function recomputes amount/rate/fee from the authoritative
+      // `rates` table and returns the tracking id + PIX code. Client-supplied
+      // financial numbers are never trusted for storage.
+      const res = await createTx({
+        data: {
+          origin,
+          method,
+          currency,
+          amount: amountNum,
+          recipient: {
+            name: recipient.name,
+            phone: recipient.phone,
+            card: recipient.card || null,
+            notes: recipient.notes || null,
+          },
+        },
       });
-      if (error) throw error;
 
       if (saveRecipient && recipient.name) {
         await supabase.from("recipients").insert({
@@ -126,8 +120,8 @@ function SendFlow() {
         });
       }
 
-      setTracking(id);
-      setPixCode(pix);
+      setTracking(res.trackingId);
+      setPixCode(res.pixCode);
       setStep(6);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Error al crear la orden");
