@@ -80,11 +80,15 @@ export const sendVerificationCode = createServerFn({ method: "POST" })
       });
     if (insertError) throw insertError;
 
-    // SLOT: reemplazar por envío real vía email o WhatsApp
+    // SLOT: reemplazar por envío real vía email o WhatsApp.
+    // El código NUNCA debe devolverse al cliente; sólo debe llegar por un
+    // canal fuera de banda (email/SMS/WhatsApp) para que sirva como prueba
+    // de posesión del email.
     // await sendCodeViaEmail(data.email, code);
     // await sendCodeViaWhatsApp(data.phone, code);
+    void code;
 
-    return { email: data.email, code };
+    return { email: data.email, sent: true };
   });
 
 export const verifyVerificationCode = createServerFn({ method: "POST" })
@@ -138,10 +142,31 @@ export const setInitialPassword = createServerFn({ method: "POST" })
     const user = await findUserByEmail(supabaseAdmin, data.email);
     if (!user) throw new Error("Usuario no encontrado");
 
+    // Require a verified, non-expired verification_codes row for this email/user.
+    // Without this check anyone reaching the endpoint could set any account's
+    // password by email alone (full account takeover).
+    const { data: proofRows, error: proofErr } = (await (supabaseAdmin as any)
+      .from("verification_codes")
+      .select("id,expires_at,verified")
+      .eq("email", data.email)
+      .eq("user_id", user.id)
+      .eq("verified", true)
+      .gt("expires_at", new Date().toISOString())
+      .order("created_at", { ascending: false })
+      .limit(1)) as { data: Array<{ id: string }> | null; error: any };
+    if (proofErr) throw proofErr;
+    if (!proofRows || proofRows.length === 0) {
+      throw new Error("Verificación requerida. Solicita un nuevo código.");
+    }
+    const proofId = proofRows[0].id;
+
     const { error } = await supabaseAdmin.auth.admin.updateUserById(user.id, {
       password: data.password,
     });
     if (error) throw error;
+
+    // Consume the verification row (one-time use) so it cannot be replayed.
+    await (supabaseAdmin as any).from("verification_codes").delete().eq("id", proofId);
 
     return { success: true };
   });
