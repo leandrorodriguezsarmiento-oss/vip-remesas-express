@@ -57,7 +57,9 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON public.transactions TO authenticated;
 GRANT ALL ON public.transactions TO service_role;
 ALTER TABLE public.transactions ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users view own transactions" ON public.transactions FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Users create own transactions" ON public.transactions FOR INSERT WITH CHECK (auth.uid() = user_id);
+-- NOTE: No INSERT policy for clients. Transactions are created ONLY via the
+-- server route /api/transactions (service_role) which recomputes amount, rate
+-- and fee from public.rates. Prevents tx_amount_trust tampering.
 
 -- Auto-create profile on signup
 CREATE OR REPLACE FUNCTION public.handle_new_user()
