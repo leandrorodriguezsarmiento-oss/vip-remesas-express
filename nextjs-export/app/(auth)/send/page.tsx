@@ -5,7 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase/client";
 import {
   ORIGINS, METHOD_CATEGORIES, CURRENCY_LABEL, formatMoney,
-  findRate, calcQuote, generateTrackingId, generatePixCode, checkPixPayment, getOrigin,
+  findRate, calcQuote, checkPixPayment, getOrigin,
   type OriginCode, type MethodCategory, type DestCurrency, type RateRow,
 } from "@/lib/remittance";
 import { toast } from "sonner";
@@ -52,34 +52,36 @@ export default function SendPage() {
     if (!userId || !origin || !method || !currency || !rate || !quote || !originOpt) return;
     setLoading(true);
     try {
-      const id = generateTrackingId();
-      const pix = origin === "BR" ? generatePixCode(id, amountNum) : null;
-      const { error } = await supabase.from("transactions").insert({
-        user_id: userId, tracking_id: id, origin_country: origin, origin_currency: originOpt.currency,
-        destination_country: "Cuba", method_category: method, delivery_method: currency,
-        recipient_name: recipient.name, recipient_phone: recipient.phone, recipient_card: recipient.card || null,
-        notes: recipient.notes || null, amount_brl: amountNum, amount_dest: quote.amountDest,
-        dest_currency: currency, exchange_rate: rate.rate, fee_brl: 0, total_brl: amountNum,
-        payment_method: origin === "BR" ? "pix" : origin === "US" ? "zelle" : "sepa",
-        pix_code: pix, status: "pending",
+      const res = await fetch("/api/transactions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          origin, method, currency, amount: amountNum,
+          recipient: {
+            name: recipient.name, phone: recipient.phone,
+            card: recipient.card || null, notes: recipient.notes || null,
+          },
+          saveRecipient,
+        }),
       });
-      if (error) throw error;
-      if (saveRecipient && recipient.name) {
-        await supabase.from("recipients").insert({
-          user_id: userId, full_name: recipient.name, phone: recipient.phone, country: "CU",
-          delivery_method: `${method}·${currency}`, account_details: recipient.card || null,
-        });
-      }
-      setTracking(id); setPixCode(pix); setStep(6);
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Error");
+      setTracking(json.trackingId); setPixCode(json.pixCode); setStep(6);
     } catch (e) { toast.error(e instanceof Error ? e.message : "Error"); } finally { setLoading(false); }
   }
   async function confirmPaid() {
     if (!tracking) return;
     setLoading(true);
     try {
-      const res = await checkPixPayment(tracking);
-      if (!res.paid) throw new Error("Aún no vemos el pago");
-      await supabase.from("transactions").update({ status: "processing" }).eq("tracking_id", tracking);
+      const check = await checkPixPayment(tracking);
+      if (!check.paid) throw new Error("Aún no vemos el pago");
+      const res = await fetch("/api/transactions/mark-paid", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ trackingId: tracking }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Error");
       qc.invalidateQueries({ queryKey: ["transactions-recent"] });
       toast.success("Pago recibido"); setStep(7);
     } catch (e) { toast.error(e instanceof Error ? e.message : "Error"); } finally { setLoading(false); }
