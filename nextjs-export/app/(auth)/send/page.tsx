@@ -5,7 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase/client";
 import {
   ORIGINS, METHOD_CATEGORIES, CURRENCY_LABEL, formatMoney,
-  findRate, calcQuote, generateTrackingId, generatePixCode, checkPixPayment, getOrigin,
+  findRate, calcQuote, checkPixPayment, getOrigin,
   type OriginCode, type MethodCategory, type DestCurrency, type RateRow,
 } from "@/lib/remittance";
 import { toast } from "sonner";
