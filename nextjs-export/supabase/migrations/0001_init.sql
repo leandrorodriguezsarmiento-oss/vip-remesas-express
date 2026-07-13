@@ -57,7 +57,9 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON public.transactions TO authenticated;
 GRANT ALL ON public.transactions TO service_role;
 ALTER TABLE public.transactions ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users view own transactions" ON public.transactions FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Users create own transactions" ON public.transactions FOR INSERT WITH CHECK (auth.uid() = user_id);
+-- NOTE: No INSERT policy for clients. Transactions are created ONLY via the
+-- server route /api/transactions (service_role) which recomputes amount, rate
+-- and fee from public.rates. Prevents tx_amount_trust tampering.
 
 -- Auto-create profile on signup
 CREATE OR REPLACE FUNCTION public.handle_new_user()
@@ -471,9 +473,9 @@ CREATE POLICY "own recargas read" ON public.recargas_requests
   FOR SELECT TO authenticated
   USING (auth.uid() = user_id OR public.has_role(auth.uid(),'admin'));
 
-CREATE POLICY "own recargas insert" ON public.recargas_requests
-  FOR INSERT TO authenticated
-  WITH CHECK (auth.uid() = user_id);
+-- NOTE: No INSERT policy for clients. Recharge requests are created ONLY via
+-- the server route /api/recargas (service_role) which validates promo price
+-- server-side. Prevents price tampering.
 
 CREATE POLICY "admin update recargas" ON public.recargas_requests
   FOR UPDATE TO authenticated
