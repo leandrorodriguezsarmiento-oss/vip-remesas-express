@@ -26,11 +26,13 @@ export default function RecargasPage() {
     if (!selected || !phone || !userId) return;
     setLoading(true);
     try {
-      const { error } = await supabase.from("recargas_requests").insert({
-        user_id: userId, phone, promo_id: selected.id, promo_title: selected.title,
-        price_brl: selected.price_brl, status: "pending",
+      const res = await fetch("/api/recargas", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ promoId: selected.id, phone }),
       });
-      if (error) throw error;
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Error");
       toast.success(`Solicitud enviada. El admin procesará la recarga a ${phone}.`);
       setSelected(null); setPhone("");
     } catch (e) { toast.error(e instanceof Error ? e.message : "Error"); } finally { setLoading(false); }
