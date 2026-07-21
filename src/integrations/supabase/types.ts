@@ -52,6 +52,7 @@ export type Database = {
           body: string | null
           created_at: string
           id: string
+          push_sent: boolean
           read: boolean
           title: string
           tx_id: string | null
@@ -61,6 +62,7 @@ export type Database = {
           body?: string | null
           created_at?: string
           id?: string
+          push_sent?: boolean
           read?: boolean
           title: string
           tx_id?: string | null
@@ -70,6 +72,7 @@ export type Database = {
           body?: string | null
           created_at?: string
           id?: string
+          push_sent?: boolean
           read?: boolean
           title?: string
           tx_id?: string | null
@@ -184,6 +187,39 @@ export type Database = {
           price_brl?: number
           starts_at?: string | null
           title?: string
+        }
+        Relationships: []
+      }
+      push_subscriptions: {
+        Row: {
+          auth: string
+          created_at: string
+          endpoint: string
+          id: string
+          p256dh: string
+          updated_at: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          auth: string
+          created_at?: string
+          endpoint: string
+          id?: string
+          p256dh: string
+          updated_at?: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          auth?: string
+          created_at?: string
+          endpoint?: string
+          id?: string
+          p256dh?: string
+          updated_at?: string
+          user_agent?: string | null
+          user_id?: string
         }
         Relationships: []
       }

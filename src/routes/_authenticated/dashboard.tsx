@@ -7,6 +7,7 @@ import {
 } from "@/lib/remittance";
 import { ArrowUpRight, Send, Smartphone, TrendingUp } from "lucide-react";
 import { BannerCarousel } from "@/components/BannerCarousel";
+import { PushToggle } from "@/components/PushToggle";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   component: Dashboard,
@@ -64,6 +65,10 @@ function Dashboard() {
         <p className="mt-1 font-display text-3xl font-bold text-white">Desde 20 en 15 min</p>
         <p className="mt-1 text-xs text-white/85">Brasil · Europa · Estados Unidos → Cuba</p>
       </div>
+
+
+      {/* Push notifications toggle */}
+      <PushToggle />
 
       {/* Quick actions */}
       <div className="grid grid-cols-2 gap-3">
