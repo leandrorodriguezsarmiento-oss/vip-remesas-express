@@ -66,6 +66,10 @@ function Dashboard() {
         <p className="mt-1 text-xs text-white/85">Brasil · Europa · Estados Unidos → Cuba</p>
       </div>
 
+
+      {/* Push notifications toggle */}
+      <PushToggle />
+
       {/* Quick actions */}
       <div className="grid grid-cols-2 gap-3">
         <Link to="/send" className="flex items-center justify-between rounded-2xl border border-gold/40 bg-card p-4 shadow-card hover:border-gold">
