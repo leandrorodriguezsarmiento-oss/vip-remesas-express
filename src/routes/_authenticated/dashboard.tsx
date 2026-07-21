@@ -7,6 +7,7 @@ import {
 } from "@/lib/remittance";
 import { ArrowUpRight, Send, Smartphone, TrendingUp } from "lucide-react";
 import { BannerCarousel } from "@/components/BannerCarousel";
+import { PushToggle } from "@/components/PushToggle";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   component: Dashboard,
