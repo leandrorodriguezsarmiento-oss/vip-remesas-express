@@ -8,8 +8,16 @@ import { z } from "zod";
 
 export const Route = createFileRoute("/auth/")({
   ssr: false,
+  validateSearch: (s: Record<string, unknown>) => ({
+    next: typeof s.next === "string" ? s.next : undefined,
+  }),
   component: AuthPage,
 });
+
+function safeNext(next: string | undefined): string | null {
+  if (!next || !next.startsWith("/") || next.startsWith("//")) return null;
+  return next;
+}
 
 const signupSchema = z.object({
   fullName: z.string().trim().min(2, "Nombre muy corto").max(80),
@@ -39,6 +47,14 @@ function AuthPage() {
   const [sPhone, setSPhone] = useState("");
   const [sPassword, setSPassword] = useState("");
 
+  const { next: nextParam } = Route.useSearch();
+  const nextPath = safeNext(nextParam);
+
+  function goNext() {
+    if (nextPath) window.location.href = nextPath;
+    else navigate({ to: "/dashboard" });
+  }
+
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     const parsed = loginSchema.safeParse({ email, password });
@@ -49,7 +65,7 @@ function AuthPage() {
     if (error) return toast.error(error.message);
     if (!remember) sessionStorage.setItem("vip-no-remember", "1");
     toast.success("¡Bienvenido de vuelta!");
-    navigate({ to: "/dashboard" });
+    goNext();
   }
 
   async function handleSignup(e: React.FormEvent) {
@@ -62,24 +78,32 @@ function AuthPage() {
     });
     if (!parsed.success) return toast.error(parsed.error.issues[0].message);
     setLoading(true);
+    const emailRedirect = nextPath
+      ? `${window.location.origin}/auth?next=${encodeURIComponent(nextPath)}`
+      : window.location.origin;
     const { error } = await supabase.auth.signUp({
       email: sEmail,
       password: sPassword,
       options: {
-        emailRedirectTo: window.location.origin,
+        emailRedirectTo: emailRedirect,
         data: { full_name: sFullName, phone: sPhone },
       },
     });
     setLoading(false);
     if (error) return toast.error(error.message);
     toast.success("¡Cuenta creada!");
-    navigate({ to: "/dashboard" });
+    goNext();
   }
 
   async function handleGoogle() {
     setLoading(true);
+    // OAuth broker returns to a public URL — remember `next` so /auth can consume it.
+    if (nextPath) sessionStorage.setItem("vip-oauth-next", nextPath);
+    const redirectUri = nextPath
+      ? `${window.location.origin}/auth?next=${encodeURIComponent(nextPath)}`
+      : window.location.origin;
     const result = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin,
+      redirect_uri: redirectUri,
     });
     if (result.error) {
       setLoading(false);
@@ -87,7 +111,7 @@ function AuthPage() {
       return;
     }
     if (result.redirected) return;
-    navigate({ to: "/dashboard" });
+    goNext();
   }
 
   if (showForgot) return <ForgotPassword onBack={() => setShowForgot(false)} />;
@@ -98,6 +122,7 @@ function AuthPage() {
         <Link to="/" className="mb-8 flex items-center gap-2">
           <div className="grid h-9 w-9 place-items-center rounded-lg bg-gradient-gold shadow-gold">
             <Sparkles className="h-5 w-5 text-primary-foreground" />
+
           </div>
           <span className="font-display text-lg font-bold">VIP Remesas</span>
         </Link>
