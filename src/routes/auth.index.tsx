@@ -8,8 +8,16 @@ import { z } from "zod";
 
 export const Route = createFileRoute("/auth/")({
   ssr: false,
+  validateSearch: (s: Record<string, unknown>) => ({
+    next: typeof s.next === "string" ? s.next : undefined,
+  }),
   component: AuthPage,
 });
+
+function safeNext(next: string | undefined): string | null {
+  if (!next || !next.startsWith("/") || next.startsWith("//")) return null;
+  return next;
+}
 
 const signupSchema = z.object({
   fullName: z.string().trim().min(2, "Nombre muy corto").max(80),
