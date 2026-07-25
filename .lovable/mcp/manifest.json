@@ -1,0 +1,141 @@
+{
+  "version": 1,
+  "sdk_version": "0.24.0",
+  "path": "/mcp",
+  "auth": {
+    "type": "oauth",
+    "issuer": "https://uoglxwtritcsrglwimej.supabase.co/auth/v1",
+    "accepted_audiences": [
+      "authenticated"
+    ]
+  },
+  "mcp": {
+    "server": {
+      "name": "vip-remesas-mcp",
+      "version": "0.1.0",
+      "title": "VIP Remesas"
+    },
+    "tools": [
+      {
+        "name": "list_transactions",
+        "title": "Listar remesas",
+        "description": "Lista las remesas del usuario autenticado, más recientes primero.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "limit": {
+              "description": "Cantidad máxima de remesas a devolver (por defecto 20).",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50
+            },
+            "status": {
+              "description": "Filtrar por estado.",
+              "type": "string",
+              "enum": [
+                "pending",
+                "processing",
+                "completed",
+                "rejected",
+                "cancelled"
+              ]
+            }
+          }
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "get_transaction",
+        "title": "Ver remesa",
+        "description": "Obtiene una remesa del usuario por su tracking_id.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "tracking_id": {
+              "type": "string",
+              "minLength": 3,
+              "maxLength": 40,
+              "description": "Tracking ID de la remesa."
+            }
+          },
+          "required": [
+            "tracking_id"
+          ]
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "get_rates",
+        "title": "Tasas de cambio",
+        "description": "Devuelve las tasas activas para enviar remesas a Cuba (origen, método, moneda destino).",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "origin": {
+              "description": "País de origen.",
+              "type": "string",
+              "enum": [
+                "BR",
+                "EU",
+                "US"
+              ]
+            },
+            "currency": {
+              "description": "Moneda destino.",
+              "type": "string",
+              "enum": [
+                "CUP",
+                "MLC",
+                "USD"
+              ]
+            }
+          }
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_notifications",
+        "title": "Notificaciones",
+        "description": "Lista las notificaciones del usuario autenticado.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50
+            },
+            "unread_only": {
+              "type": "boolean"
+            }
+          }
+        },
+        "outputSchema": null
+      }
+    ]
+  }
+}
