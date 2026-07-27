@@ -2,7 +2,8 @@ import { createFileRoute, Outlet, Link, redirect, useNavigate, useLocation } fro
 import { supabase } from "@/integrations/supabase/client";
 import { Home, Send, ClockIcon, LogOut, Sparkles, Smartphone, Shield, Bell } from "lucide-react";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
@@ -48,6 +49,22 @@ function AuthedLayout() {
     },
     refetchInterval: 30000,
   });
+
+  // Realtime: refetch on any insert/update to my notifications
+  useEffect(() => {
+    const channel = supabase
+      .channel(`notifications:${user.id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "notifications", filter: `user_id=eq.${user.id}` },
+        () => queryClient.invalidateQueries({ queryKey: ["notifications", user.id] }),
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user.id, queryClient]);
+
   const unread = notifs.data?.filter((n) => !n.read).length ?? 0;
 
   async function markAllRead() {
