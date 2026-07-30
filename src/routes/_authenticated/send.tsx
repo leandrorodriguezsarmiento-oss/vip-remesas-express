@@ -30,6 +30,8 @@ function SendFlow() {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const createTx = useServerFn(createTransaction);
+  const createMpPreference = useServerFn(createMercadoPagoPreference);
+
 
   const [origin, setOrigin] = useState<OriginCode | null>(null);
   const [method, setMethod] = useState<MethodCategory | null>(null);
