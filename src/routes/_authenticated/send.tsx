@@ -9,6 +9,8 @@ import {
   getOrigin, type OriginCode, type MethodCategory, type DestCurrency, type RateRow,
 } from "@/lib/remittance";
 import { createTransaction } from "@/lib/orders.functions";
+import { createMercadoPagoPreference } from "@/lib/payments.functions";
+
 import { toast } from "sonner";
 import { ArrowLeft, ArrowRight, Check, Copy, Loader2, Sparkles } from "lucide-react";
 
