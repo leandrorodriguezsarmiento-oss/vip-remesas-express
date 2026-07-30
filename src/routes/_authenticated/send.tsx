@@ -139,6 +139,21 @@ function SendFlow() {
     }
   }
 
+  async function payWithMercadoPago() {
+    if (!txId) return;
+    setMpLoading(true);
+    try {
+      // El monto se recalcula en el servidor desde la fila de `transactions`.
+      const res = await createMpPreference({ data: { transactionId: txId } });
+      window.location.href = res.checkoutUrl;
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "No se pudo abrir Mercado Pago");
+      setMpLoading(false);
+    }
+  }
+
+
+
 
   async function confirmPaid() {
     if (!tracking) return;
