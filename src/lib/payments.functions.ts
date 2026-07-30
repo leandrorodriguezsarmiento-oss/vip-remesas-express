@@ -182,3 +182,19 @@ export const dispatchRechargeToProvider = createServerFn({ method: "POST" })
 
     return { ok: true, provider: cfg.provider, providerRef: json.id ?? null };
   });
+
+/**
+ * Botón "Sincronizar" del panel admin: despacha las recargas pendientes al
+ * proveedor real y consulta las que están en proceso hasta completarlas.
+ */
+export const syncRecharges = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data: isAdmin } = await context.supabase.rpc("has_role", {
+      _user_id: context.userId,
+      _role: "admin",
+    });
+    if (!isAdmin) throw new Error("Solo admin");
+    const { syncAllRecharges } = await import("@/lib/recargas.server");
+    return await syncAllRecharges();
+  });

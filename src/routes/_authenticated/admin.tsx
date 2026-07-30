@@ -5,6 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { formatMoney } from "@/lib/remittance";
 import { deleteUserAsAdmin } from "@/lib/admin.functions";
+import { syncRecharges } from "@/lib/payments.functions";
 import { toast } from "sonner";
 import { Shield, Loader2, Trash2, Plus, Check, RefreshCw, Smartphone, Zap, BarChart3 } from "lucide-react";
 
@@ -386,26 +387,40 @@ function ApiTab() {
             className="flex flex-1 items-center justify-center gap-1 rounded-lg bg-gradient-gold px-3 py-2 text-xs font-semibold text-primary-foreground shadow-gold">
             <Check className="h-3 w-3" /> Guardar
           </button>
-          <button
-            onClick={async () => {
-              if (!baseUrl) return toast.error("Falta URL base");
-              const t = toast.loading("Sincronizando API…");
-              try {
-                const res = await fetch(baseUrl, { method: "GET" });
-                toast.dismiss(t);
-                if (res.ok) toast.success(`API OK (${res.status})`);
-                else toast.error(`API respondió ${res.status}`);
-              } catch (e) {
-                toast.dismiss(t);
-                toast.error(e instanceof Error ? e.message : "No se pudo conectar");
-              }
-            }}
-            className="flex items-center justify-center gap-1 rounded-lg border border-gold/40 bg-card px-3 py-2 text-xs font-semibold text-gold">
-            <RefreshCw className="h-3 w-3" /> Sincronizar
-          </button>
+          <SyncRecargasButton />
         </div>
       </div>
     </div>
+  );
+}
+
+// Botón reutilizable: despacha recargas pendientes al proveedor y actualiza estados
+function SyncRecargasButton({ full = false }: { full?: boolean }) {
+  const qc = useQueryClient();
+  const sync = useServerFn(syncRecharges);
+  const m = useMutation({
+    mutationFn: async () => await sync({ data: undefined }),
+    onSuccess: (r) => {
+      const parts = [
+        `${r.dispatched} despachadas`,
+        `${r.completed} completadas`,
+        r.rejected ? `${r.rejected} rechazadas` : null,
+        r.stillProcessing ? `${r.stillProcessing} en proceso` : null,
+      ].filter(Boolean).join(" · ");
+      toast.success(`Sincronizado (${r.provider}): ${parts}`);
+      if (r.errors.length) toast.error(r.errors[0]);
+      qc.invalidateQueries({ queryKey: ["admin-recargas"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Error al sincronizar"),
+  });
+  return (
+    <button
+      onClick={() => m.mutate()}
+      disabled={m.isPending}
+      className={`${full ? "w-full" : ""} flex items-center justify-center gap-1 rounded-lg border border-gold/40 bg-card px-3 py-2 text-xs font-semibold text-gold disabled:opacity-60`}>
+      {m.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+      Sincronizar
+    </button>
   );
 }
 
@@ -554,6 +569,7 @@ function RecargasTab() {
           <p className="text-xs uppercase text-muted-foreground">Recargas pendientes</p>
           <p className="font-display text-xl font-bold text-gold">{pendingCount}</p>
         </div>
+        <SyncRecargasButton />
       </div>
       {q.data?.map((r) => (
         <div key={r.id} className="rounded-xl border border-border bg-card p-3 space-y-2">
