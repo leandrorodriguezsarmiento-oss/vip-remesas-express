@@ -9,8 +9,10 @@ import {
   getOrigin, type OriginCode, type MethodCategory, type DestCurrency, type RateRow,
 } from "@/lib/remittance";
 import { createTransaction } from "@/lib/orders.functions";
+import { createMercadoPagoPreference } from "@/lib/payments.functions";
+
 import { toast } from "sonner";
-import { ArrowLeft, ArrowRight, Check, Copy, Loader2, Sparkles } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Copy, CreditCard, Loader2, Sparkles } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/send")({
   component: SendFlow,
@@ -30,6 +32,8 @@ function SendFlow() {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const createTx = useServerFn(createTransaction);
+  const createMpPreference = useServerFn(createMercadoPagoPreference);
+
 
   const [origin, setOrigin] = useState<OriginCode | null>(null);
   const [method, setMethod] = useState<MethodCategory | null>(null);
@@ -39,6 +43,9 @@ function SendFlow() {
   const [saveRecipient, setSaveRecipient] = useState(true);
   const [tracking, setTracking] = useState<string | null>(null);
   const [pixCode, setPixCode] = useState<string | null>(null);
+  const [txId, setTxId] = useState<string | null>(null);
+  const [mpLoading, setMpLoading] = useState(false);
+
 
   const rates = useQuery<RateRow[]>({
     queryKey: ["rates"],
@@ -122,13 +129,30 @@ function SendFlow() {
 
       setTracking(res.trackingId);
       setPixCode(res.pixCode);
+      setTxId(res.transactionId);
       setStep(6);
+
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Error al crear la orden");
     } finally {
       setLoading(false);
     }
   }
+
+  async function payWithMercadoPago() {
+    if (!txId) return;
+    setMpLoading(true);
+    try {
+      // El monto se recalcula en el servidor desde la fila de `transactions`.
+      const res = await createMpPreference({ data: { transactionId: txId } });
+      window.location.href = res.checkoutUrl;
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "No se pudo abrir Mercado Pago");
+      setMpLoading(false);
+    }
+  }
+
+
 
 
   async function confirmPaid() {
@@ -343,6 +367,18 @@ function SendFlow() {
             </p>
             <p className="mt-1 text-[11px] text-black/70">Código: {tracking}</p>
           </div>
+
+          {origin === "BR" && txId && (
+            <button
+              onClick={payWithMercadoPago}
+              disabled={mpLoading}
+              className="flex w-full items-center justify-center gap-2 rounded-xl border border-primary bg-primary px-4 py-3.5 text-sm font-semibold text-primary-foreground disabled:opacity-70">
+              {mpLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
+              Pagar con Mercado Pago
+            </button>
+          )}
+
+
 
           {origin === "BR" && pixCode && (
             <div className="rounded-xl border border-border bg-card p-4">
