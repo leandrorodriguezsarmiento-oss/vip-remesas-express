@@ -569,6 +569,7 @@ function RecargasTab() {
           <p className="text-xs uppercase text-muted-foreground">Recargas pendientes</p>
           <p className="font-display text-xl font-bold text-gold">{pendingCount}</p>
         </div>
+        <SyncRecargasButton />
       </div>
       {q.data?.map((r) => (
         <div key={r.id} className="rounded-xl border border-border bg-card p-3 space-y-2">
