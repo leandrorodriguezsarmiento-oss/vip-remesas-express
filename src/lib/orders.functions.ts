@@ -53,31 +53,36 @@ export const createTransaction = createServerFn({ method: "POST" })
     const trackingId = generateTrackingId();
     const pixCode = data.origin === "BR" ? generatePixCode(trackingId, data.amount) : null;
 
-    const { error: insertErr } = await supabaseAdmin.from("transactions").insert({
-      user_id: context.userId,
-      tracking_id: trackingId,
-      origin_country: data.origin,
-      origin_currency: originCurrency,
-      destination_country: "Cuba",
-      method_category: data.method,
-      delivery_method: data.currency,
-      recipient_name: data.recipient.name,
-      recipient_phone: data.recipient.phone,
-      recipient_card: data.recipient.card || null,
-      notes: data.recipient.notes || null,
-      amount_brl: data.amount,
-      amount_dest: amountDest,
-      dest_currency: data.currency,
-      exchange_rate: rate,
-      fee_brl: 0,
-      total_brl: data.amount,
-      payment_method: paymentMethod,
-      pix_code: pixCode,
-      status: "pending",
-    });
+    const { data: inserted, error: insertErr } = await supabaseAdmin
+      .from("transactions")
+      .insert({
+        user_id: context.userId,
+        tracking_id: trackingId,
+        origin_country: data.origin,
+        origin_currency: originCurrency,
+        destination_country: "Cuba",
+        method_category: data.method,
+        delivery_method: data.currency,
+        recipient_name: data.recipient.name,
+        recipient_phone: data.recipient.phone,
+        recipient_card: data.recipient.card || null,
+        notes: data.recipient.notes || null,
+        amount_brl: data.amount,
+        amount_dest: amountDest,
+        dest_currency: data.currency,
+        exchange_rate: rate,
+        fee_brl: 0,
+        total_brl: data.amount,
+        payment_method: paymentMethod,
+        pix_code: pixCode,
+        status: "pending",
+      })
+      .select("id")
+      .single();
     if (insertErr) throw insertErr;
 
-    return { trackingId, pixCode, amountDest, rate };
+    return { transactionId: inserted.id, trackingId, pixCode, amountDest, rate };
+
   });
 
 export const createRechargeRequest = createServerFn({ method: "POST" })
