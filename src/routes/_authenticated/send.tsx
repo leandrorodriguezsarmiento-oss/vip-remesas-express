@@ -39,6 +39,9 @@ function SendFlow() {
   const [saveRecipient, setSaveRecipient] = useState(true);
   const [tracking, setTracking] = useState<string | null>(null);
   const [pixCode, setPixCode] = useState<string | null>(null);
+  const [txId, setTxId] = useState<string | null>(null);
+  const [mpLoading, setMpLoading] = useState(false);
+
 
   const rates = useQuery<RateRow[]>({
     queryKey: ["rates"],
