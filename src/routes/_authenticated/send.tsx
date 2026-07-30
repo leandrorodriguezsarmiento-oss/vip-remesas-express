@@ -122,7 +122,9 @@ function SendFlow() {
 
       setTracking(res.trackingId);
       setPixCode(res.pixCode);
+      setTxId(res.transactionId);
       setStep(6);
+
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Error al crear la orden");
     } finally {
