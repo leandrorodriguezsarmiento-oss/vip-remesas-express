@@ -393,6 +393,36 @@ function ApiTab() {
   );
 }
 
+// Botón reutilizable: despacha recargas pendientes al proveedor y actualiza estados
+function SyncRecargasButton({ full = false }: { full?: boolean }) {
+  const qc = useQueryClient();
+  const sync = useServerFn(syncRecharges);
+  const m = useMutation({
+    mutationFn: async () => await sync({ data: undefined }),
+    onSuccess: (r) => {
+      const parts = [
+        `${r.dispatched} despachadas`,
+        `${r.completed} completadas`,
+        r.rejected ? `${r.rejected} rechazadas` : null,
+        r.stillProcessing ? `${r.stillProcessing} en proceso` : null,
+      ].filter(Boolean).join(" · ");
+      toast.success(`Sincronizado (${r.provider}): ${parts}`);
+      if (r.errors.length) toast.error(r.errors[0]);
+      qc.invalidateQueries({ queryKey: ["admin-recargas"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Error al sincronizar"),
+  });
+  return (
+    <button
+      onClick={() => m.mutate()}
+      disabled={m.isPending}
+      className={`${full ? "w-full" : ""} flex items-center justify-center gap-1 rounded-lg border border-gold/40 bg-card px-3 py-2 text-xs font-semibold text-gold disabled:opacity-60`}>
+      {m.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+      Sincronizar
+    </button>
+  );
+}
+
 
 // ----------------- Banners -----------------
 function BannersTab() {
