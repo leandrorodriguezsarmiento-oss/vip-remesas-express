@@ -368,6 +368,18 @@ function SendFlow() {
             <p className="mt-1 text-[11px] text-black/70">Código: {tracking}</p>
           </div>
 
+          {origin === "BR" && txId && (
+            <button
+              onClick={payWithMercadoPago}
+              disabled={mpLoading}
+              className="flex w-full items-center justify-center gap-2 rounded-xl border border-primary bg-primary px-4 py-3.5 text-sm font-semibold text-primary-foreground disabled:opacity-70">
+              {mpLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
+              Pagar con Mercado Pago
+            </button>
+          )}
+
+
+
           {origin === "BR" && pixCode && (
             <div className="rounded-xl border border-border bg-card p-4">
               <p className="text-xs text-muted-foreground">PIX copia y pega (monto incluido)</p>
