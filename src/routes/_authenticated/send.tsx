@@ -12,7 +12,7 @@ import { createTransaction } from "@/lib/orders.functions";
 import { createMercadoPagoPreference } from "@/lib/payments.functions";
 
 import { toast } from "sonner";
-import { ArrowLeft, ArrowRight, Check, Copy, Loader2, Sparkles } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Copy, CreditCard, Loader2, Sparkles } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/send")({
   component: SendFlow,
