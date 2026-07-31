@@ -84,11 +84,26 @@ export const createMercadoPagoPreference = createServerFn({ method: "POST" })
       .update({ payment_method: "mercadopago", notes: `mp_pref:${json.id}` })
       .eq("id", tx.id);
 
+    const checkoutUrl = json.init_point || json.sandbox_init_point!;
+
+    // Historial de pagos Mercado Pago (visible en el panel admin)
+    await supabaseAdmin.from("mercadopago_payments").insert({
+      transaction_id: tx.id,
+      user_id: tx.user_id,
+      tracking_id: tx.tracking_id,
+      preference_id: json.id ?? null,
+      checkout_url: checkoutUrl,
+      internal_status: "created",
+      amount: Number(tx.total_brl),
+      currency: "BRL",
+    });
+
     return {
       preferenceId: json.id!,
-      checkoutUrl: json.init_point || json.sandbox_init_point!,
+      checkoutUrl,
     };
   });
+
 
 /**
  * Reenvía manualmente una solicitud de recarga al proveedor configurado
