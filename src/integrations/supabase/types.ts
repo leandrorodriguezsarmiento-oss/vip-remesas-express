@@ -47,6 +47,62 @@ export type Database = {
         }
         Relationships: []
       }
+      mercadopago_payments: {
+        Row: {
+          amount: number
+          checkout_url: string | null
+          created_at: string
+          currency: string
+          id: string
+          internal_status: string
+          mp_payment_id: string | null
+          mp_status: string | null
+          preference_id: string | null
+          tracking_id: string
+          transaction_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount?: number
+          checkout_url?: string | null
+          created_at?: string
+          currency?: string
+          id?: string
+          internal_status?: string
+          mp_payment_id?: string | null
+          mp_status?: string | null
+          preference_id?: string | null
+          tracking_id: string
+          transaction_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          checkout_url?: string | null
+          created_at?: string
+          currency?: string
+          id?: string
+          internal_status?: string
+          mp_payment_id?: string | null
+          mp_status?: string | null
+          preference_id?: string | null
+          tracking_id?: string
+          transaction_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mercadopago_payments_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           body: string | null
