@@ -25,9 +25,15 @@ export function PushToggle() {
         return;
       }
       try {
-        const reg = await navigator.serviceWorker.getRegistration("/sw-push.js");
+        const reg =
+          (await navigator.serviceWorker.getRegistration("/sw-push.js")) ??
+          (await navigator.serviceWorker.register("/sw-push.js"));
         const sub = await reg?.pushManager.getSubscription();
         if (!cancelled) setState(sub ? "on" : "off");
+        // Si el usuario ya dio permiso, re-activamos la suscripción automáticamente
+        if (!sub && Notification.permission === "granted" && !cancelled) {
+          void enable();
+        }
       } catch {
         if (!cancelled) setState("off");
       }
