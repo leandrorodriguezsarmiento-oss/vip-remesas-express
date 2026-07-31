@@ -63,14 +63,14 @@
   --primary-foreground: oklch(1 0 0);
 
   /* "gold" tokens repurposed to emerald so existing classes stay legible */
-  --gold: oklch(0.55 0.15 160);                   /* darker green for text on white */
-  --gold-soft: oklch(0.86 0.09 165);
-  --gold-dark: oklch(0.45 0.13 160);
+  --gold: oklch(0.46 0.14 160);                   /* darker green: AA contrast on white */
+  --gold-soft: oklch(0.82 0.1 165);
+  --gold-dark: oklch(0.38 0.12 160);
 
   --secondary: oklch(0.96 0.015 210);
-  --secondary-foreground: oklch(0.25 0.04 250);
-  --muted: oklch(0.96 0.01 220);
-  --muted-foreground: oklch(0.5 0.02 250);
+  --secondary-foreground: oklch(0.22 0.04 250);
+  --muted: oklch(0.95 0.01 220);
+  --muted-foreground: oklch(0.42 0.025 250);      /* stronger contrast for texto secundario */
   --accent: oklch(0.6 0.18 250);                  /* vivid blue */
   --accent-foreground: oklch(1 0 0);
   --destructive: oklch(0.62 0.22 27);
