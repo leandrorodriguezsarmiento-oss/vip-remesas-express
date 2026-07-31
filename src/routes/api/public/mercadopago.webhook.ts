@@ -93,7 +93,19 @@ export const Route = createFileRoute("/api/public/mercadopago/webhook")({
           .eq("tracking_id", trackingId);
         if (error) return new Response(error.message, { status: 500 });
 
+        // Actualizar historial de pagos Mercado Pago
+        await supabaseAdmin
+          .from("mercadopago_payments")
+          .update({
+            mp_payment_id: String(paymentId),
+            mp_status: payment.status ?? null,
+            internal_status: newStatus,
+            amount: Number(payment.transaction_amount ?? 0) || undefined,
+          })
+          .eq("tracking_id", trackingId);
+
         return Response.json({ ok: true, trackingId, status: newStatus });
+
       },
     },
   },

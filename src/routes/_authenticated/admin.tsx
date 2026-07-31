@@ -7,7 +7,7 @@ import { formatMoney } from "@/lib/remittance";
 import { deleteUserAsAdmin } from "@/lib/admin.functions";
 import { syncRecharges } from "@/lib/payments.functions";
 import { toast } from "sonner";
-import { Shield, Loader2, Trash2, Plus, Check, RefreshCw, Smartphone, Zap, BarChart3 } from "lucide-react";
+import { Shield, Loader2, Trash2, Plus, Check, RefreshCw, Smartphone, Zap, BarChart3, CreditCard } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   beforeLoad: async ({ context }) => {
@@ -22,7 +22,7 @@ export const Route = createFileRoute("/_authenticated/admin")({
   component: AdminPanel,
 });
 
-type Tab = "tx" | "recargas" | "rates" | "promos" | "users" | "api" | "banners" | "payments" | "reports";
+type Tab = "tx" | "recargas" | "rates" | "promos" | "users" | "api" | "banners" | "payments" | "mp" | "reports";
 
 function AdminPanel() {
   const [tab, setTab] = useState<Tab>("tx");
@@ -42,7 +42,7 @@ function AdminPanel() {
         {[
           ["tx", "Remesas"], ["recargas", "Recargas"], ["reports", "Reportes"],
           ["rates", "Tasas"], ["promos", "Promos"], ["banners", "Banners"],
-          ["payments", "Pagos US/EU"], ["users", "Usuarios"], ["api", "API"],
+          ["payments", "Pagos US/EU"], ["mp", "Mercado Pago"], ["users", "Usuarios"], ["api", "API"],
         ].map(([id, label]) => (
           <button key={id} onClick={() => setTab(id as Tab)}
             className={`shrink-0 rounded-lg px-3 py-2 ${tab === id ? "bg-gradient-gold text-primary-foreground shadow-gold" : "text-muted-foreground"}`}>
@@ -58,6 +58,7 @@ function AdminPanel() {
       {tab === "promos" && <PromosTab />}
       {tab === "banners" && <BannersTab />}
       {tab === "payments" && <PaymentMethodsTab />}
+      {tab === "mp" && <MercadoPagoTab />}
       {tab === "users" && <UsersTab />}
       {tab === "api" && <ApiTab />}
     </div>
@@ -786,3 +787,100 @@ function PaymentEditor({ row, onSave, onDelete }: {
 void Loader2; void Zap;
 
 
+
+// ----------------- Historial de pagos Mercado Pago -----------------
+function MercadoPagoTab() {
+  const qc = useQueryClient();
+  const q = useQuery({
+    queryKey: ["admin-mp-payments"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("mercadopago_payments")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(100);
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const statusStyle = (s: string) =>
+    s === "completed" ? "bg-success/15 text-success"
+      : s === "processing" ? "bg-primary/15 text-primary"
+      : s === "rejected" ? "bg-destructive/15 text-destructive"
+      : "bg-muted text-muted-foreground";
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between rounded-xl border border-border bg-card p-3">
+        <div className="flex items-center gap-2">
+          <CreditCard className="h-5 w-5 text-primary" />
+          <div>
+            <p className="text-xs text-muted-foreground">Pagos Mercado Pago</p>
+            <p className="font-display text-xl font-bold">{q.data?.length ?? 0}</p>
+          </div>
+        </div>
+        <button
+          onClick={() => qc.invalidateQueries({ queryKey: ["admin-mp-payments"] })}
+          className="flex items-center gap-1 rounded-lg border border-border px-3 py-2 text-[11px] font-semibold">
+          <RefreshCw className={`h-3 w-3 ${q.isFetching ? "animate-spin" : ""}`} /> Actualizar
+        </button>
+      </div>
+
+      {q.isLoading && <div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin text-primary" /></div>}
+      {!q.isLoading && !q.data?.length && (
+        <p className="rounded-xl border border-dashed border-border p-6 text-center text-xs text-muted-foreground">
+          Aún no hay pagos de Mercado Pago registrados.
+        </p>
+      )}
+
+      {q.data?.map((p) => (
+        <div key={p.id} className="space-y-2 rounded-xl border border-border bg-card p-3">
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <div className="text-sm font-semibold">{p.tracking_id}</div>
+              <div className="text-[11px] text-muted-foreground">
+                {new Date(p.created_at).toLocaleString("es")}
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="font-bold text-primary">{formatMoney(Number(p.amount), p.currency)}</div>
+              <span className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold ${statusStyle(p.internal_status)}`}>
+                {p.internal_status}
+              </span>
+            </div>
+          </div>
+
+          <dl className="space-y-1 text-[11px]">
+            <div className="flex justify-between gap-2">
+              <dt className="text-muted-foreground">transactionId</dt>
+              <dd className="truncate font-mono">{p.transaction_id}</dd>
+            </div>
+            <div className="flex justify-between gap-2">
+              <dt className="text-muted-foreground">preferenceId</dt>
+              <dd className="truncate font-mono">{p.preference_id || "—"}</dd>
+            </div>
+            <div className="flex justify-between gap-2">
+              <dt className="text-muted-foreground">paymentId · estado MP</dt>
+              <dd className="truncate font-mono">{p.mp_payment_id || "—"} · {p.mp_status || "—"}</dd>
+            </div>
+          </dl>
+
+          {p.checkout_url && (
+            <div className="flex gap-2">
+              <a href={p.checkout_url} target="_blank" rel="noopener noreferrer"
+                className="flex-1 truncate rounded-lg border border-border px-2 py-1.5 text-center text-[11px] font-semibold text-primary">
+                Abrir checkoutUrl
+              </a>
+              <button
+                onClick={() => { navigator.clipboard.writeText(p.checkout_url!); toast.success("Enlace copiado"); }}
+                className="rounded-lg border border-border px-2 py-1.5 text-[11px] font-semibold">
+                Copiar
+              </button>
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
