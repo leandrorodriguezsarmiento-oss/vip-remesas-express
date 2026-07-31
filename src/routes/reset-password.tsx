@@ -2,7 +2,8 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Loader2, Sparkles } from "lucide-react";
+import { Loader2 } from "lucide-react";
+import { BrandMark } from "@/components/BrandMark";
 
 export const Route = createFileRoute("/reset-password")({
   ssr: false,
@@ -38,9 +39,7 @@ function ResetPassword() {
     <div className="min-h-screen bg-gradient-vip px-5 py-10">
       <div className="mx-auto max-w-md">
         <div className="mb-6 flex items-center gap-2">
-          <div className="grid h-9 w-9 place-items-center rounded-lg bg-gradient-gold shadow-gold">
-            <Sparkles className="h-5 w-5 text-primary-foreground" />
-          </div>
+          <BrandMark />
           <span className="font-display text-lg font-bold">VIP Remesas</span>
         </div>
         <div className="rounded-2xl border border-border bg-card p-6 shadow-card">

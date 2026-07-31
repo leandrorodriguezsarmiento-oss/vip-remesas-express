@@ -2,7 +2,8 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable";
-import { Sparkles, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
+import { BrandMark } from "@/components/BrandMark";
 import { toast } from "sonner";
 import { z } from "zod";
 
@@ -120,10 +121,7 @@ function AuthPage() {
     <div className="min-h-screen bg-gradient-vip px-5 py-8">
       <div className="mx-auto max-w-md">
         <Link to="/" className="mb-8 flex items-center gap-2">
-          <div className="grid h-9 w-9 place-items-center rounded-lg bg-gradient-gold shadow-gold">
-            <Sparkles className="h-5 w-5 text-primary-foreground" />
-
-          </div>
+          <BrandMark />
           <span className="font-display text-lg font-bold">VIP Remesas</span>
         </Link>
 

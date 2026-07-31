@@ -1,6 +1,7 @@
 import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { Sparkles, Shield, Zap, Globe2 } from "lucide-react";
+import { BrandMark } from "@/components/BrandMark";
 
 export const Route = createFileRoute("/")({
   ssr: false,
@@ -16,9 +17,7 @@ function Landing() {
     <div className="min-h-screen bg-gradient-vip text-foreground">
       <header className="mx-auto flex max-w-md items-center justify-between px-5 pt-6">
         <div className="flex items-center gap-2">
-          <div className="grid h-9 w-9 place-items-center rounded-lg bg-gradient-gold shadow-gold">
-            <Sparkles className="h-5 w-5 text-primary-foreground" />
-          </div>
+          <BrandMark />
           <span className="font-display text-lg font-bold tracking-wide">VIP Remesas</span>
         </div>
         <Link to="/auth" className="text-sm font-medium text-gold hover:opacity-80">

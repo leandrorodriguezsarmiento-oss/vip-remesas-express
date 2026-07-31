@@ -1,6 +1,7 @@
 import { createFileRoute, Outlet, Link, redirect, useNavigate, useLocation } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
-import { Home, Send, ClockIcon, LogOut, Sparkles, Smartphone, Shield, Bell } from "lucide-react";
+import { Home, Send, ClockIcon, LogOut, Smartphone, Shield, Bell } from "lucide-react";
+import { BrandMark } from "@/components/BrandMark";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 
@@ -91,9 +92,7 @@ function AuthedLayout() {
     <div className="min-h-screen bg-gradient-vip pb-24">
       <header className="mx-auto flex max-w-md items-center justify-between px-5 pt-6">
         <Link to="/dashboard" className="flex items-center gap-2">
-          <div className="grid h-8 w-8 place-items-center rounded-lg bg-gradient-gold shadow-gold">
-            <Sparkles className="h-4 w-4 text-primary-foreground" />
-          </div>
+          <BrandMark className="h-8 w-8" />
           <span className="font-display text-base font-bold">VIP Remesas</span>
         </Link>
         <div className="flex items-center gap-1">
