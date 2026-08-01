@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 
-export function SplashScreen({ children }: { children: React.ReactNode }) {
+export function SplashScreen({ children }: { children: ReactNode }) {
   const [show, setShow] = useState(true);
 
   useEffect(() => {
