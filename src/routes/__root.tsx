@@ -135,6 +135,8 @@ function RootShell({ children }: { children: ReactNode }) {
   );
 }
 
+import { SplashScreen } from "@/components/SplashScreen";
+
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const router = useRouter();
@@ -150,7 +152,9 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <Outlet />
+      <SplashScreen>
+        <Outlet />
+      </SplashScreen>
       <Toaster theme="dark" position="top-center" richColors />
     </QueryClientProvider>
   );

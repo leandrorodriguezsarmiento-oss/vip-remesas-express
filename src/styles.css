@@ -123,11 +123,18 @@
   background-clip: text;
   color: transparent;
 }
+
 @utility shadow-gold {
   box-shadow: var(--shadow-gold);
 }
+
 @utility shadow-card {
   box-shadow: var(--shadow-card);
+}
+
+@keyframes shrink {
+  from { transform: scaleX(1); }
+  to { transform: scaleX(0); }
 }
 @utility border-gold {
   border-color: var(--gold);
