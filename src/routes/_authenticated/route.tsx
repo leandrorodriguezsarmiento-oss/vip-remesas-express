@@ -4,6 +4,8 @@ import { Home, Send, ClockIcon, LogOut, Smartphone, Shield, Bell } from "lucide-
 import { BrandMark } from "@/components/BrandMark";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
+
 
 
 export const Route = createFileRoute("/_authenticated")({
@@ -51,20 +53,28 @@ function AuthedLayout() {
     refetchInterval: 30000,
   });
 
-  // Realtime: refetch on any insert/update to my notifications
+  // Realtime: refetch on any insert/update to my notifications + alerta in-app
   useEffect(() => {
     const channel = supabase
       .channel(`notifications:${user.id}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "notifications", filter: `user_id=eq.${user.id}` },
-        () => queryClient.invalidateQueries({ queryKey: ["notifications", user.id] }),
+        (payload) => {
+          queryClient.invalidateQueries({ queryKey: ["notifications", user.id] });
+          queryClient.invalidateQueries({ queryKey: ["transactions"] });
+          if (payload.eventType === "INSERT") {
+            const n = payload.new as { title?: string; body?: string };
+            if (n?.title) toast(n.title, { description: n.body ?? undefined });
+          }
+        },
       )
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
     };
   }, [user.id, queryClient]);
+
 
   const unread = notifs.data?.filter((n) => !n.read).length ?? 0;
 
