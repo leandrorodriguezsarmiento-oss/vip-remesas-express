@@ -13,6 +13,7 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { supabase } from "@/integrations/supabase/client";
 import { Toaster } from "sonner";
+import { SplashScreen } from "@/components/SplashScreen";
 
 function NotFoundComponent() {
   return (
@@ -134,8 +135,6 @@ function RootShell({ children }: { children: ReactNode }) {
     </html>
   );
 }
-
-import { SplashScreen } from "@/components/SplashScreen";
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
