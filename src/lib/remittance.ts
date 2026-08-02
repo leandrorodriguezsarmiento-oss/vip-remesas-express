@@ -117,7 +117,8 @@ export function generateTrackingId(): string {
 
 export function formatMoney(n: number, currency: string): string {
   try {
-    const locale = currency === "BRL" ? "pt-BR" : currency === "EUR" ? "es-ES" : "en-US";
+    const locale =
+      currency === "BRL" ? "pt-BR" : currency === "EUR" ? "es-ES" : currency === "MXN" ? "es-MX" : "en-US";
     return new Intl.NumberFormat(locale, {
       style: "currency",
       currency,
