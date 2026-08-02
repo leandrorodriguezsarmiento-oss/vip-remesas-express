@@ -42,7 +42,7 @@ function AdminPanel() {
         {[
           ["tx", "Remesas"], ["recargas", "Recargas"], ["reports", "Reportes"],
           ["rates", "Tasas"], ["promos", "Promos"], ["banners", "Banners"],
-          ["payments", "Pagos US/EU"], ["mp", "Mercado Pago"], ["users", "Usuarios"], ["api", "API"],
+          ["payments", "Cuentas de pago"], ["mp", "Mercado Pago"], ["users", "Usuarios"], ["api", "API"],
         ].map(([id, label]) => (
           <button key={id} onClick={() => setTab(id as Tab)}
             className={`shrink-0 rounded-lg px-3 py-2 ${tab === id ? "bg-gradient-gold text-primary-foreground shadow-gold" : "text-muted-foreground"}`}>
