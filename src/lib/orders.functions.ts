@@ -3,8 +3,8 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { generatePixCode, generateTrackingId } from "@/lib/remittance";
 
-const ORIGIN_CURRENCY: Record<string, string> = { BR: "BRL", EU: "EUR", US: "USD" };
-const PAYMENT_METHOD: Record<string, string> = { BR: "pix", US: "zelle", EU: "sepa" };
+const ORIGIN_CURRENCY: Record<string, string> = { BR: "BRL", MX: "MXN", EU: "EUR", US: "USD" };
+const PAYMENT_METHOD: Record<string, string> = { BR: "pix", MX: "transferencia", US: "zelle", EU: "sepa" };
 
 export const createTransaction = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
