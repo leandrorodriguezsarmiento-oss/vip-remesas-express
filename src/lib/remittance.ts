@@ -20,6 +20,7 @@ export interface OriginOption {
 
 export const ORIGINS: OriginOption[] = [
   { code: "BR", name: "Brasil",         currency: "BRL", flag: "🇧🇷", symbol: "R$" },
+  { code: "MX", name: "México",         currency: "MXN", flag: "🇲🇽", symbol: "$"  },
   { code: "EU", name: "Europa",         currency: "EUR", flag: "🇪🇺", symbol: "€"  },
   { code: "US", name: "Estados Unidos", currency: "USD", flag: "🇺🇸", symbol: "$"  },
 ];
