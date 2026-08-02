@@ -11,7 +11,7 @@ export const createTransaction = createServerFn({ method: "POST" })
   .inputValidator((data) =>
     z
       .object({
-        origin: z.enum(["BR", "EU", "US"]),
+        origin: z.enum(["BR", "MX", "EU", "US"]),
         method: z.enum(["transferencia", "efectivo"]),
         currency: z.enum(["CUP", "MLC", "USD"]),
         amount: z.number().positive().max(1_000_000),
