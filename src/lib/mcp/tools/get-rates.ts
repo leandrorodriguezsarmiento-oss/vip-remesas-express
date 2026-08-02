@@ -8,7 +8,7 @@ export default defineTool({
   description:
     "Devuelve las tasas activas para enviar remesas a Cuba (origen, método, moneda destino).",
   inputSchema: {
-    origin: z.enum(["BR", "EU", "US"]).optional().describe("País de origen."),
+    origin: z.enum(["BR", "MX", "EU", "US"]).optional().describe("País de origen."),
     currency: z.enum(["CUP", "MLC", "USD"]).optional().describe("Moneda destino."),
   },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
