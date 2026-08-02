@@ -6,7 +6,7 @@
 // de integración (PIX y Cubacel).
 // ============================================================================
 
-export type OriginCode = "BR" | "EU" | "US";
+export type OriginCode = "BR" | "MX" | "EU" | "US";
 export type MethodCategory = "transferencia" | "efectivo";
 export type DestCurrency = "CUP" | "MLC" | "USD";
 
@@ -20,6 +20,7 @@ export interface OriginOption {
 
 export const ORIGINS: OriginOption[] = [
   { code: "BR", name: "Brasil",         currency: "BRL", flag: "🇧🇷", symbol: "R$" },
+  { code: "MX", name: "México",         currency: "MXN", flag: "🇲🇽", symbol: "$"  },
   { code: "EU", name: "Europa",         currency: "EUR", flag: "🇪🇺", symbol: "€"  },
   { code: "US", name: "Estados Unidos", currency: "USD", flag: "🇺🇸", symbol: "$"  },
 ];
@@ -116,7 +117,8 @@ export function generateTrackingId(): string {
 
 export function formatMoney(n: number, currency: string): string {
   try {
-    const locale = currency === "BRL" ? "pt-BR" : currency === "EUR" ? "es-ES" : "en-US";
+    const locale =
+      currency === "BRL" ? "pt-BR" : currency === "EUR" ? "es-ES" : currency === "MXN" ? "es-MX" : "en-US";
     return new Intl.NumberFormat(locale, {
       style: "currency",
       currency,

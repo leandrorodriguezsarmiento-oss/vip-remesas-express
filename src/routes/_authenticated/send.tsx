@@ -205,13 +205,18 @@ function SendFlow() {
             {ORIGINS.map((o) => (
               <button key={o.code}
                 onClick={() => { setOrigin(o.code); setStep(2); }}
-                className={`flex w-full items-center gap-3 rounded-xl border p-4 text-left transition ${origin === o.code ? "border-gold bg-accent" : "border-border bg-card hover:border-gold/60"}`}>
-                <span className="text-3xl">{o.flag}</span>
-                <div className="flex-1">
-                  <div className="font-semibold">{o.name}</div>
+                className={`relative flex w-full items-center gap-3 overflow-hidden rounded-xl border p-4 text-left transition ${origin === o.code ? "border-gold bg-accent" : "border-border bg-card hover:border-gold/60"}`}>
+                {/* Banderas de fondo: origen → Cuba */}
+                <span aria-hidden className="pointer-events-none absolute inset-0 flex items-center justify-end gap-1 pr-3 text-6xl opacity-15 blur-[1px] select-none">
+                  <span>{o.flag}</span>
+                  <span>🇨🇺</span>
+                </span>
+                <span className="relative text-3xl">{o.flag}</span>
+                <div className="relative flex-1">
+                  <div className="font-semibold">{o.name} → Cuba</div>
                   <div className="text-xs text-muted-foreground">Envías en {o.currency} → recibes en Cuba</div>
                 </div>
-                <ArrowRight className="h-4 w-4 text-gold" />
+                <ArrowRight className="relative h-4 w-4 text-gold" />
               </button>
             ))}
           </div>

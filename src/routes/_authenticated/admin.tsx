@@ -42,7 +42,7 @@ function AdminPanel() {
         {[
           ["tx", "Remesas"], ["recargas", "Recargas"], ["reports", "Reportes"],
           ["rates", "Tasas"], ["promos", "Promos"], ["banners", "Banners"],
-          ["payments", "Pagos US/EU"], ["mp", "Mercado Pago"], ["users", "Usuarios"], ["api", "API"],
+          ["payments", "Cuentas de pago"], ["mp", "Mercado Pago"], ["users", "Usuarios"], ["api", "API"],
         ].map(([id, label]) => (
           <button key={id} onClick={() => setTab(id as Tab)}
             className={`shrink-0 rounded-lg px-3 py-2 ${tab === id ? "bg-gradient-gold text-primary-foreground shadow-gold" : "text-muted-foreground"}`}>
@@ -711,9 +711,10 @@ function PaymentMethodsTab() {
             <span className="mb-0.5 block text-[10px] text-muted-foreground">Origen</span>
             <select value={origin} onChange={(e) => setOrigin(e.target.value)}
               className="w-full rounded-md border border-border bg-background px-2 py-1 text-xs">
-              <option value="US">US</option>
-              <option value="EU">EU</option>
-              <option value="BR">BR</option>
+              <option value="US">US (Estados Unidos)</option>
+              <option value="EU">EU (Europa)</option>
+              <option value="MX">MX (México)</option>
+              <option value="BR">BR (Brasil)</option>
             </select>
           </label>
           <MiniInput label="Etiqueta (Zelle, IBAN…)" value={label} onChange={setLabel} />
