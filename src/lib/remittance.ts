@@ -6,7 +6,7 @@
 // de integración (PIX y Cubacel).
 // ============================================================================
 
-export type OriginCode = "BR" | "EU" | "US";
+export type OriginCode = "BR" | "MX" | "EU" | "US";
 export type MethodCategory = "transferencia" | "efectivo";
 export type DestCurrency = "CUP" | "MLC" | "USD";
 
