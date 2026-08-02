@@ -20,7 +20,7 @@ function Landing() {
           <BrandMark />
           <span className="font-display text-lg font-bold tracking-wide">VIP Remesas</span>
         </div>
-        <Link to="/auth" search={{}} className="text-sm font-medium text-gold hover:opacity-80">
+        <Link to="/auth" search={{ next: undefined }} className="text-sm font-medium text-gold hover:opacity-80">
           Entrar
         </Link>
       </header>
@@ -39,14 +39,14 @@ function Landing() {
         <div className="mt-8 space-y-3">
           <Link
             to="/auth"
-            search={{}}
+            search={{ next: undefined }}
             className="block w-full rounded-xl bg-gradient-gold px-6 py-4 text-center text-base font-semibold text-primary-foreground shadow-gold"
           >
             Crear cuenta gratis
           </Link>
           <Link
             to="/auth"
-            search={{}}
+            search={{ next: undefined }}
             className="block w-full rounded-xl border border-gold/50 bg-card/50 px-6 py-4 text-center text-base font-medium text-foreground"
           >
             Ya tengo cuenta
