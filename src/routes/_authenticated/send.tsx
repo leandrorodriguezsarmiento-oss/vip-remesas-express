@@ -10,6 +10,7 @@ import {
 } from "@/lib/remittance";
 import { createTransaction } from "@/lib/orders.functions";
 import { createMercadoPagoPreference } from "@/lib/payments.functions";
+import { PixQrCode } from "@/components/PixQrCode";
 
 import { toast } from "sonner";
 import { ArrowLeft, ArrowRight, Check, Copy, CreditCard, Loader2, Sparkles } from "lucide-react";
@@ -396,7 +397,11 @@ function SendFlow() {
 
           {origin === "BR" && pixCode && (
             <div className="rounded-xl border border-border bg-card p-4">
-              <p className="text-xs text-muted-foreground">PIX copia y pega (monto incluido)</p>
+              <p className="text-xs text-muted-foreground">Escanea el QR con tu app del banco</p>
+              <div className="mt-3">
+                <PixQrCode value={pixCode} fileName={`pix-${tracking}.png`} />
+              </div>
+              <p className="mt-4 text-xs text-muted-foreground">PIX copia y pega (monto incluido)</p>
               <p className="mt-1 break-all font-mono text-[11px] leading-relaxed">{pixCode}</p>
               <button
                 onClick={() => { navigator.clipboard.writeText(pixCode); toast.success("Código copiado"); }}
