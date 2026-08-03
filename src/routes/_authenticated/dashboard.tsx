@@ -8,6 +8,7 @@ import {
 import { ArrowUpRight, Send, Smartphone, TrendingUp } from "lucide-react";
 import { BannerCarousel } from "@/components/BannerCarousel";
 import { PushToggle } from "@/components/PushToggle";
+import { FlagIcon } from "@/components/FlagIcon";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   component: Dashboard,
@@ -105,7 +106,8 @@ function Dashboard() {
             return (
               <div key={o.code} className="rounded-xl border border-border bg-card p-3">
                 <div className="flex items-center gap-2 text-sm font-semibold">
-                  <span className="text-lg">{o.flag}</span> {o.name} → 🇨🇺 Cuba
+                  <FlagIcon code={o.code} className="h-5 w-7" /> {o.name} →{" "}
+                  <FlagIcon code="CU" className="h-5 w-7" /> Cuba
                 </div>
                 <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
                   <div>
