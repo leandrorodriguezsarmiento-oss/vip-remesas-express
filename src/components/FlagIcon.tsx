@@ -76,7 +76,7 @@ function Cu() {
   );
 }
 
-const MAP: Record<FlagCode, () => JSX.Element> = { BR: Br, MX: Mx, EU: Eu, US: Us, CU: Cu };
+const MAP: Record<FlagCode, () => React.ReactElement> = { BR: Br, MX: Mx, EU: Eu, US: Us, CU: Cu };
 
 export function FlagIcon({
   code,
