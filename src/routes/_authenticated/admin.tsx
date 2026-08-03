@@ -104,6 +104,11 @@ function TransactionsTab() {
                 {(t as { origin_country?: string }).origin_country ?? "BR"} →
                 {" "}{t.dest_currency} ({(t as { method_category?: string }).method_category ?? "—"})
               </div>
+              {(t as { notes?: string | null }).notes && (
+                <div className="mt-1 text-[11px] text-foreground">
+                  📍 {(t as { notes?: string | null }).notes}
+                </div>
+              )}
             </div>
             <div className="text-right">
               <div className="text-sm font-bold text-gold">
