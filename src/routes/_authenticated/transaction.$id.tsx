@@ -52,6 +52,7 @@ function TxDetail() {
         <Row k="Teléfono" v={t.recipient_phone} />
         <Row k="País" v={t.destination_country} />
         <Row k="Método de entrega" v={t.delivery_method} />
+        {t.notes && <Row k="Dirección / notas" v={t.notes} />}
         <hr className="border-border" />
         <Row k="Monto enviado" v={formatBRL(Number(t.amount_brl))} />
         <Row k="Comisión" v={formatBRL(Number(t.fee_brl))} />
