@@ -8,6 +8,7 @@ import {
 import { ArrowUpRight, Send, Smartphone, TrendingUp } from "lucide-react";
 import { BannerCarousel } from "@/components/BannerCarousel";
 import { PushToggle } from "@/components/PushToggle";
+import { FlagIcon } from "@/components/FlagIcon";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   component: Dashboard,
