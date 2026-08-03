@@ -1,5 +1,4 @@
 import { useEffect, useState, type ReactNode } from "react";
-import logo from "@/assets/logo.png";
 
 export function SplashScreen({ children }: { children: ReactNode }) {
   const [show, setShow] = useState(true);
