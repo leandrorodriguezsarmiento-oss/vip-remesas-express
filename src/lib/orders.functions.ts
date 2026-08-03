@@ -19,6 +19,7 @@ export const createTransaction = createServerFn({ method: "POST" })
           name: z.string().trim().min(1).max(120),
           phone: z.string().trim().min(3).max(40),
           card: z.string().trim().max(60).optional().nullable(),
+          address: z.string().trim().max(300).optional().nullable(),
           notes: z.string().trim().max(500).optional().nullable(),
         }),
       })
@@ -26,6 +27,12 @@ export const createTransaction = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    // Cash deliveries require the recipient's street address.
+    const address = data.recipient.address?.trim() || "";
+    if (data.method === "efectivo" && address.length < 8) {
+      throw new Error("La dirección de entrega es obligatoria para remesas en efectivo");
+    }
 
     // 1) Look up authoritative rate server-side.
     const { data: rateRow, error: rateErr } = await supabaseAdmin
@@ -66,7 +73,9 @@ export const createTransaction = createServerFn({ method: "POST" })
         recipient_name: data.recipient.name,
         recipient_phone: data.recipient.phone,
         recipient_card: data.recipient.card || null,
-        notes: data.recipient.notes || null,
+        notes: [address ? `Dirección de entrega: ${address}` : null, data.recipient.notes || null]
+          .filter(Boolean)
+          .join(" | ") || null,
         amount_brl: data.amount,
         amount_dest: amountDest,
         dest_currency: data.currency,

@@ -18,7 +18,7 @@ export const Route = createFileRoute("/_authenticated/send")({
   component: SendFlow,
 });
 
-type Recipient = { name: string; phone: string; card: string; notes: string };
+type Recipient = { name: string; phone: string; card: string; address: string; notes: string };
 type Saved = {
   id: string; full_name: string; phone: string; account_details: string | null;
   delivery_method: string; country: string;
@@ -39,7 +39,7 @@ function SendFlow() {
   const [method, setMethod] = useState<MethodCategory | null>(null);
   const [currency, setCurrency] = useState<DestCurrency | null>(null);
   const [amount, setAmount] = useState("");
-  const [recipient, setRecipient] = useState<Recipient>({ name: "", phone: "", card: "", notes: "" });
+  const [recipient, setRecipient] = useState<Recipient>({ name: "", phone: "", card: "", address: "", notes: "" });
   const [saveRecipient, setSaveRecipient] = useState(true);
   const [tracking, setTracking] = useState<string | null>(null);
   const [pixCode, setPixCode] = useState<string | null>(null);
@@ -111,6 +111,7 @@ function SendFlow() {
             name: recipient.name,
             phone: recipient.phone,
             card: recipient.card || null,
+            address: recipient.address || null,
             notes: recipient.notes || null,
           },
         },
@@ -295,7 +296,7 @@ function SendFlow() {
                   <button key={r.id}
                     onClick={() => setRecipient({
                       name: r.full_name, phone: r.phone,
-                      card: r.account_details ?? "", notes: "",
+                      card: r.account_details ?? "", address: "", notes: "",
                     })}
                     className="rounded-full border border-border bg-card px-3 py-1 text-xs hover:border-gold">
                     {r.full_name}
@@ -313,13 +314,20 @@ function SendFlow() {
               onChange={(v) => setRecipient({ ...recipient, card: v })}
               placeholder="XXXX XXXX XXXX XXXX" />
           )}
+          {method === "efectivo" && (
+            <Input
+              label="Dirección de entrega"
+              value={recipient.address}
+              onChange={(v) => setRecipient({ ...recipient, address: v })}
+              placeholder="Calle, número, entre calles, municipio, provincia" />
+          )}
           <label className="flex items-center gap-2 text-sm text-muted-foreground">
             <input type="checkbox" checked={saveRecipient} onChange={(e) => setSaveRecipient(e.target.checked)}
               className="h-4 w-4 accent-[color:var(--gold)]" />
             Guardar destinatario para próximas remesas
           </label>
           <NextBtn
-            disabled={!recipient.name || !recipient.phone || (method === "transferencia" && !recipient.card)}
+            disabled={!recipient.name || !recipient.phone || (method === "transferencia" && !recipient.card) || (method === "efectivo" && recipient.address.trim().length < 8)}
             onClick={() => setStep(5)}
           >
             Continuar
@@ -334,6 +342,7 @@ function SendFlow() {
             <Row k="Destinatario" v={recipient.name} />
             <Row k="Teléfono" v={recipient.phone} />
             {recipient.card && <Row k="Tarjeta / Cuenta" v={recipient.card} />}
+            {recipient.address && <Row k="Dirección" v={recipient.address} />}
             <hr className="border-border" />
             <Row k="Origen" v={originOpt.name} />
             <Row k="Método" v={method === "transferencia" ? "Transferencia" : "Efectivo"} />
