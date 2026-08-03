@@ -11,6 +11,7 @@ import {
 import { createTransaction } from "@/lib/orders.functions";
 import { createMercadoPagoPreference } from "@/lib/payments.functions";
 import { PixQrCode } from "@/components/PixQrCode";
+import { FlagIcon } from "@/components/FlagIcon";
 
 import { toast } from "sonner";
 import { ArrowLeft, ArrowRight, Check, Copy, CreditCard, Loader2, Sparkles } from "lucide-react";
