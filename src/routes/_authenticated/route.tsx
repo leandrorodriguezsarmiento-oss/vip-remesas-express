@@ -121,10 +121,11 @@ function AuthedLayout() {
   return (
     <div className="min-h-screen bg-gradient-vip pb-24">
       <header className="mx-auto flex max-w-md items-center justify-between px-5 pt-6">
-        <Link to="/dashboard" className="flex items-center gap-2">
+        <Link to={admin ? "/admin" : "/dashboard"} className="flex items-center gap-2">
           <BrandMark className="h-8 w-8" />
           <span className="font-display text-base font-bold">VIP Remesas</span>
         </Link>
+
         <div className="flex items-center gap-1">
           <button
             onClick={() => { setShowNotif((s) => !s); if (unread > 0) markAllRead(); }}
