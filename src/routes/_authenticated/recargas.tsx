@@ -99,8 +99,30 @@ function Recargas() {
     <div className="space-y-5">
       <div>
         <h1 className="font-display text-2xl font-bold">Recargas Cubacel</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Promos vigentes desde Brasil, Europa y EE.UU.</p>
+        <p className="mt-1 text-sm text-muted-foreground">Promos vigentes desde Brasil, México, Europa y EE.UU.</p>
       </div>
+
+      {active.length > 0 && (
+        <section className="rounded-2xl border border-gold/40 bg-card p-4">
+          <h2 className="mb-2 font-display text-sm font-bold">Tus recargas en proceso</h2>
+          <ul className="space-y-2">
+            {active.map((r) => (
+              <li key={r.id} className="flex items-center gap-2 rounded-lg border border-border bg-background/60 p-3">
+                <Smartphone className="h-4 w-4 shrink-0 text-gold" />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold">
+                    #{(r as { order_no?: number }).order_no ?? "—"} · {r.promo_title}
+                  </p>
+                  <p className="truncate text-[11px] text-muted-foreground">{r.phone}</p>
+                </div>
+                <StatusBadge status={r.status} />
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+
 
       {promos.isLoading && <p className="text-sm text-muted-foreground">Cargando promociones…</p>}
       {promos.data && promos.data.length === 0 && (
