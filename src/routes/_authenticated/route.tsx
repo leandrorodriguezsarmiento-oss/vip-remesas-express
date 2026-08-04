@@ -178,12 +178,12 @@ function AuthedLayout() {
       </main>
 
       <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-card/95 backdrop-blur">
-        <div className="mx-auto grid max-w-md grid-cols-4">
+        <div
+          className="mx-auto grid max-w-md"
+          style={{ gridTemplateColumns: `repeat(${nav.length}, minmax(0, 1fr))` }}
+        >
           {nav.map(({ to, icon: Icon, label }) => {
-            const active =
-              path === to ||
-              (to === "/send" && path.startsWith("/send")) ||
-              (to === "/recargas" && path.startsWith("/recargas"));
+            const active = path === to || path.startsWith(`${to}/`);
             return (
               <Link key={to} to={to}
                 className={`flex flex-col items-center gap-1 py-3 text-[11px] font-medium ${active ? "text-gold" : "text-muted-foreground"}`}>
@@ -193,6 +193,7 @@ function AuthedLayout() {
           })}
         </div>
       </nav>
+
     </div>
   );
 }
