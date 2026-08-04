@@ -101,12 +101,22 @@ function AuthedLayout() {
   }
 
   const path = location.pathname;
-  const nav = [
-    { to: "/dashboard", icon: Home,      label: "Inicio" },
-    { to: "/recargas",  icon: Smartphone,label: "Recargas" },
-    { to: "/send",      icon: Send,      label: "Remesas" },
-    { to: "/history",   icon: ClockIcon, label: "Historial" },
-  ] as const;
+  const admin = isAdmin.data === true;
+  // El perfil admin no envía remesas: sólo gestiona.
+  const nav = admin
+    ? ([
+        { to: "/admin", icon: Shield, label: "Panel" },
+        { to: "/history", icon: ClockIcon, label: "Historial" },
+        { to: "/settings", icon: SettingsIcon, label: "Ajustes" },
+      ] as const)
+    : ([
+        { to: "/dashboard", icon: Home, label: "Inicio" },
+        { to: "/recargas", icon: Smartphone, label: "Recargas" },
+        { to: "/send", icon: Send, label: "Remesas" },
+        { to: "/history", icon: ClockIcon, label: "Historial" },
+        { to: "/settings", icon: SettingsIcon, label: "Ajustes" },
+      ] as const);
+
 
   return (
     <div className="min-h-screen bg-gradient-vip pb-24">
