@@ -1,16 +1,37 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { createFileRoute, redirect } from "@tanstack/react-router";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { formatMoney } from "@/lib/remittance";
 import { createRechargeRequest } from "@/lib/orders.functions";
+import { StatusBadge } from "./dashboard";
 import { Smartphone, Loader2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/recargas")({
+  beforeLoad: async ({ context }) => {
+    const { data } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", context.user.id)
+      .eq("role", "admin")
+      .maybeSingle();
+    if (data) throw redirect({ to: "/admin" });
+  },
   component: Recargas,
+  head: () => ({
+    meta: [
+      { title: "Recargas Cubacel a Cuba | VIP Remesas" },
+      { name: "description", content: "Recarga saldo Cubacel desde Brasil, México, EE.UU. y Europa con promociones vigentes." },
+      { property: "og:title", content: "Recargas Cubacel a Cuba | VIP Remesas" },
+      { property: "og:description", content: "Recarga Cubacel con promociones vigentes desde 4 países." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
 });
+
 
 type Promo = {
   id: string;
