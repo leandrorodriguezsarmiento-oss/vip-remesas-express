@@ -65,9 +65,15 @@ function AuthedLayout() {
         (payload) => {
           queryClient.invalidateQueries({ queryKey: ["notifications", user.id] });
           queryClient.invalidateQueries({ queryKey: ["transactions"] });
+          queryClient.invalidateQueries({ queryKey: ["transactions-all"] });
+          queryClient.invalidateQueries({ queryKey: ["recargas-mine"] });
           if (payload.eventType === "INSERT") {
             const n = payload.new as { title?: string; body?: string };
-            if (n?.title) toast(n.title, { description: n.body ?? undefined });
+            if (n?.title) {
+              playNotificationSound();
+              // Aviso tipo WhatsApp: aparece arriba y se cierra solo.
+              toast(n.title, { description: n.body ?? undefined, duration: 4000, dismissible: true });
+            }
           }
         },
       )
@@ -76,6 +82,8 @@ function AuthedLayout() {
       supabase.removeChannel(channel);
     };
   }, [user.id, queryClient]);
+
+
 
 
   const unread = notifs.data?.filter((n) => !n.read).length ?? 0;
