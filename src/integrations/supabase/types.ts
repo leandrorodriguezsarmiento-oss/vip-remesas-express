@@ -47,6 +47,33 @@ export type Database = {
         }
         Relationships: []
       }
+      login_aliases: {
+        Row: {
+          alias: string
+          auth_email: string
+          created_at: string
+          id: string
+          kind: string
+          user_id: string
+        }
+        Insert: {
+          alias: string
+          auth_email: string
+          created_at?: string
+          id?: string
+          kind: string
+          user_id: string
+        }
+        Update: {
+          alias?: string
+          auth_email?: string
+          created_at?: string
+          id?: string
+          kind?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       mercadopago_payments: {
         Row: {
           amount: number
@@ -179,31 +206,46 @@ export type Database = {
       }
       profiles: {
         Row: {
+          avatar_url: string | null
           balance_brl: number
+          country: string
+          cpf: string | null
           created_at: string
           full_name: string | null
           id: string
           phone: string | null
           preferred_language: string
           updated_at: string
+          username: string | null
+          verified: boolean
         }
         Insert: {
+          avatar_url?: string | null
           balance_brl?: number
+          country?: string
+          cpf?: string | null
           created_at?: string
           full_name?: string | null
           id: string
           phone?: string | null
           preferred_language?: string
           updated_at?: string
+          username?: string | null
+          verified?: boolean
         }
         Update: {
+          avatar_url?: string | null
           balance_brl?: number
+          country?: string
+          cpf?: string | null
           created_at?: string
           full_name?: string | null
           id?: string
           phone?: string | null
           preferred_language?: string
           updated_at?: string
+          username?: string | null
+          verified?: boolean
         }
         Relationships: []
       }
@@ -359,6 +401,7 @@ export type Database = {
           created_at: string
           id: string
           notes: string | null
+          order_no: number
           phone: string
           price_brl: number
           promo_id: string | null
@@ -372,6 +415,7 @@ export type Database = {
           created_at?: string
           id?: string
           notes?: string | null
+          order_no?: number
           phone: string
           price_brl: number
           promo_id?: string | null
@@ -385,6 +429,7 @@ export type Database = {
           created_at?: string
           id?: string
           notes?: string | null
+          order_no?: number
           phone?: string
           price_brl?: number
           promo_id?: string | null
@@ -407,6 +452,7 @@ export type Database = {
       recipients: {
         Row: {
           account_details: string | null
+          address: string | null
           country: string
           created_at: string
           delivery_method: string
@@ -417,6 +463,7 @@ export type Database = {
         }
         Insert: {
           account_details?: string | null
+          address?: string | null
           country: string
           created_at?: string
           delivery_method: string
@@ -427,6 +474,7 @@ export type Database = {
         }
         Update: {
           account_details?: string | null
+          address?: string | null
           country?: string
           created_at?: string
           delivery_method?: string
@@ -450,6 +498,7 @@ export type Database = {
           id: string
           method_category: string
           notes: string | null
+          order_no: number
           origin_country: string
           origin_currency: string
           payment_method: string
@@ -474,6 +523,7 @@ export type Database = {
           id?: string
           method_category?: string
           notes?: string | null
+          order_no?: number
           origin_country?: string
           origin_currency?: string
           payment_method: string
@@ -498,6 +548,7 @@ export type Database = {
           id?: string
           method_category?: string
           notes?: string | null
+          order_no?: number
           origin_country?: string
           origin_currency?: string
           payment_method?: string

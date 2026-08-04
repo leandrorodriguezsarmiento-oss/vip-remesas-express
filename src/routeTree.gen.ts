@@ -15,6 +15,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthIndexRouteImport } from './routes/auth.index'
+import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedSendRouteImport } from './routes/_authenticated/send'
 import { Route as AuthenticatedRecargasRouteImport } from './routes/_authenticated/recargas'
 import { Route as AuthenticatedHistoryRouteImport } from './routes/_authenticated/history'
@@ -57,6 +58,11 @@ const AuthIndexRoute = AuthIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AuthRoute,
+} as any)
+const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedSendRoute = AuthenticatedSendRouteImport.update({
   id: '/send',
@@ -142,6 +148,7 @@ export interface FileRoutesByFullPath {
   '/history': typeof AuthenticatedHistoryRoute
   '/recargas': typeof AuthenticatedRecargasRoute
   '/send': typeof AuthenticatedSendRoute
+  '/settings': typeof AuthenticatedSettingsRoute
   '/auth/': typeof AuthIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
@@ -161,6 +168,7 @@ export interface FileRoutesByTo {
   '/history': typeof AuthenticatedHistoryRoute
   '/recargas': typeof AuthenticatedRecargasRoute
   '/send': typeof AuthenticatedSendRoute
+  '/settings': typeof AuthenticatedSettingsRoute
   '/auth': typeof AuthIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
@@ -183,6 +191,7 @@ export interface FileRoutesById {
   '/_authenticated/history': typeof AuthenticatedHistoryRoute
   '/_authenticated/recargas': typeof AuthenticatedRecargasRoute
   '/_authenticated/send': typeof AuthenticatedSendRoute
+  '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/auth/': typeof AuthIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
@@ -205,6 +214,7 @@ export interface FileRouteTypes {
     | '/history'
     | '/recargas'
     | '/send'
+    | '/settings'
     | '/auth/'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
@@ -224,6 +234,7 @@ export interface FileRouteTypes {
     | '/history'
     | '/recargas'
     | '/send'
+    | '/settings'
     | '/auth'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
@@ -245,6 +256,7 @@ export interface FileRouteTypes {
     | '/_authenticated/history'
     | '/_authenticated/recargas'
     | '/_authenticated/send'
+    | '/_authenticated/settings'
     | '/auth/'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
@@ -312,6 +324,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/auth/'
       preLoaderRoute: typeof AuthIndexRouteImport
       parentRoute: typeof AuthRoute
+    }
+    '/_authenticated/settings': {
+      id: '/_authenticated/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof AuthenticatedSettingsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/send': {
       id: '/_authenticated/send'
@@ -413,6 +432,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedHistoryRoute: typeof AuthenticatedHistoryRoute
   AuthenticatedRecargasRoute: typeof AuthenticatedRecargasRoute
   AuthenticatedSendRoute: typeof AuthenticatedSendRoute
+  AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedTransactionIdRoute: typeof AuthenticatedTransactionIdRoute
 }
 
@@ -422,6 +442,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedHistoryRoute: AuthenticatedHistoryRoute,
   AuthenticatedRecargasRoute: AuthenticatedRecargasRoute,
   AuthenticatedSendRoute: AuthenticatedSendRoute,
+  AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedTransactionIdRoute: AuthenticatedTransactionIdRoute,
 }
 

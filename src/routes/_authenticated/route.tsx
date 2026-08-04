@@ -1,10 +1,12 @@
 import { createFileRoute, Outlet, Link, redirect, useNavigate, useLocation } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
-import { Home, Send, ClockIcon, LogOut, Smartphone, Shield, Bell } from "lucide-react";
+import { Home, Send, ClockIcon, LogOut, Smartphone, Shield, Bell, Settings as SettingsIcon } from "lucide-react";
 import { BrandMark } from "@/components/BrandMark";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { playNotificationSound } from "@/lib/notify-sound";
+
 
 
 
@@ -63,9 +65,15 @@ function AuthedLayout() {
         (payload) => {
           queryClient.invalidateQueries({ queryKey: ["notifications", user.id] });
           queryClient.invalidateQueries({ queryKey: ["transactions"] });
+          queryClient.invalidateQueries({ queryKey: ["transactions-all"] });
+          queryClient.invalidateQueries({ queryKey: ["recargas-mine"] });
           if (payload.eventType === "INSERT") {
             const n = payload.new as { title?: string; body?: string };
-            if (n?.title) toast(n.title, { description: n.body ?? undefined });
+            if (n?.title) {
+              playNotificationSound();
+              // Aviso tipo WhatsApp: aparece arriba y se cierra solo.
+              toast(n.title, { description: n.body ?? undefined, duration: 4000, dismissible: true });
+            }
           }
         },
       )
@@ -74,6 +82,8 @@ function AuthedLayout() {
       supabase.removeChannel(channel);
     };
   }, [user.id, queryClient]);
+
+
 
 
   const unread = notifs.data?.filter((n) => !n.read).length ?? 0;
@@ -91,20 +101,31 @@ function AuthedLayout() {
   }
 
   const path = location.pathname;
-  const nav = [
-    { to: "/dashboard", icon: Home,      label: "Inicio" },
-    { to: "/recargas",  icon: Smartphone,label: "Recargas" },
-    { to: "/send",      icon: Send,      label: "Remesas" },
-    { to: "/history",   icon: ClockIcon, label: "Historial" },
-  ] as const;
+  const admin = isAdmin.data === true;
+  // El perfil admin no envía remesas: sólo gestiona.
+  const nav = admin
+    ? ([
+        { to: "/admin", icon: Shield, label: "Panel" },
+        { to: "/history", icon: ClockIcon, label: "Historial" },
+        { to: "/settings", icon: SettingsIcon, label: "Ajustes" },
+      ] as const)
+    : ([
+        { to: "/dashboard", icon: Home, label: "Inicio" },
+        { to: "/recargas", icon: Smartphone, label: "Recargas" },
+        { to: "/send", icon: Send, label: "Remesas" },
+        { to: "/history", icon: ClockIcon, label: "Historial" },
+        { to: "/settings", icon: SettingsIcon, label: "Ajustes" },
+      ] as const);
+
 
   return (
     <div className="min-h-screen bg-gradient-vip pb-24">
       <header className="mx-auto flex max-w-md items-center justify-between px-5 pt-6">
-        <Link to="/dashboard" className="flex items-center gap-2">
+        <Link to={admin ? "/admin" : "/dashboard"} className="flex items-center gap-2">
           <BrandMark className="h-8 w-8" />
           <span className="font-display text-base font-bold">VIP Remesas</span>
         </Link>
+
         <div className="flex items-center gap-1">
           <button
             onClick={() => { setShowNotif((s) => !s); if (unread > 0) markAllRead(); }}
@@ -158,12 +179,12 @@ function AuthedLayout() {
       </main>
 
       <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-card/95 backdrop-blur">
-        <div className="mx-auto grid max-w-md grid-cols-4">
+        <div
+          className="mx-auto grid max-w-md"
+          style={{ gridTemplateColumns: `repeat(${nav.length}, minmax(0, 1fr))` }}
+        >
           {nav.map(({ to, icon: Icon, label }) => {
-            const active =
-              path === to ||
-              (to === "/send" && path.startsWith("/send")) ||
-              (to === "/recargas" && path.startsWith("/recargas"));
+            const active = path === to || path.startsWith(`${to}/`);
             return (
               <Link key={to} to={to}
                 className={`flex flex-col items-center gap-1 py-3 text-[11px] font-medium ${active ? "text-gold" : "text-muted-foreground"}`}>
@@ -173,6 +194,7 @@ function AuthedLayout() {
           })}
         </div>
       </nav>
+
     </div>
   );
 }

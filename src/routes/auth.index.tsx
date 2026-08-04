@@ -1,7 +1,9 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable";
+import { registerAccount, resolveLoginIdentifier } from "@/lib/account.functions";
+import { COUNTRIES } from "@/lib/alias";
 import { Loader2 } from "lucide-react";
 import { BrandMark } from "@/components/BrandMark";
 import { toast } from "sonner";
@@ -22,31 +24,35 @@ function safeNext(next: string | undefined): string | null {
 
 const signupSchema = z.object({
   fullName: z.string().trim().min(2, "Nombre muy corto").max(80),
-  email: z.string().trim().email("Correo inválido").max(255),
-  phone: z.string().trim().min(8, "Teléfono inválido").max(20),
-  password: z.string().min(6, "Mínimo 6 caracteres").max(72),
-});
-const loginSchema = z.object({
-  email: z.string().trim().email("Correo inválido"),
-  password: z.string().min(1, "Requerido"),
+  username: z
+    .string()
+    .trim()
+    .min(3, "Usuario: mínimo 3 caracteres")
+    .max(24, "Usuario muy largo")
+    .regex(/^[a-zA-Z0-9._-]+$/, "Usuario: sólo letras, números, . _ -"),
+  phone: z.string().trim().min(8, "Teléfono inválido").max(24),
+  password: z.string().min(6, "Contraseña: mínimo 6 caracteres").max(72),
 });
 
 function AuthPage() {
   const [tab, setTab] = useState<"login" | "signup">("login");
   const [loading, setLoading] = useState(false);
-  const [showForgot, setShowForgot] = useState(false);
   const navigate = useNavigate();
 
   // login
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
-  const [remember, setRemember] = useState(true);
 
   // signup
   const [sFullName, setSFullName] = useState("");
-  const [sEmail, setSEmail] = useState("");
+  const [sUsername, setSUsername] = useState("");
   const [sPhone, setSPhone] = useState("");
+  const [sCpf, setSCpf] = useState("");
+  const [sCountry, setSCountry] = useState("BR");
   const [sPassword, setSPassword] = useState("");
+
+  const resolve = useServerFn(resolveLoginIdentifier);
+  const register = useServerFn(registerAccount);
 
   const { next: nextParam } = Route.useSearch();
   const nextPath = safeNext(nextParam);
@@ -58,64 +64,57 @@ function AuthPage() {
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
-    const parsed = loginSchema.safeParse({ email, password });
-    if (!parsed.success) return toast.error(parsed.error.issues[0].message);
+    if (identifier.trim().length < 3) return toast.error("Ingresa tu usuario, teléfono o CPF");
+    if (!password) return toast.error("Ingresa tu contraseña");
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    setLoading(false);
-    if (error) return toast.error(error.message);
-    if (!remember) sessionStorage.setItem("vip-no-remember", "1");
-    toast.success("¡Bienvenido de vuelta!");
-    goNext();
+    try {
+      const { email } = await resolve({ data: { identifier } });
+      if (!email) throw new Error("No encontramos esa cuenta");
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw new Error("Usuario o contraseña incorrectos");
+      toast.success("¡Bienvenido de vuelta!");
+      goNext();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "No se pudo iniciar sesión");
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function handleSignup(e: React.FormEvent) {
     e.preventDefault();
     const parsed = signupSchema.safeParse({
       fullName: sFullName,
-      email: sEmail,
+      username: sUsername,
       phone: sPhone,
       password: sPassword,
     });
     if (!parsed.success) return toast.error(parsed.error.issues[0].message);
-    setLoading(true);
-    const emailRedirect = nextPath
-      ? `${window.location.origin}/auth?next=${encodeURIComponent(nextPath)}`
-      : window.location.origin;
-    const { error } = await supabase.auth.signUp({
-      email: sEmail,
-      password: sPassword,
-      options: {
-        emailRedirectTo: emailRedirect,
-        data: { full_name: sFullName, phone: sPhone },
-      },
-    });
-    setLoading(false);
-    if (error) return toast.error(error.message);
-    toast.success("¡Cuenta creada!");
-    goNext();
-  }
-
-  async function handleGoogle() {
-    setLoading(true);
-    // OAuth broker returns to a public URL — remember `next` so /auth can consume it.
-    if (nextPath) sessionStorage.setItem("vip-oauth-next", nextPath);
-    const redirectUri = nextPath
-      ? `${window.location.origin}/auth?next=${encodeURIComponent(nextPath)}`
-      : window.location.origin;
-    const result = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: redirectUri,
-    });
-    if (result.error) {
-      setLoading(false);
-      toast.error("No se pudo iniciar sesión con Google");
-      return;
+    if (sCountry === "BR" && sCpf.replace(/\D/g, "").length !== 11) {
+      return toast.error("Para Brasil el CPF es obligatorio (11 dígitos)");
     }
-    if (result.redirected) return;
-    goNext();
+    setLoading(true);
+    try {
+      const { email } = await register({
+        data: {
+          fullName: sFullName,
+          username: sUsername,
+          phone: sPhone,
+          cpf: sCpf,
+          country: sCountry,
+          password: sPassword,
+        },
+      });
+      const { error } = await supabase.auth.signInWithPassword({ email, password: sPassword });
+      if (error) throw new Error(error.message);
+      toast.success("¡Cuenta creada! Ya puedes enviar remesas.");
+      goNext();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "No se pudo crear la cuenta");
+    } finally {
+      setLoading(false);
+    }
   }
-
-  if (showForgot) return <ForgotPassword onBack={() => setShowForgot(false)} />;
 
   return (
     <div className="min-h-screen bg-gradient-vip px-5 py-8">
@@ -139,93 +138,68 @@ function AuthPage() {
 
           {tab === "login" ? (
             <form onSubmit={handleLogin} className="space-y-4">
-              <Field label="Correo electrónico" type="email" value={email} onChange={setEmail} placeholder="tu@correo.com" />
-              <Field label="Contraseña" type="password" value={password} onChange={setPassword} placeholder="••••••••" />
-              <div className="flex items-center justify-between text-sm">
-                <label className="flex items-center gap-2 text-muted-foreground">
-                  <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)}
-                    className="h-4 w-4 accent-[color:var(--gold)]" />
-                  Recordarme
-                </label>
-                <button type="button" onClick={() => setShowForgot(true)} className="font-medium text-gold hover:opacity-80">
-                  ¿Olvidaste tu clave?
-                </button>
-              </div>
+              <Field
+                label="Usuario, teléfono o CPF"
+                value={identifier}
+                onChange={setIdentifier}
+                placeholder="joaosilva / 55119... / 000.000.000-00"
+                autoComplete="username"
+              />
+              <Field
+                label="Contraseña"
+                type="password"
+                value={password}
+                onChange={setPassword}
+                placeholder="••••••••"
+                autoComplete="current-password"
+              />
+              <p className="text-xs text-muted-foreground">
+                Tu sesión queda guardada en este dispositivo: la próxima vez entras directo.
+              </p>
               <SubmitButton loading={loading}>Entrar</SubmitButton>
             </form>
           ) : (
             <form onSubmit={handleSignup} className="space-y-4">
               <Field label="Nombre completo" value={sFullName} onChange={setSFullName} placeholder="João da Silva" />
-              <Field label="Correo electrónico" type="email" value={sEmail} onChange={setSEmail} placeholder="tu@correo.com" />
+              <label className="block">
+                <span className="mb-1.5 block text-xs font-medium text-muted-foreground">País</span>
+                <select
+                  value={sCountry}
+                  onChange={(e) => setSCountry(e.target.value)}
+                  className="w-full rounded-lg border border-border bg-background px-4 py-3 text-sm outline-none focus:border-gold"
+                >
+                  {COUNTRIES.map((c) => (
+                    <option key={c.code} value={c.code}>{c.name}</option>
+                  ))}
+                </select>
+              </label>
+              <Field label="Nombre de usuario" value={sUsername} onChange={setSUsername} placeholder="joaosilva" autoComplete="username" />
               <Field label="Teléfono" value={sPhone} onChange={setSPhone} placeholder="+55 11 90000-0000" />
-              <Field label="Contraseña" type="password" value={sPassword} onChange={setSPassword} placeholder="Mínimo 6 caracteres" />
+              {sCountry === "BR" && (
+                <Field label="CPF" value={sCpf} onChange={setSCpf} placeholder="000.000.000-00" />
+              )}
+              <Field label="Contraseña" type="password" value={sPassword} onChange={setSPassword} placeholder="Mínimo 6 caracteres" autoComplete="new-password" />
               <p className="text-xs text-muted-foreground">
-                La verificación de correo es opcional. Podrás usar tu cuenta de inmediato.
+                Sin correo: entras con tu usuario, teléfono {sCountry === "BR" ? "o CPF " : ""}y contraseña.
               </p>
               <SubmitButton loading={loading}>Crear cuenta VIP</SubmitButton>
             </form>
           )}
-
-          <div className="my-5 flex items-center gap-3 text-xs text-muted-foreground">
-            <div className="h-px flex-1 bg-border" /> o continúa con <div className="h-px flex-1 bg-border" />
-          </div>
-
-          <button
-            onClick={handleGoogle}
-            disabled={loading}
-            className="flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-background px-4 py-3 text-sm font-medium hover:bg-accent"
-          >
-            <svg className="h-4 w-4" viewBox="0 0 24 24"><path fill="#EA4335" d="M12 5.04c1.9 0 3.6.65 4.95 1.93l3.69-3.69C18.32 1.19 15.4 0 12 0 7.31 0 3.26 2.69 1.28 6.61l4.3 3.34C6.6 6.98 9.05 5.04 12 5.04z"/><path fill="#4285F4" d="M23.49 12.27c0-.79-.07-1.55-.2-2.27H12v4.51h6.47c-.28 1.4-1.12 2.59-2.38 3.4l3.65 2.84c2.14-1.97 3.75-4.9 3.75-8.48z"/><path fill="#FBBC05" d="M5.58 14.35a7.14 7.14 0 010-4.7L1.28 6.31A11.98 11.98 0 000 12c0 1.94.46 3.77 1.28 5.39l4.3-3.04z"/><path fill="#34A853" d="M12 24c3.24 0 5.96-1.08 7.94-2.92l-3.65-2.84c-1.02.68-2.31 1.08-4.29 1.08-2.95 0-5.4-1.94-6.42-4.61l-4.3 3.04C3.26 21.31 7.31 24 12 24z"/></svg>
-            Google
-          </button>
         </div>
       </div>
     </div>
   );
 }
 
-function ForgotPassword({ onBack }: { onBack: () => void }) {
-  const [email, setEmail] = useState("");
-  const [loading, setLoading] = useState(false);
-  async function send(e: React.FormEvent) {
-    e.preventDefault();
-    if (!email) return toast.error("Ingresa tu correo");
-    setLoading(true);
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`,
-    });
-    setLoading(false);
-    if (error) return toast.error(error.message);
-    toast.success("Revisa tu correo para restablecer la contraseña.");
-    onBack();
-  }
-  return (
-    <div className="min-h-screen bg-gradient-vip px-5 py-8">
-      <div className="mx-auto max-w-md">
-        <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
-          <h1 className="font-display text-2xl font-bold">Recuperar contraseña</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Te enviaremos un enlace para restablecerla.</p>
-          <form onSubmit={send} className="mt-5 space-y-4">
-            <Field label="Correo" type="email" value={email} onChange={setEmail} placeholder="tu@correo.com" />
-            <SubmitButton loading={loading}>Enviar enlace</SubmitButton>
-            <button type="button" onClick={onBack} className="w-full text-center text-sm text-muted-foreground hover:text-foreground">
-              Volver
-            </button>
-          </form>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function Field({ label, value, onChange, type = "text", placeholder }: {
-  label: string; value: string; onChange: (v: string) => void; type?: string; placeholder?: string;
+function Field({ label, value, onChange, type = "text", placeholder, autoComplete }: {
+  label: string; value: string; onChange: (v: string) => void; type?: string; placeholder?: string; autoComplete?: string;
 }) {
   return (
     <label className="block">
       <span className="mb-1.5 block text-xs font-medium text-muted-foreground">{label}</span>
       <input
         type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
+        autoComplete={autoComplete}
         className="w-full rounded-lg border border-border bg-background px-4 py-3 text-sm outline-none transition focus:border-gold"
       />
     </label>

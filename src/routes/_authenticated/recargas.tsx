@@ -1,16 +1,37 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { createFileRoute, redirect } from "@tanstack/react-router";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { formatMoney } from "@/lib/remittance";
 import { createRechargeRequest } from "@/lib/orders.functions";
+import { StatusBadge } from "./dashboard";
 import { Smartphone, Loader2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/recargas")({
+  beforeLoad: async ({ context }) => {
+    const { data } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", context.user.id)
+      .eq("role", "admin")
+      .maybeSingle();
+    if (data) throw redirect({ to: "/admin" });
+  },
   component: Recargas,
+  head: () => ({
+    meta: [
+      { title: "Recargas Cubacel a Cuba | VIP Remesas" },
+      { name: "description", content: "Recarga saldo Cubacel desde Brasil, México, EE.UU. y Europa con promociones vigentes." },
+      { property: "og:title", content: "Recargas Cubacel a Cuba | VIP Remesas" },
+      { property: "og:description", content: "Recarga Cubacel con promociones vigentes desde 4 países." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
 });
+
 
 type Promo = {
   id: string;
@@ -25,6 +46,7 @@ type Promo = {
 function Recargas() {
   const _ctx = Route.useRouteContext();
   void _ctx;
+  const qc = useQueryClient();
   const promos = useQuery<Promo[]>({
     queryKey: ["promos"],
     queryFn: async () => {
@@ -32,6 +54,16 @@ function Recargas() {
         .select("*").eq("active", true).order("price_brl");
       if (error) throw error;
       return data as unknown as Promo[];
+    },
+  });
+
+  const mine = useQuery({
+    queryKey: ["recargas-mine"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("recargas_requests")
+        .select("*").order("created_at", { ascending: false }).limit(10);
+      if (error) throw error;
+      return data;
     },
   });
 
@@ -47,9 +79,10 @@ function Recargas() {
       // Server function looks up the authoritative promo (title/price) so a
       // manipulated client cannot claim a cheaper price than what admin sees.
       await submitRecharge({ data: { promoId: selected.id, phone } });
-      toast.success(`Solicitud enviada. El admin procesará la recarga a ${phone}.`);
+      toast.success(`Recarga en proceso. Te avisamos al completarla (${phone}).`);
       setSelected(null);
       setPhone("");
+      await qc.invalidateQueries({ queryKey: ["recargas-mine"] });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Error");
     } finally {
@@ -57,13 +90,39 @@ function Recargas() {
     }
   }
 
+  const active = mine.data?.filter((r) => r.status === "pending" || r.status === "processing") ?? [];
+
+
+
 
   return (
     <div className="space-y-5">
       <div>
         <h1 className="font-display text-2xl font-bold">Recargas Cubacel</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Promos vigentes desde Brasil, Europa y EE.UU.</p>
+        <p className="mt-1 text-sm text-muted-foreground">Promos vigentes desde Brasil, México, Europa y EE.UU.</p>
       </div>
+
+      {active.length > 0 && (
+        <section className="rounded-2xl border border-gold/40 bg-card p-4">
+          <h2 className="mb-2 font-display text-sm font-bold">Tus recargas en proceso</h2>
+          <ul className="space-y-2">
+            {active.map((r) => (
+              <li key={r.id} className="flex items-center gap-2 rounded-lg border border-border bg-background/60 p-3">
+                <Smartphone className="h-4 w-4 shrink-0 text-gold" />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold">
+                    #{(r as { order_no?: number }).order_no ?? "—"} · {r.promo_title}
+                  </p>
+                  <p className="truncate text-[11px] text-muted-foreground">{r.phone}</p>
+                </div>
+                <StatusBadge status={r.status} />
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+
 
       {promos.isLoading && <p className="text-sm text-muted-foreground">Cargando promociones…</p>}
       {promos.data && promos.data.length === 0 && (
