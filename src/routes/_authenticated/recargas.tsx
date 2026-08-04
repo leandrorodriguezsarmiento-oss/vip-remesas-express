@@ -46,6 +46,7 @@ type Promo = {
 function Recargas() {
   const _ctx = Route.useRouteContext();
   void _ctx;
+  const qc = useQueryClient();
   const promos = useQuery<Promo[]>({
     queryKey: ["promos"],
     queryFn: async () => {
@@ -53,6 +54,16 @@ function Recargas() {
         .select("*").eq("active", true).order("price_brl");
       if (error) throw error;
       return data as unknown as Promo[];
+    },
+  });
+
+  const mine = useQuery({
+    queryKey: ["recargas-mine"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("recargas_requests")
+        .select("*").order("created_at", { ascending: false }).limit(10);
+      if (error) throw error;
+      return data;
     },
   });
 
@@ -68,15 +79,20 @@ function Recargas() {
       // Server function looks up the authoritative promo (title/price) so a
       // manipulated client cannot claim a cheaper price than what admin sees.
       await submitRecharge({ data: { promoId: selected.id, phone } });
-      toast.success(`Solicitud enviada. El admin procesará la recarga a ${phone}.`);
+      toast.success(`Recarga en proceso. Te avisamos al completarla (${phone}).`);
       setSelected(null);
       setPhone("");
+      await qc.invalidateQueries({ queryKey: ["recargas-mine"] });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Error");
     } finally {
       setLoading(false);
     }
   }
+
+  const active = mine.data?.filter((r) => r.status === "pending" || r.status === "processing") ?? [];
+
+
 
 
   return (
