@@ -129,39 +129,7 @@ function Dashboard() {
         </div>
       </section>
 
-      {/* Recent transactions */}
-      <section>
-        <div className="mb-2 flex items-center justify-between">
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Últimas remesas</h2>
-          <Link to="/history" className="text-xs font-medium text-gold">Ver todo</Link>
-        </div>
-        {txs.isLoading && <div className="rounded-xl border border-border bg-card p-4 text-sm text-muted-foreground">Cargando…</div>}
-        {txs.data && txs.data.length === 0 && (
-          <div className="rounded-xl border border-dashed border-border bg-card/60 p-6 text-center text-sm text-muted-foreground">
-            Aún no has enviado remesas. ¡Envía la primera y disfruta la experiencia VIP!
-          </div>
-        )}
-        <ul className="space-y-2">
-          {txs.data?.map((t) => (
-            <li key={t.id}>
-              <Link to="/transaction/$id" params={{ id: t.id }}
-                className="flex items-center justify-between rounded-xl border border-border bg-card p-4 hover:border-gold/60">
-                <div>
-                  <div className="text-sm font-semibold">{t.recipient_name}</div>
-                  <div className="text-xs text-muted-foreground">{t.destination_country} · {t.tracking_id}</div>
-                </div>
-                <div className="text-right">
-                  <div className="text-sm font-semibold text-gold">
-                    {formatMoney(Number(t.total_brl), (t as { origin_currency?: string }).origin_currency || "BRL")}
-                  </div>
-                  <StatusBadge status={t.status} />
-                </div>
-                <ArrowUpRight className="ml-2 h-4 w-4 text-muted-foreground" />
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </section>
+
     </div>
   );
 }
