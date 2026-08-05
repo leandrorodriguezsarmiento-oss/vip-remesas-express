@@ -67,13 +67,18 @@ function AdminPanel() {
 
 
 // ----------------- Transacciones -----------------
+const STATUS_ES: Record<string, string> = {
+  pending: "Pendiente", processing: "Procesando", completed: "Completada", rejected: "Rechazada",
+};
+
 function TransactionsTab() {
   const qc = useQueryClient();
+  const [view, setView] = useState<"active" | "done">("active");
   const q = useQuery({
     queryKey: ["admin-tx"],
     queryFn: async () => {
       const { data, error } = await supabase.from("transactions")
-        .select("*").order("created_at", { ascending: false }).limit(50);
+        .select("*").order("created_at", { ascending: false }).limit(100);
       if (error) throw error;
       return data;
     },
@@ -90,13 +95,32 @@ function TransactionsTab() {
 
   if (q.isLoading) return <p className="text-sm text-muted-foreground">Cargando…</p>;
 
+  const all = q.data ?? [];
+  const active = all.filter((t) => t.status === "pending" || t.status === "processing");
+  const done = all.filter((t) => t.status === "completed" || t.status === "rejected");
+  const rows = view === "active" ? active : done;
+
   return (
-    <div className="space-y-2">
-      {q.data?.map((t) => (
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 gap-1 rounded-xl bg-secondary p-1 text-xs font-medium">
+        <button onClick={() => setView("active")}
+          className={`rounded-lg px-3 py-2 ${view === "active" ? "bg-gradient-gold text-primary-foreground shadow-gold" : "text-muted-foreground"}`}>
+          Pendientes ({active.length})
+        </button>
+        <button onClick={() => setView("done")}
+          className={`rounded-lg px-3 py-2 ${view === "done" ? "bg-gradient-gold text-primary-foreground shadow-gold" : "text-muted-foreground"}`}>
+          Historial ({done.length})
+        </button>
+      </div>
+
+      {rows.map((t) => (
         <div key={t.id} className="rounded-xl border border-border bg-card p-3 space-y-2">
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
-              <div className="truncate text-sm font-semibold">{t.recipient_name}</div>
+              <div className="truncate text-sm font-semibold">
+                <span className="mr-1 text-gold">#{(t as { order_no?: number }).order_no ?? "—"}</span>
+                {t.recipient_name}
+              </div>
               <div className="text-[11px] text-muted-foreground">
                 {t.tracking_id} · {new Date(t.created_at).toLocaleString("es")}
               </div>
@@ -124,15 +148,21 @@ function TransactionsTab() {
               <button key={s}
                 onClick={() => upd.mutate({ id: t.id, status: s })}
                 className={`rounded-full px-2 py-1 text-[10px] font-semibold ${t.status === s ? "bg-gradient-gold text-primary-foreground" : "border border-border bg-background text-muted-foreground"}`}>
-                {s}
+                {STATUS_ES[s]}
               </button>
             ))}
           </div>
         </div>
       ))}
+      {rows.length === 0 && (
+        <p className="text-sm text-muted-foreground">
+          {view === "active" ? "No hay remesas pendientes." : "Sin remesas en el historial."}
+        </p>
+      )}
     </div>
   );
 }
+
 
 // ----------------- Tasas -----------------
 function RatesTab() {
