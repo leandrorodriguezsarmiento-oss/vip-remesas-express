@@ -113,6 +113,7 @@ function AuthPage() {
       toast.error(err instanceof Error ? err.message : "No se pudo crear la cuenta");
     } finally {
       setLoading(false);
+    }
   }
 
   async function handleGoogle() {
