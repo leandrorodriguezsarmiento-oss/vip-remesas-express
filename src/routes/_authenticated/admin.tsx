@@ -568,6 +568,7 @@ function BannersTab() {
 // ----------------- Recargas Cubacel pendientes -----------------
 function RecargasTab() {
   const qc = useQueryClient();
+  const [view, setView] = useState<"active" | "done">("active");
   const q = useQuery({
     queryKey: ["admin-recargas"],
     queryFn: async () => {
