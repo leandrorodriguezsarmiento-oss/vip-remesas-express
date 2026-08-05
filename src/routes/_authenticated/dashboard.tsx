@@ -2,10 +2,10 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import {
-  ORIGINS, formatMoney, type OriginCode, type DestCurrency,
+  ORIGINS, type OriginCode, type DestCurrency,
   type RateRow, findRate,
 } from "@/lib/remittance";
-import { ArrowUpRight, Send, Smartphone, TrendingUp } from "lucide-react";
+import { Send, Smartphone, TrendingUp } from "lucide-react";
 import { BannerCarousel } from "@/components/BannerCarousel";
 import { PushToggle } from "@/components/PushToggle";
 import { FlagIcon } from "@/components/FlagIcon";
