@@ -2,6 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
+import { lovable } from "@/integrations/lovable/index";
 import { registerAccount, resolveLoginIdentifier } from "@/lib/account.functions";
 import { COUNTRIES } from "@/lib/alias";
 import { Loader2 } from "lucide-react";
@@ -116,6 +117,26 @@ function AuthPage() {
     }
   }
 
+  async function handleGoogle() {
+    setLoading(true);
+    try {
+      const result = await lovable.auth.signInWithOAuth("google", {
+        redirect_uri: window.location.origin,
+      });
+      if (result.error) {
+        toast.error("No se pudo iniciar con Google");
+        setLoading(false);
+        return;
+      }
+      if (result.redirected) return;
+      goNext();
+    } catch {
+      toast.error("No se pudo iniciar con Google");
+      setLoading(false);
+    }
+  }
+
+
   return (
     <div className="min-h-screen bg-gradient-vip px-5 py-8">
       <div className="mx-auto max-w-md">
@@ -185,6 +206,24 @@ function AuthPage() {
               <SubmitButton loading={loading}>Crear cuenta VIP</SubmitButton>
             </form>
           )}
+
+          <div className="my-5 flex items-center gap-3 text-xs text-muted-foreground">
+            <div className="h-px flex-1 bg-border" /> o continúa con <div className="h-px flex-1 bg-border" />
+          </div>
+          <button
+            type="button"
+            onClick={handleGoogle}
+            disabled={loading}
+            className="flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-background px-4 py-3 text-sm font-medium transition hover:border-gold disabled:opacity-70"
+          >
+            <svg className="h-4 w-4" viewBox="0 0 24 24" aria-hidden="true">
+              <path fill="#EA4335" d="M12 5.04c1.9 0 3.6.65 4.95 1.93l3.69-3.69C18.32 1.19 15.4 0 12 0 7.31 0 3.26 2.69 1.28 6.61l4.3 3.34C6.6 6.98 9.05 5.04 12 5.04z" />
+              <path fill="#4285F4" d="M23.49 12.27c0-.79-.07-1.55-.2-2.27H12v4.51h6.47c-.28 1.4-1.12 2.59-2.38 3.4l3.65 2.84c2.14-1.97 3.75-4.9 3.75-8.48z" />
+              <path fill="#FBBC05" d="M5.58 14.35a7.14 7.14 0 010-4.7L1.28 6.31A11.98 11.98 0 000 12c0 1.94.46 3.77 1.28 5.39l4.3-3.04z" />
+              <path fill="#34A853" d="M12 24c3.24 0 5.96-1.08 7.94-2.92l-3.65-2.84c-1.02.68-2.31 1.08-4.29 1.08-2.95 0-5.4-1.94-6.42-4.61l-4.3 3.04C3.26 21.31 7.31 24 12 24z" />
+            </svg>
+            Continuar con Google
+          </button>
         </div>
       </div>
     </div>

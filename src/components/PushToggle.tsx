@@ -7,7 +7,7 @@ import { savePushSubscription, deletePushSubscription } from "@/lib/push.functio
 
 type State = "unsupported" | "denied" | "off" | "on" | "loading";
 
-export function PushToggle() {
+export function PushToggle({ hideWhenBlocked = false }: { hideWhenBlocked?: boolean }) {
   const [state, setState] = useState<State>("loading");
   const save = useServerFn(savePushSubscription);
   const remove = useServerFn(deletePushSubscription);
@@ -101,6 +101,7 @@ export function PushToggle() {
   if (state === "unsupported") return null;
 
   if (state === "denied") {
+    if (hideWhenBlocked) return null;
     return (
       <div className="flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-3 text-xs text-muted-foreground">
         <BellOff className="h-4 w-4" />
