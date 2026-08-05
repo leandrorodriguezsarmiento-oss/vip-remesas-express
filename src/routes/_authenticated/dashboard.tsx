@@ -35,17 +35,7 @@ function Dashboard() {
     },
   });
 
-  const txs = useQuery({
-    queryKey: ["transactions-recent", user.id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("transactions").select("*")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false }).limit(4);
-      if (error) throw error;
-      return data;
-    },
-  });
+  const firstName = profile.data?.full_name?.split(" ")[0] || "VIP";
 
   const firstName = profile.data?.full_name?.split(" ")[0] || "VIP";
 
