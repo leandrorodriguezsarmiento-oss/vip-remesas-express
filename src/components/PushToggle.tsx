@@ -101,6 +101,7 @@ export function PushToggle({ hideWhenBlocked = false }: { hideWhenBlocked?: bool
   if (state === "unsupported") return null;
 
   if (state === "denied") {
+    if (hideWhenBlocked) return null;
     return (
       <div className="flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-3 text-xs text-muted-foreground">
         <BellOff className="h-4 w-4" />
