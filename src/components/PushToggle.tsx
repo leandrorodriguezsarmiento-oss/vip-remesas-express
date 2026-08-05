@@ -7,7 +7,7 @@ import { savePushSubscription, deletePushSubscription } from "@/lib/push.functio
 
 type State = "unsupported" | "denied" | "off" | "on" | "loading";
 
-export function PushToggle() {
+export function PushToggle({ hideWhenBlocked = false }: { hideWhenBlocked?: boolean }) {
   const [state, setState] = useState<State>("loading");
   const save = useServerFn(savePushSubscription);
   const remove = useServerFn(deletePushSubscription);
