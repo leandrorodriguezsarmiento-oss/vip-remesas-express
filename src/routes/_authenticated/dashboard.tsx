@@ -57,7 +57,7 @@ function Dashboard() {
 
 
       {/* Push notifications toggle */}
-      <PushToggle />
+      <PushToggle hideWhenBlocked />
 
       {/* Quick actions */}
       <div className="grid grid-cols-2 gap-3">
