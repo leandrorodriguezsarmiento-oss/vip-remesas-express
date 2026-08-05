@@ -37,8 +37,6 @@ function Dashboard() {
 
   const firstName = profile.data?.full_name?.split(" ")[0] || "VIP";
 
-  const firstName = profile.data?.full_name?.split(" ")[0] || "VIP";
-
   return (
     <div className="space-y-6">
       <div>
