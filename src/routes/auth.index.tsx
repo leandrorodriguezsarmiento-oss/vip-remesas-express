@@ -113,8 +113,27 @@ function AuthPage() {
       toast.error(err instanceof Error ? err.message : "No se pudo crear la cuenta");
     } finally {
       setLoading(false);
+  }
+
+  async function handleGoogle() {
+    setLoading(true);
+    try {
+      const result = await lovable.auth.signInWithOAuth("google", {
+        redirect_uri: window.location.origin,
+      });
+      if (result.error) {
+        toast.error("No se pudo iniciar con Google");
+        setLoading(false);
+        return;
+      }
+      if (result.redirected) return;
+      goNext();
+    } catch {
+      toast.error("No se pudo iniciar con Google");
+      setLoading(false);
     }
   }
+
 
   return (
     <div className="min-h-screen bg-gradient-vip px-5 py-8">
