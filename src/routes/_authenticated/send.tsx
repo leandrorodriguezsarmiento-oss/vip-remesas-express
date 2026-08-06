@@ -381,7 +381,7 @@ function SendFlow() {
             <p className="mt-1 font-display text-3xl font-bold text-black">
               {formatMoney(amountNum, originOpt.currency)}
             </p>
-            <p className="mt-1 text-[11px] text-black/70">Código: {tracking}</p>
+            
           </div>
 
           {origin === "BR" && txId && (
