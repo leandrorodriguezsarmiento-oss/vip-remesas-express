@@ -7,7 +7,7 @@ import { formatMoney } from "@/lib/remittance";
 import { deleteUserAsAdmin } from "@/lib/admin.functions";
 import { syncRecharges } from "@/lib/payments.functions";
 import { toast } from "sonner";
-import { Shield, Loader2, Trash2, Plus, Check, RefreshCw, Smartphone, Zap, BarChart3, CreditCard } from "lucide-react";
+import { Shield, Loader2, Trash2, Plus, Check, RefreshCw, Smartphone, Zap, BarChart3, CreditCard, Copy } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   beforeLoad: async ({ context }) => {
@@ -71,6 +71,51 @@ const STATUS_ES: Record<string, string> = {
   pending: "Pendiente", processing: "Procesando", completed: "Completada", rejected: "Rechazada",
 };
 
+type AdminTx = {
+  recipient_name: string;
+  recipient_phone: string;
+  recipient_card?: string | null;
+  delivery_method: string;
+  notes?: string | null;
+};
+
+/** Datos que el admin necesita copiar de un toque: efectivo → nombre + dirección; transferencia → teléfono + tarjeta. */
+function CopyBlock({ tx }: { tx: AdminTx }) {
+  const efectivo = (tx.delivery_method || "").toLowerCase().includes("efectivo");
+  const address = (tx.notes || "").replace(/^Dirección de entrega:\s*/i, "");
+  const lines = efectivo
+    ? [["Nombre", tx.recipient_name], ["Dirección", address]]
+    : [["Teléfono", tx.recipient_phone], ["Tarjeta", tx.recipient_card || ""]];
+  const shown = lines.filter(([, v]) => (v ?? "").trim().length > 0) as [string, string][];
+  if (shown.length === 0) return null;
+
+  function copy(text: string, label: string) {
+    void navigator.clipboard.writeText(text);
+    toast.success(`${label} copiado`);
+  }
+
+  return (
+    <div className="mt-2 space-y-1 rounded-lg border border-gold/40 bg-background/60 p-2">
+      {shown.map(([label, value]) => (
+        <button key={label} onClick={() => copy(value, label)}
+          className="flex w-full items-start gap-2 text-left text-[12px] font-bold text-foreground hover:text-gold">
+          <Copy className="mt-0.5 h-3.5 w-3.5 shrink-0 text-gold" />
+          <span className="min-w-0 break-words">
+            <span className="text-muted-foreground">{label}: </span>{value}
+          </span>
+        </button>
+      ))}
+      <button
+        onClick={() => copy(shown.map(([l, v]) => `${l}: ${v}`).join("\n"), "Todo")}
+        className="w-full rounded-md bg-gradient-gold px-2 py-1 text-[11px] font-bold text-primary-foreground">
+        Copiar todo
+      </button>
+    </div>
+  );
+}
+
+
+
 function TransactionsTab() {
   const qc = useQueryClient();
   const [view, setView] = useState<"active" | "done">("active");
@@ -117,32 +162,29 @@ function TransactionsTab() {
         <div key={t.id} className="rounded-xl border border-border bg-card p-3 space-y-2">
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
-              <div className="truncate text-sm font-semibold">
+              <div className="truncate text-base font-extrabold text-destructive">
                 <span className="mr-1 text-gold">#{(t as { order_no?: number }).order_no ?? "—"}</span>
                 {t.recipient_name}
               </div>
-              <div className="text-[11px] text-muted-foreground">
-                {t.tracking_id} · {new Date(t.created_at).toLocaleString("es")}
+              <div className="text-[11px] font-semibold text-muted-foreground">
+                {new Date(t.created_at).toLocaleString("es")}
               </div>
-              <div className="text-[11px] text-muted-foreground">
+              <div className="text-[11px] font-semibold text-muted-foreground">
                 {(t as { origin_country?: string }).origin_country ?? "BR"} →
                 {" "}{t.dest_currency} ({(t as { method_category?: string }).method_category ?? "—"})
               </div>
-              {(t as { notes?: string | null }).notes && (
-                <div className="mt-1 text-[11px] text-foreground">
-                  📍 {(t as { notes?: string | null }).notes}
-                </div>
-              )}
+              <CopyBlock tx={t as AdminTx} />
             </div>
             <div className="text-right">
-              <div className="text-sm font-bold text-gold">
+              <div className="text-base font-extrabold text-destructive">
                 {formatMoney(Number(t.total_brl), (t as { origin_currency?: string }).origin_currency || "BRL")}
               </div>
-              <div className="text-[11px] text-muted-foreground">
+              <div className="text-[11px] font-semibold text-muted-foreground">
                 → {formatMoney(Number(t.amount_dest), t.dest_currency)}
               </div>
             </div>
           </div>
+
           <div className="flex flex-wrap gap-1">
             {(["pending", "processing", "completed", "rejected"] as const).map((s) => (
               <button key={s}

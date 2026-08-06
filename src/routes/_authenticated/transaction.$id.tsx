@@ -3,8 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { formatBRL, formatCurrency } from "@/lib/remittance";
 import { StatusBadge } from "./dashboard";
-import { ArrowLeft, Copy } from "lucide-react";
-import { toast } from "sonner";
+import { ArrowLeft } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/transaction/$id")({
   component: TxDetail,
@@ -32,23 +31,19 @@ function TxDetail() {
       </Link>
 
       <div className="rounded-2xl border border-gold/40 bg-card p-6 shadow-card">
-        <div className="flex items-start justify-between">
-          <div>
-            <p className="text-xs text-muted-foreground">Tracking</p>
-            <p className="font-display text-lg font-bold text-gold">{t.tracking_id}</p>
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-xs font-semibold text-muted-foreground">Destinatario</p>
+            <p className="truncate font-display text-xl font-bold text-destructive">{t.recipient_name}</p>
+            <p className="mt-1 text-xs font-semibold text-muted-foreground">
+              {new Date(t.created_at).toLocaleString("es")}
+            </p>
           </div>
           <StatusBadge status={t.status} />
         </div>
-        <button
-          onClick={() => { navigator.clipboard.writeText(t.tracking_id); toast.success("Copiado"); }}
-          className="mt-2 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-gold"
-        >
-          <Copy className="h-3 w-3" /> Copiar código
-        </button>
       </div>
 
       <div className="rounded-2xl border border-border bg-card p-5 space-y-3 text-sm">
-        <Row k="Destinatario" v={t.recipient_name} />
         <Row k="Teléfono" v={t.recipient_phone} />
         <Row k="País" v={t.destination_country} />
         <Row k="Método de entrega" v={t.delivery_method} />
@@ -61,7 +56,6 @@ function TxDetail() {
         <Row k="Tasa" v={`1 BRL = ${Number(t.exchange_rate).toFixed(2)} ${t.dest_currency}`} />
         <Row k="Recibe" v={formatCurrency(Number(t.amount_dest), t.dest_currency)} strong />
         <Row k="Método de pago" v={t.payment_method.toUpperCase()} />
-        <Row k="Fecha" v={new Date(t.created_at).toLocaleString("es")} />
       </div>
     </div>
   );
@@ -70,8 +64,8 @@ function TxDetail() {
 function Row({ k, v, strong }: { k: string; v: string; strong?: boolean }) {
   return (
     <div className="flex justify-between gap-3">
-      <span className="text-muted-foreground">{k}</span>
-      <span className={strong ? "font-semibold text-gold" : ""}>{v}</span>
+      <span className="font-medium text-muted-foreground">{k}</span>
+      <span className={strong ? "font-bold text-destructive" : "font-semibold"}>{v}</span>
     </div>
   );
 }

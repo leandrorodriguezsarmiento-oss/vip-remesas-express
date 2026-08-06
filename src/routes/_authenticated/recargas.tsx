@@ -111,7 +111,7 @@ function Recargas() {
                 <Smartphone className="h-4 w-4 shrink-0 text-gold" />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-semibold">
-                    #{(r as { order_no?: number }).order_no ?? "—"} · {r.promo_title}
+                    {r.promo_title}
                   </p>
                   <p className="truncate text-[11px] text-muted-foreground">{r.phone}</p>
                 </div>
