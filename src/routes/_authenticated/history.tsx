@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { formatMoney } from "@/lib/remittance";
 import { StatusBadge } from "./dashboard";
-import { ArrowUpRight, Smartphone } from "lucide-react";
+import { ArrowUpRight, Smartphone, FolderOpen, Folder } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/history")({
   component: History,
@@ -19,6 +19,58 @@ export const Route = createFileRoute("/_authenticated/history")({
     ],
   }),
 });
+
+type Row = { id: string; created_at: string };
+
+function dayKey(iso: string) {
+  return new Date(iso).toISOString().slice(0, 10);
+}
+
+function dayLabel(key: string) {
+  const today = new Date().toISOString().slice(0, 10);
+  const yest = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  if (key === today) return "Hoy";
+  if (key === yest) return "Ayer";
+  const [y, m, d] = key.split("-");
+  return `${d}/${m}/${y}`;
+}
+
+/** Agrupa por día y numera 1..N dentro de cada día, según el orden en que se procesaron. */
+function groupByDay<T extends Row>(rows: T[] | undefined) {
+  const map = new Map<string, T[]>();
+  (rows ?? []).forEach((r) => {
+    const k = dayKey(r.created_at);
+    const list = map.get(k) ?? [];
+    list.push(r);
+    map.set(k, list);
+  });
+  return [...map.entries()]
+    .sort((a, b) => (a[0] < b[0] ? 1 : -1))
+    .map(([key, list]) => {
+      const asc = [...list].sort((a, b) => (a.created_at < b.created_at ? -1 : 1));
+      const numbered = asc.map((item, i) => ({ item, n: i + 1 }));
+      return { key, rows: numbered.reverse() };
+    });
+}
+
+function DayFolder({
+  label, count, defaultOpen, children,
+}: { label: string; count: number; defaultOpen: boolean; children: React.ReactNode }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <section className="overflow-hidden rounded-xl border border-border bg-card/60">
+      <button onClick={() => setOpen((o) => !o)}
+        className="flex w-full items-center gap-2 px-4 py-3 text-left">
+        {open ? <FolderOpen className="h-4 w-4 text-gold" /> : <Folder className="h-4 w-4 text-gold" />}
+        <span className="flex-1 text-sm font-bold">{label}</span>
+        <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] font-bold text-muted-foreground">
+          {count}
+        </span>
+      </button>
+      {open && <div className="space-y-2 border-t border-border p-3">{children}</div>}
+    </section>
+  );
+}
 
 function History() {
   const [tab, setTab] = useState<"remesas" | "recargas">("remesas");
@@ -47,6 +99,9 @@ function History() {
     },
   });
 
+  const txDays = groupByDay(txs.data ?? []);
+  const rcDays = groupByDay(recargas.data ?? []);
+
   return (
     <div className="space-y-4">
       <h1 className="font-display text-2xl font-bold">Historial</h1>
@@ -68,31 +123,33 @@ function History() {
               Sin remesas todavía.
             </div>
           )}
-          <ul className="space-y-2">
-            {txs.data?.map((t) => (
-              <li key={t.id}>
-                <Link to="/transaction/$id" params={{ id: t.id }}
-                  className="flex items-center gap-3 rounded-xl border border-border bg-card p-4 hover:border-gold/60">
-                  <div className="flex-1 min-w-0">
-                    <div className="truncate text-sm font-semibold">
-                      #{(t as { order_no?: number }).order_no ?? "—"} · {t.recipient_name}
+          <div className="space-y-3">
+            {txDays.map((day, di) => (
+              <DayFolder key={day.key} label={dayLabel(day.key)} count={day.rows.length} defaultOpen={di === 0}>
+                {day.rows.map(({ item: t, n }) => (
+                  <Link key={t.id} to="/transaction/$id" params={{ id: t.id }}
+                    className="flex items-center gap-3 rounded-xl border border-border bg-card p-4 hover:border-gold/60">
+                    <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-secondary text-xs font-bold text-gold">
+                      {n}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-sm font-bold text-destructive">{t.recipient_name}</div>
+                      <div className="truncate text-xs font-semibold text-muted-foreground">
+                        {new Date(t.created_at).toLocaleTimeString("es", { hour: "2-digit", minute: "2-digit" })} · {t.destination_country}
+                      </div>
                     </div>
-                    <div className="truncate text-xs text-muted-foreground">
-                      {new Date(t.created_at).toLocaleDateString("es")} · {t.destination_country}
+                    <div className="text-right">
+                      <div className="text-sm font-bold text-destructive">
+                        {formatMoney(Number(t.total_brl), (t as { origin_currency?: string }).origin_currency || "BRL")}
+                      </div>
+                      <StatusBadge status={t.status} />
                     </div>
-                    <div className="mt-1 text-[10px] text-muted-foreground">{t.tracking_id}</div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-sm font-bold text-gold">
-                      {formatMoney(Number(t.total_brl), (t as { origin_currency?: string }).origin_currency || "BRL")}
-                    </div>
-                    <StatusBadge status={t.status} />
-                  </div>
-                  <ArrowUpRight className="h-4 w-4 text-muted-foreground shrink-0" />
-                </Link>
-              </li>
+                    <ArrowUpRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  </Link>
+                ))}
+              </DayFolder>
             ))}
-          </ul>
+          </div>
         </>
       ) : (
         <>
@@ -102,27 +159,30 @@ function History() {
               Sin recargas todavía.
             </div>
           )}
-          <ul className="space-y-2">
-            {recargas.data?.map((r) => (
-              <li key={r.id} className="flex items-center gap-3 rounded-xl border border-border bg-card p-4">
-                <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-gradient-gold shadow-gold">
-                  <Smartphone className="h-5 w-5 text-primary-foreground" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="truncate text-sm font-semibold">
-                    #{(r as { order_no?: number }).order_no ?? "—"} · {r.promo_title}
+          <div className="space-y-3">
+            {rcDays.map((day, di) => (
+              <DayFolder key={day.key} label={dayLabel(day.key)} count={day.rows.length} defaultOpen={di === 0}>
+                {day.rows.map(({ item: r, n }) => (
+                  <div key={r.id} className="flex items-center gap-3 rounded-xl border border-border bg-card p-4">
+                    <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-secondary text-xs font-bold text-gold">
+                      {n}
+                    </span>
+                    <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-gradient-gold shadow-gold">
+                      <Smartphone className="h-4 w-4 text-primary-foreground" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-sm font-bold text-destructive">{r.promo_title}</div>
+                      <div className="truncate text-xs font-semibold text-muted-foreground">{r.phone}</div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-sm font-bold text-destructive">{formatMoney(Number(r.price_brl), "BRL")}</div>
+                      <StatusBadge status={r.status} />
+                    </div>
                   </div>
-                  <div className="truncate text-xs text-muted-foreground">
-                    {r.phone} · {new Date(r.created_at).toLocaleDateString("es")}
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className="text-sm font-bold text-gold">{formatMoney(Number(r.price_brl), "BRL")}</div>
-                  <StatusBadge status={r.status} />
-                </div>
-              </li>
+                ))}
+              </DayFolder>
             ))}
-          </ul>
+          </div>
         </>
       )}
     </div>

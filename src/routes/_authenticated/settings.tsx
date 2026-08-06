@@ -8,7 +8,7 @@ import { COUNTRIES, SUPPORT_WHATSAPP_URL } from "@/lib/alias";
 import { isSoundEnabled, setSoundEnabled, playNotificationSound } from "@/lib/notify-sound";
 import { PushToggle } from "@/components/PushToggle";
 import {
-  Loader2, User, Camera, Globe, Users, ShieldCheck, MessageCircle, Bell, Trash2, Save, Plus,
+  Loader2, User, Camera, Globe, Users, ShieldCheck, MessageCircle, Bell, Trash2, Save, Plus, KeyRound, Eye, EyeOff,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -64,11 +64,13 @@ function Settings() {
 
       {profile.isLoading && <p className="text-sm text-muted-foreground">Cargando…</p>}
       {profile.data && <ProfileCard profile={profile.data} onSaved={() => qc.invalidateQueries({ queryKey: ["profile", user.id] })} />}
+      <PasswordCard />
       {profile.data && <LanguageCard profile={profile.data} />}
       <NotificationsCard />
       {profile.data && <VerificationCard verified={profile.data.verified} />}
       <ContactsCard userId={user.id} />
       <SupportCard />
+
     </div>
   );
 }
@@ -191,7 +193,58 @@ function ProfileCard({ profile, onSaved }: { profile: Profile; onSaved: () => vo
   );
 }
 
+function PasswordCard() {
+  const [pwd, setPwd] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [show, setShow] = useState(false);
+
+  const save = useMutation({
+    mutationFn: async () => {
+      if (pwd.length < 6) throw new Error("La contraseña debe tener al menos 6 caracteres");
+      if (pwd !== confirm) throw new Error("Las contraseñas no coinciden");
+      const { error } = await supabase.auth.updateUser({ password: pwd });
+      if (error) throw error;
+    },
+    onSuccess: () => { toast.success("Contraseña actualizada"); setPwd(""); setConfirm(""); },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Error"),
+  });
+
+  return (
+    <Card icon={<KeyRound className="h-5 w-5" />} title="Mi contraseña">
+      <p className="mb-3 text-xs font-semibold text-muted-foreground">
+        Por seguridad, la contraseña actual no se puede mostrar. Escribe una nueva y usa el ojo para verla.
+      </p>
+      <div className="space-y-3">
+        <label className="block">
+          <span className="mb-1.5 block text-xs font-medium text-muted-foreground">Nueva contraseña</span>
+          <div className="flex items-center gap-2 rounded-lg border border-border bg-background px-3">
+            <input type={show ? "text" : "password"} value={pwd} onChange={(e) => setPwd(e.target.value)}
+              autoComplete="new-password"
+              className="w-full bg-transparent py-2.5 text-sm outline-none" />
+            <button type="button" onClick={() => setShow((s) => !s)} className="text-muted-foreground hover:text-gold"
+              aria-label={show ? "Ocultar contraseña" : "Ver contraseña"}>
+              {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </button>
+          </div>
+        </label>
+        <label className="block">
+          <span className="mb-1.5 block text-xs font-medium text-muted-foreground">Repetir contraseña</span>
+          <input type={show ? "text" : "password"} value={confirm} onChange={(e) => setConfirm(e.target.value)}
+            autoComplete="new-password"
+            className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm outline-none focus:border-gold" />
+        </label>
+        <button onClick={() => save.mutate()} disabled={save.isPending}
+          className="flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-gold px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-gold disabled:opacity-60">
+          {save.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />}
+          Cambiar contraseña
+        </button>
+      </div>
+    </Card>
+  );
+}
+
 function LanguageCard({ profile }: { profile: Profile }) {
+
   const [lang, setLang] = useState(profile.preferred_language || "es");
   const save = useMutation({
     mutationFn: async (value: string) => {

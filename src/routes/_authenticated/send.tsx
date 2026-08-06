@@ -381,7 +381,7 @@ function SendFlow() {
             <p className="mt-1 font-display text-3xl font-bold text-black">
               {formatMoney(amountNum, originOpt.currency)}
             </p>
-            <p className="mt-1 text-[11px] text-black/70">Código: {tracking}</p>
+            
           </div>
 
           {origin === "BR" && txId && (
@@ -456,9 +456,12 @@ function SendFlow() {
           <h1 className="font-display text-3xl font-bold">¡Enviado!</h1>
           <p className="mt-2 text-sm text-muted-foreground">Tu remesa está siendo procesada.</p>
           <div className="mx-auto mt-6 max-w-xs rounded-2xl border border-gold/40 bg-card p-5">
-            <p className="text-xs text-muted-foreground">Código de seguimiento</p>
-            <p className="mt-1 font-display text-xl font-bold text-gold">{tracking}</p>
+            <p className="text-sm font-bold text-foreground">Estado: en proceso</p>
+            <p className="mt-1 text-xs font-semibold text-muted-foreground">
+              Te avisamos por notificación cuando esté completada.
+            </p>
           </div>
+
           <div className="mt-6 space-y-2">
             <button onClick={() => navigate({ to: "/history" })}
               className="w-full rounded-xl bg-gradient-gold px-4 py-3 text-sm font-semibold text-primary-foreground shadow-gold">

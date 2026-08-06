@@ -19,8 +19,8 @@ self.addEventListener("push", (event) => {
   const title = data.title || "VIP Remesas";
   const options = {
     body: data.body || "",
-    icon: data.icon || "/icons/icon-192.png",
-    badge: data.badge || "/icons/icon-192.png",
+    icon: data.icon || "/icon-192.png?v=6",
+    badge: data.badge || "/icon-192.png?v=6",
     data: { url: data.url || "/history" },
     tag: data.tag || "vip-remesas",
     renotify: true,
