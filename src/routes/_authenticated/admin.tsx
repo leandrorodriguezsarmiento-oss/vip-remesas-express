@@ -76,16 +76,23 @@ type AdminTx = {
   recipient_phone: string;
   recipient_card?: string | null;
   delivery_method: string;
+  method_category?: string | null;
+  amount_dest?: number | string | null;
+  dest_currency?: string | null;
   notes?: string | null;
 };
 
-/** Datos que el admin necesita copiar de un toque: efectivo → nombre + dirección; transferencia → teléfono + tarjeta. */
+/** Datos que el admin necesita copiar de un toque: efectivo → nombre + dirección + monto; transferencia → teléfono + tarjeta + monto. */
 function CopyBlock({ tx }: { tx: AdminTx }) {
-  const efectivo = (tx.delivery_method || "").toLowerCase().includes("efectivo");
+  const marker = `${tx.method_category ?? ""} ${tx.delivery_method ?? ""}`.toLowerCase();
+  const efectivo = marker.includes("efectivo") || marker.includes("cash");
   const address = (tx.notes || "").replace(/^Dirección de entrega:\s*/i, "");
+  const monto = tx.amount_dest != null
+    ? formatMoney(Number(tx.amount_dest), tx.dest_currency || "CUP")
+    : "";
   const lines = efectivo
-    ? [["Nombre", tx.recipient_name], ["Dirección", address]]
-    : [["Teléfono", tx.recipient_phone], ["Tarjeta", tx.recipient_card || ""]];
+    ? [["Nombre", tx.recipient_name], ["Dirección", address], ["Monto a entregar", monto]]
+    : [["Teléfono", tx.recipient_phone], ["Tarjeta", tx.recipient_card || ""], ["Monto a enviar", monto]];
   const shown = lines.filter(([, v]) => (v ?? "").trim().length > 0) as [string, string][];
   if (shown.length === 0) return null;
 

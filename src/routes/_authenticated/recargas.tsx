@@ -8,6 +8,7 @@ import { createRechargeRequest } from "@/lib/orders.functions";
 import { StatusBadge } from "./dashboard";
 import { Smartphone, Loader2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
+import etecsaLogo from "@/assets/etecsa.png";
 
 export const Route = createFileRoute("/_authenticated/recargas")({
   beforeLoad: async ({ context }) => {
@@ -97,9 +98,13 @@ function Recargas() {
 
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="font-display text-2xl font-bold">Recargas Cubacel</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Promos vigentes desde Brasil, México, Europa y EE.UU.</p>
+      <div className="flex items-center gap-3">
+        <img src={etecsaLogo} alt="ETECSA / Cubacel" width={512} height={512} loading="lazy"
+          className="h-12 w-12 shrink-0 object-contain" />
+        <div>
+          <h1 className="font-display text-2xl font-extrabold">Recargas Cubacel</h1>
+          <p className="mt-1 text-sm font-semibold text-muted-foreground">Promos vigentes desde Brasil, México, Europa y EE.UU.</p>
+        </div>
       </div>
 
       {active.length > 0 && (
