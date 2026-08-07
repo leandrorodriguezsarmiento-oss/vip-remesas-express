@@ -8,6 +8,7 @@ import { createRechargeRequest } from "@/lib/orders.functions";
 import { StatusBadge } from "./dashboard";
 import { Smartphone, Loader2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
+import etecsaLogo from "@/assets/etecsa.png";
 
 export const Route = createFileRoute("/_authenticated/recargas")({
   beforeLoad: async ({ context }) => {
