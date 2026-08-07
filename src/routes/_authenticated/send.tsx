@@ -218,8 +218,8 @@ function SendFlow() {
                 </span>
                 <FlagIcon code={o.code} className="relative h-7 w-10" />
                 <div className="relative flex-1">
-                  <div className="font-semibold">{o.name} → Cuba</div>
-                  <div className="text-xs text-muted-foreground">Envías en {o.currency} → recibes en Cuba</div>
+                  <div className="text-base font-extrabold">{o.name} → Cuba</div>
+                  <div className="text-xs font-semibold text-muted-foreground">Envías en {o.currency} → recibes en Cuba</div>
                 </div>
                 <ArrowRight className="relative h-4 w-4 text-gold" />
               </button>
