@@ -233,13 +233,17 @@ function SendFlow() {
             {METHOD_CATEGORIES.map((m) => (
               <button key={m.id}
                 onClick={() => { setMethod(m.id); setCurrency(null); setStep(3); }}
-                className={`flex w-full items-center gap-3 rounded-xl border p-4 text-left transition ${method === m.id ? "border-gold bg-accent" : "border-border bg-card hover:border-gold/60"}`}>
-                <div className="flex-1">
-                  <div className="font-semibold">{m.label}</div>
-                  <div className="text-xs text-muted-foreground">{m.description}</div>
-                  <div className="mt-1 text-[10px] text-muted-foreground">Monedas: {m.currencies.join(" · ")}</div>
+                className={`relative flex w-full items-center gap-3 overflow-hidden rounded-xl border p-4 text-left transition ${method === m.id ? "border-gold bg-accent" : "border-border bg-card hover:border-gold/60"}`}>
+                <span aria-hidden className="pointer-events-none absolute inset-0 opacity-25">
+                  <img src={m.id === "efectivo" ? bgCash : bgCard} alt="" loading="lazy" width={1024} height={512}
+                    className="h-full w-full object-cover" />
+                </span>
+                <div className="relative flex-1">
+                  <div className="text-base font-extrabold">{m.label}</div>
+                  <div className="text-xs font-semibold text-muted-foreground">{m.description}</div>
+                  <div className="mt-1 text-[10px] font-bold text-muted-foreground">Monedas: {m.currencies.join(" · ")}</div>
                 </div>
-                <ArrowRight className="h-4 w-4 text-gold" />
+                <ArrowRight className="relative h-4 w-4 text-gold" />
               </button>
             ))}
           </div>
