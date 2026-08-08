@@ -291,8 +291,9 @@ function AuthPage() {
   );
 }
 
-function Field({ label, value, onChange, type = "text", placeholder, autoComplete }: {
-  label: string; value: string; onChange: (v: string) => void; type?: string; placeholder?: string; autoComplete?: string;
+function Field({ label, value, onChange, type = "text", placeholder, autoComplete, inputMode }: {
+  label: string; value: string; onChange: (v: string) => void; type?: string; placeholder?: string;
+  autoComplete?: string; inputMode?: "text" | "tel" | "numeric" | "email";
 }) {
   return (
     <label className="block">
@@ -300,8 +301,10 @@ function Field({ label, value, onChange, type = "text", placeholder, autoComplet
       <input
         type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
         autoComplete={autoComplete}
+        inputMode={inputMode}
         className="w-full rounded-lg border border-border bg-background px-4 py-3 text-sm outline-none transition focus:border-gold"
       />
+
     </label>
   );
 }
