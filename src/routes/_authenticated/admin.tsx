@@ -103,7 +103,12 @@ function CopyBlock({ tx }: { tx: AdminTx }) {
     ? formatMoney(Number(tx.amount_dest), tx.dest_currency || "CUP")
     : "";
   const lines = efectivo
-    ? [["Nombre", tx.recipient_name], ["Dirección", address], ["Monto a entregar", monto]]
+    ? [
+        ["Nombre", tx.recipient_name],
+        ["Teléfono", tx.recipient_phone],
+        ["Dirección", address],
+        ["Monto a entregar", monto],
+      ]
     : [["Teléfono", tx.recipient_phone], ["Tarjeta", tx.recipient_card || ""], ["Monto a enviar", monto]];
   const shown = lines.filter(([, v]) => (v ?? "").trim().length > 0) as [string, string][];
   if (shown.length === 0) return null;
