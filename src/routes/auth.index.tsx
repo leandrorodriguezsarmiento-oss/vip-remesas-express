@@ -83,10 +83,18 @@ function AuthPage() {
   // signup
   const [sFullName, setSFullName] = useState("");
   const [sUsername, setSUsername] = useState("");
-  const [sPhone, setSPhone] = useState("");
+  const [sPhone, setSPhone] = useState("+55 ");
+  const [sEmail, setSEmail] = useState("");
   const [sCpf, setSCpf] = useState("");
   const [sCountry, setSCountry] = useState("BR");
   const [sPassword, setSPassword] = useState("");
+
+  function changeCountry(code: string) {
+    setSCountry(code);
+    setSPhone(formatPhone("", code));
+    if (code !== "BR") setSCpf("");
+  }
+
 
   const resolve = useServerFn(resolveLoginIdentifier);
   const register = useServerFn(registerAccount);
