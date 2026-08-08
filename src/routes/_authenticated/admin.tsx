@@ -670,7 +670,7 @@ function RecargasTab({ canSync = true }: { canSync?: boolean }) {
           <p className="text-xs uppercase text-muted-foreground">Recargas pendientes</p>
           <p className="font-display text-xl font-bold text-gold">{active.length}</p>
         </div>
-        <SyncRecargasButton />
+        {canSync && <SyncRecargasButton />}
       </div>
       <div className="grid grid-cols-2 gap-1 rounded-xl bg-secondary p-1 text-xs font-medium">
         <button onClick={() => setView("active")}
