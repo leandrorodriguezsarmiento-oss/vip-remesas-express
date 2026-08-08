@@ -627,7 +627,7 @@ function BannersTab() {
 }
 
 // ----------------- Recargas Cubacel pendientes -----------------
-function RecargasTab() {
+function RecargasTab({ canSync = true }: { canSync?: boolean }) {
   const qc = useQueryClient();
   const [view, setView] = useState<"active" | "done">("active");
   const q = useQuery({
