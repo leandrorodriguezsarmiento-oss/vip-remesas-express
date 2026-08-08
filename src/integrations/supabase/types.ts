@@ -211,6 +211,7 @@ export type Database = {
           country: string
           cpf: string | null
           created_at: string
+          email: string | null
           full_name: string | null
           id: string
           phone: string | null
@@ -225,6 +226,7 @@ export type Database = {
           country?: string
           cpf?: string | null
           created_at?: string
+          email?: string | null
           full_name?: string | null
           id: string
           phone?: string | null
@@ -239,6 +241,7 @@ export type Database = {
           country?: string
           cpf?: string | null
           created_at?: string
+          email?: string | null
           full_name?: string | null
           id?: string
           phone?: string | null
@@ -631,7 +634,7 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "user"
+      app_role: "admin" | "user" | "organizador"
       recarga_status: "pending" | "processing" | "completed" | "rejected"
       tx_status: "pending" | "processing" | "completed" | "rejected"
     }
@@ -761,7 +764,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "user"],
+      app_role: ["admin", "user", "organizador"],
       recarga_status: ["pending", "processing", "completed", "rejected"],
       tx_status: ["pending", "processing", "completed", "rejected"],
     },
