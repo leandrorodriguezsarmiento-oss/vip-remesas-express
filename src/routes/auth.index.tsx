@@ -131,7 +131,8 @@ function AuthPage() {
     const parsed = signupSchema.safeParse({
       fullName: sFullName,
       username: sUsername,
-      phone: sPhone,
+      phone: sPhone.replace(/\D/g, ""),
+      email: sEmail,
       password: sPassword,
     });
     if (!parsed.success) return toast.error(parsed.error.issues[0].message);
@@ -145,11 +146,13 @@ function AuthPage() {
           fullName: sFullName,
           username: sUsername,
           phone: sPhone,
+          email: sEmail,
           cpf: sCpf,
           country: sCountry,
           password: sPassword,
         },
       });
+
       const { error } = await supabase.auth.signInWithPassword({ email, password: sPassword });
       if (error) throw new Error(error.message);
       toast.success("¡Cuenta creada! Ya puedes enviar remesas.");
