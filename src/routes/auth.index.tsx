@@ -228,12 +228,12 @@ function AuthPage() {
             </form>
           ) : (
             <form onSubmit={handleSignup} className="space-y-4">
-              <Field label="Nombre completo" value={sFullName} onChange={setSFullName} placeholder="João da Silva" />
+              <Field label="Nombre completo" value={sFullName} onChange={(v) => setSFullName(onlyLetters(v))} placeholder="João da Silva" />
               <label className="block">
                 <span className="mb-1.5 block text-xs font-medium text-muted-foreground">País</span>
                 <select
                   value={sCountry}
-                  onChange={(e) => setSCountry(e.target.value)}
+                  onChange={(e) => changeCountry(e.target.value)}
                   className="w-full rounded-lg border border-border bg-background px-4 py-3 text-sm outline-none focus:border-gold"
                 >
                   {COUNTRIES.map((c) => (
@@ -242,14 +242,28 @@ function AuthPage() {
                 </select>
               </label>
               <Field label="Nombre de usuario" value={sUsername} onChange={setSUsername} placeholder="joaosilva" autoComplete="username" />
-              <Field label="Teléfono" value={sPhone} onChange={setSPhone} placeholder="+55 11 90000-0000" />
+              <Field
+                label="Teléfono"
+                value={sPhone}
+                onChange={(v) => setSPhone(formatPhone(v, sCountry))}
+                placeholder="+55 11900000000"
+                inputMode="tel"
+              />
+              <Field label="Correo electrónico" type="email" value={sEmail} onChange={(v) => setSEmail(v.trim())} placeholder="tu@correo.com" autoComplete="email" />
               {sCountry === "BR" && (
-                <Field label="CPF" value={sCpf} onChange={setSCpf} placeholder="000.000.000-00" />
+                <Field
+                  label="CPF"
+                  value={sCpf}
+                  onChange={(v) => setSCpf(formatCpf(v))}
+                  placeholder="000.000.000-00"
+                  inputMode="numeric"
+                />
               )}
               <Field label="Contraseña" type="password" value={sPassword} onChange={setSPassword} placeholder="Mínimo 6 caracteres" autoComplete="new-password" />
               <p className="text-xs text-muted-foreground">
-                Sin correo: entras con tu usuario, teléfono {sCountry === "BR" ? "o CPF " : ""}y contraseña.
+                Entras con tu usuario, teléfono, correo {sCountry === "BR" ? "o CPF " : ""}y contraseña.
               </p>
+
               <SubmitButton loading={loading}>Crear cuenta VIP</SubmitButton>
             </form>
           )}
