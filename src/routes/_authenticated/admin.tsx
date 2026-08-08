@@ -381,13 +381,17 @@ function PromosTab() {
 function UsersTab() {
   const qc = useQueryClient();
   const delUser = useServerFn(deleteUserAsAdmin);
+  const setOrg = useServerFn(setOrganizerRole);
   const q = useQuery({
     queryKey: ["admin-users"],
     queryFn: async () => {
       const { data, error } = await supabase.from("profiles").select("*")
         .order("created_at", { ascending: false }).limit(100);
       if (error) throw error;
-      return data;
+      const { data: roles } = await supabase.from("user_roles").select("user_id, role");
+      const orgs = new Set((roles ?? []).filter((r) => r.role === "organizador").map((r) => r.user_id));
+      const admins = new Set((roles ?? []).filter((r) => r.role === "admin").map((r) => r.user_id));
+      return (data ?? []).map((u) => ({ ...u, isOrganizer: orgs.has(u.id), isAdmin: admins.has(u.id) }));
     },
   });
   const del = useMutation({
@@ -395,27 +399,51 @@ function UsersTab() {
     onSuccess: () => { toast.success("Usuario eliminado"); qc.invalidateQueries({ queryKey: ["admin-users"] }); },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Error"),
   });
+  const org = useMutation({
+    mutationFn: async (v: { userId: string; enabled: boolean }) => setOrg({ data: v }),
+    onSuccess: (r) => {
+      toast.success(r.enabled ? "Ahora es organizador" : "Ya no es organizador");
+      qc.invalidateQueries({ queryKey: ["admin-users"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Error"),
+  });
   if (q.isLoading) return <p className="text-sm text-muted-foreground">Cargando…</p>;
   return (
     <div className="space-y-2">
       {q.data?.map((u) => (
-        <div key={u.id} className="flex items-center justify-between rounded-xl border border-border bg-card p-3">
-          <div className="min-w-0">
-            <div className="text-sm font-semibold truncate">{u.full_name || "(sin nombre)"}</div>
-            <div className="text-[11px] text-muted-foreground">{u.phone || "sin teléfono"}</div>
-            <div className="text-[10px] text-muted-foreground">Alta: {new Date(u.created_at).toLocaleDateString("es")}</div>
+        <div key={u.id} className="rounded-xl border border-border bg-card p-3 space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0">
+              <div className="text-sm font-semibold truncate">{u.full_name || "(sin nombre)"}</div>
+              <div className="text-[11px] font-semibold text-muted-foreground">{u.phone || "sin teléfono"}</div>
+              <div className="text-[11px] text-muted-foreground truncate">{(u as { email?: string | null }).email || "sin correo"}</div>
+              <div className="text-[10px] text-muted-foreground">Alta: {new Date(u.created_at).toLocaleDateString("es")}</div>
+            </div>
+            {!u.isAdmin && (
+              <button
+                onClick={() => {
+                  if (confirm(`¿Eliminar a ${u.full_name || "este usuario"}? Se borran sus remesas y datos.`)) {
+                    del.mutate(u.id);
+                  }
+                }}
+                className="rounded-md p-2 text-destructive hover:bg-destructive/10">
+                <Trash2 className="h-4 w-4" />
+              </button>
+            )}
           </div>
-          <button
-            onClick={() => {
-              if (confirm(`¿Eliminar a ${u.full_name || "este usuario"}? Se borran sus remesas y datos.`)) {
-                del.mutate(u.id);
-              }
-            }}
-            className="rounded-md p-2 text-destructive hover:bg-destructive/10">
-            <Trash2 className="h-4 w-4" />
-          </button>
+          {!u.isAdmin && (
+            <button
+              onClick={() => org.mutate({ userId: u.id, enabled: !u.isOrganizer })}
+              disabled={org.isPending}
+              className={`flex w-full items-center justify-center gap-1 rounded-lg px-3 py-1.5 text-[11px] font-semibold ${u.isOrganizer ? "bg-gradient-gold text-primary-foreground shadow-gold" : "border border-border bg-background text-muted-foreground"}`}>
+              <UserCheck className="h-3 w-3" />
+              {u.isOrganizer ? "Organizador activo" : "Hacer organizador"}
+            </button>
+          )}
+          {u.isAdmin && <p className="text-[10px] font-semibold text-gold">Administrador</p>}
         </div>
       ))}
+
       {q.data && q.data.length === 0 && <p className="text-sm text-muted-foreground">Aún no hay usuarios.</p>}
     </div>
   );
