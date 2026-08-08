@@ -7,6 +7,7 @@ const registerSchema = z.object({
   fullName: z.string().trim().min(2).max(80),
   username: z.string().trim().min(3).max(24).regex(/^[a-zA-Z0-9._-]+$/),
   phone: z.string().trim().min(8).max(24),
+  email: z.string().trim().email().max(255),
   cpf: z.string().trim().optional(),
   country: z.string().trim().min(2).max(4),
   password: z.string().min(6).max(72),
@@ -18,9 +19,18 @@ export const resolveLoginIdentifier = createServerFn({ method: "POST" })
     z.object({ identifier: z.string().trim().min(3).max(255) }).parse(input),
   )
   .handler(async ({ data }) => {
-    if (isEmailLike(data.identifier)) return { email: data.identifier.trim().toLowerCase() };
-
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    if (isEmailLike(data.identifier)) {
+      const email = data.identifier.trim().toLowerCase();
+      const { data: row } = await supabaseAdmin
+        .from("login_aliases")
+        .select("auth_email")
+        .ilike("alias", email)
+        .maybeSingle();
+      return { email: (row?.auth_email as string | undefined) ?? email };
+    }
+
     const candidates = Array.from(
       new Set([
         normalizeAlias("username", data.identifier),
@@ -37,6 +47,7 @@ export const resolveLoginIdentifier = createServerFn({ method: "POST" })
     }
     return { email: null as string | null };
   });
+
 
 /** Crea la cuenta sin correo: usuario + teléfono (+ CPF si Brasil) + contraseña. */
 export const registerAccount = createServerFn({ method: "POST" })
