@@ -14,7 +14,7 @@ export function SplashScreen({ children }: { children: ReactNode }) {
     <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-[#0B1B3A]">
       <div className="flex flex-col items-center animate-in fade-in zoom-in duration-500">
         <img
-          src="/icon-192-v7.png"
+          src="/icon-192-v8.png"
           alt="VIP Remesas"
           width={112}
           height={112}
