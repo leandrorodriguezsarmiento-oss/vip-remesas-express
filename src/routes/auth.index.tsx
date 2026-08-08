@@ -24,7 +24,12 @@ function safeNext(next: string | undefined): string | null {
 }
 
 const signupSchema = z.object({
-  fullName: z.string().trim().min(2, "Nombre muy corto").max(80),
+  fullName: z
+    .string()
+    .trim()
+    .min(2, "Nombre muy corto")
+    .max(80)
+    .regex(/^[a-zA-ZÀ-ÿ' ]+$/, "El nombre sólo admite letras"),
   username: z
     .string()
     .trim()
@@ -32,8 +37,39 @@ const signupSchema = z.object({
     .max(24, "Usuario muy largo")
     .regex(/^[a-zA-Z0-9._-]+$/, "Usuario: sólo letras, números, . _ -"),
   phone: z.string().trim().min(8, "Teléfono inválido").max(24),
+  email: z.string().trim().email("Correo inválido").max(255),
   password: z.string().min(6, "Contraseña: mínimo 6 caracteres").max(72),
 });
+
+/** Sólo letras y espacios para nombres. */
+function onlyLetters(v: string): string {
+  return v.replace(/[^a-zA-ZÀ-ÿ' ]/g, "");
+}
+
+/** Sólo dígitos, conservando un + inicial. */
+function onlyDigits(v: string, keepPlus = false): string {
+  const plus = keepPlus && v.trim().startsWith("+");
+  const digits = v.replace(/\D/g, "");
+  return plus ? `+${digits}` : digits;
+}
+
+/** CPF con puntos y guion automáticos: 111.222.333-44 */
+function formatCpf(v: string): string {
+  const d = v.replace(/\D/g, "").slice(0, 11);
+  let out = d.slice(0, 3);
+  if (d.length > 3) out += `.${d.slice(3, 6)}`;
+  if (d.length > 6) out += `.${d.slice(6, 9)}`;
+  if (d.length > 9) out += `-${d.slice(9, 11)}`;
+  return out;
+}
+
+/** Teléfono: prefijo del país + dígitos. */
+function formatPhone(v: string, country: string): string {
+  const prefix = country === "BR" ? "+55" : country === "MX" ? "+52" : country === "US" ? "+1" : "+";
+  const digits = onlyDigits(v).replace(new RegExp(`^${prefix.slice(1)}`), "");
+  return digits ? `${prefix} ${digits}` : prefix + " ";
+}
+
 
 function AuthPage() {
   const [tab, setTab] = useState<"login" | "signup">("login");
