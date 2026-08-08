@@ -4,10 +4,10 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { formatMoney } from "@/lib/remittance";
-import { deleteUserAsAdmin } from "@/lib/admin.functions";
+import { deleteUserAsAdmin, setOrganizerRole } from "@/lib/admin.functions";
 import { syncRecharges } from "@/lib/payments.functions";
 import { toast } from "sonner";
-import { Shield, Loader2, Trash2, Plus, Check, RefreshCw, Smartphone, Zap, BarChart3, CreditCard, Copy } from "lucide-react";
+import { Shield, Loader2, Trash2, Plus, Check, RefreshCw, Smartphone, Zap, BarChart3, CreditCard, Copy, UserCheck } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   beforeLoad: async ({ context }) => {
@@ -15,9 +15,10 @@ export const Route = createFileRoute("/_authenticated/admin")({
       .from("user_roles")
       .select("role")
       .eq("user_id", context.user.id)
-      .eq("role", "admin")
-      .maybeSingle();
-    if (!data) throw redirect({ to: "/dashboard" });
+      .in("role", ["admin", "organizador"]);
+    const roles = (data ?? []).map((r) => r.role as string);
+    if (roles.length === 0) throw redirect({ to: "/dashboard" });
+    return { isAdmin: roles.includes("admin") };
   },
   component: AdminPanel,
 });
@@ -25,7 +26,17 @@ export const Route = createFileRoute("/_authenticated/admin")({
 type Tab = "tx" | "recargas" | "rates" | "promos" | "users" | "api" | "banners" | "payments" | "mp" | "reports";
 
 function AdminPanel() {
+  const { isAdmin } = Route.useRouteContext();
   const [tab, setTab] = useState<Tab>("tx");
+
+  const tabs: [Tab, string][] = isAdmin
+    ? [
+        ["tx", "Remesas"], ["recargas", "Recargas"], ["reports", "Reportes"],
+        ["rates", "Tasas"], ["promos", "Promos"], ["banners", "Banners"],
+        ["payments", "Cuentas de pago"], ["mp", "Mercado Pago"], ["users", "Usuarios"], ["api", "API"],
+      ]
+    : [["tx", "Remesas"], ["recargas", "Recargas"]];
+
   return (
     <div className="space-y-5">
       <div className="flex items-center gap-2">
@@ -33,18 +44,18 @@ function AdminPanel() {
           <Shield className="h-5 w-5 text-primary-foreground" />
         </div>
         <div>
-          <h1 className="font-display text-2xl font-bold">Panel admin</h1>
-          <p className="text-xs text-muted-foreground">Control total de VIP Remesas</p>
+          <h1 className="font-display text-2xl font-bold">
+            {isAdmin ? "Panel admin" : "Panel organizador"}
+          </h1>
+          <p className="text-xs text-muted-foreground">
+            {isAdmin ? "Control total de VIP Remesas" : "Procesa remesas y recargas"}
+          </p>
         </div>
       </div>
 
       <div className="flex gap-1 overflow-x-auto rounded-xl bg-secondary p-1 text-[10px] font-medium">
-        {[
-          ["tx", "Remesas"], ["recargas", "Recargas"], ["reports", "Reportes"],
-          ["rates", "Tasas"], ["promos", "Promos"], ["banners", "Banners"],
-          ["payments", "Cuentas de pago"], ["mp", "Mercado Pago"], ["users", "Usuarios"], ["api", "API"],
-        ].map(([id, label]) => (
-          <button key={id} onClick={() => setTab(id as Tab)}
+        {tabs.map(([id, label]) => (
+          <button key={id} onClick={() => setTab(id)}
             className={`shrink-0 rounded-lg px-3 py-2 ${tab === id ? "bg-gradient-gold text-primary-foreground shadow-gold" : "text-muted-foreground"}`}>
             {label}
           </button>
@@ -52,18 +63,19 @@ function AdminPanel() {
       </div>
 
       {tab === "tx" && <TransactionsTab />}
-      {tab === "recargas" && <RecargasTab />}
-      {tab === "reports" && <ReportsTab />}
-      {tab === "rates" && <RatesTab />}
-      {tab === "promos" && <PromosTab />}
-      {tab === "banners" && <BannersTab />}
-      {tab === "payments" && <PaymentMethodsTab />}
-      {tab === "mp" && <MercadoPagoTab />}
-      {tab === "users" && <UsersTab />}
-      {tab === "api" && <ApiTab />}
+      {tab === "recargas" && <RecargasTab canSync={isAdmin} />}
+      {isAdmin && tab === "reports" && <ReportsTab />}
+      {isAdmin && tab === "rates" && <RatesTab />}
+      {isAdmin && tab === "promos" && <PromosTab />}
+      {isAdmin && tab === "banners" && <BannersTab />}
+      {isAdmin && tab === "payments" && <PaymentMethodsTab />}
+      {isAdmin && tab === "mp" && <MercadoPagoTab />}
+      {isAdmin && tab === "users" && <UsersTab />}
+      {isAdmin && tab === "api" && <ApiTab />}
     </div>
   );
 }
+
 
 
 // ----------------- Transacciones -----------------
