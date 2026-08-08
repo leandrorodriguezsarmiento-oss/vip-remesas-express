@@ -24,7 +24,12 @@ function safeNext(next: string | undefined): string | null {
 }
 
 const signupSchema = z.object({
-  fullName: z.string().trim().min(2, "Nombre muy corto").max(80),
+  fullName: z
+    .string()
+    .trim()
+    .min(2, "Nombre muy corto")
+    .max(80)
+    .regex(/^[a-zA-ZÀ-ÿ' ]+$/, "El nombre sólo admite letras"),
   username: z
     .string()
     .trim()
@@ -32,8 +37,39 @@ const signupSchema = z.object({
     .max(24, "Usuario muy largo")
     .regex(/^[a-zA-Z0-9._-]+$/, "Usuario: sólo letras, números, . _ -"),
   phone: z.string().trim().min(8, "Teléfono inválido").max(24),
+  email: z.string().trim().email("Correo inválido").max(255),
   password: z.string().min(6, "Contraseña: mínimo 6 caracteres").max(72),
 });
+
+/** Sólo letras y espacios para nombres. */
+function onlyLetters(v: string): string {
+  return v.replace(/[^a-zA-ZÀ-ÿ' ]/g, "");
+}
+
+/** Sólo dígitos, conservando un + inicial. */
+function onlyDigits(v: string, keepPlus = false): string {
+  const plus = keepPlus && v.trim().startsWith("+");
+  const digits = v.replace(/\D/g, "");
+  return plus ? `+${digits}` : digits;
+}
+
+/** CPF con puntos y guion automáticos: 111.222.333-44 */
+function formatCpf(v: string): string {
+  const d = v.replace(/\D/g, "").slice(0, 11);
+  let out = d.slice(0, 3);
+  if (d.length > 3) out += `.${d.slice(3, 6)}`;
+  if (d.length > 6) out += `.${d.slice(6, 9)}`;
+  if (d.length > 9) out += `-${d.slice(9, 11)}`;
+  return out;
+}
+
+/** Teléfono: prefijo del país + dígitos. */
+function formatPhone(v: string, country: string): string {
+  const prefix = country === "BR" ? "+55" : country === "MX" ? "+52" : country === "US" ? "+1" : "+";
+  const digits = onlyDigits(v).replace(new RegExp(`^${prefix.slice(1)}`), "");
+  return digits ? `${prefix} ${digits}` : prefix + " ";
+}
+
 
 function AuthPage() {
   const [tab, setTab] = useState<"login" | "signup">("login");
@@ -47,10 +83,18 @@ function AuthPage() {
   // signup
   const [sFullName, setSFullName] = useState("");
   const [sUsername, setSUsername] = useState("");
-  const [sPhone, setSPhone] = useState("");
+  const [sPhone, setSPhone] = useState("+55 ");
+  const [sEmail, setSEmail] = useState("");
   const [sCpf, setSCpf] = useState("");
   const [sCountry, setSCountry] = useState("BR");
   const [sPassword, setSPassword] = useState("");
+
+  function changeCountry(code: string) {
+    setSCountry(code);
+    setSPhone(formatPhone("", code));
+    if (code !== "BR") setSCpf("");
+  }
+
 
   const resolve = useServerFn(resolveLoginIdentifier);
   const register = useServerFn(registerAccount);
@@ -87,7 +131,8 @@ function AuthPage() {
     const parsed = signupSchema.safeParse({
       fullName: sFullName,
       username: sUsername,
-      phone: sPhone,
+      phone: sPhone.replace(/\D/g, ""),
+      email: sEmail,
       password: sPassword,
     });
     if (!parsed.success) return toast.error(parsed.error.issues[0].message);
@@ -101,11 +146,13 @@ function AuthPage() {
           fullName: sFullName,
           username: sUsername,
           phone: sPhone,
+          email: sEmail,
           cpf: sCpf,
           country: sCountry,
           password: sPassword,
         },
       });
+
       const { error } = await supabase.auth.signInWithPassword({ email, password: sPassword });
       if (error) throw new Error(error.message);
       toast.success("¡Cuenta creada! Ya puedes enviar remesas.");
@@ -181,12 +228,12 @@ function AuthPage() {
             </form>
           ) : (
             <form onSubmit={handleSignup} className="space-y-4">
-              <Field label="Nombre completo" value={sFullName} onChange={setSFullName} placeholder="João da Silva" />
+              <Field label="Nombre completo" value={sFullName} onChange={(v) => setSFullName(onlyLetters(v))} placeholder="João da Silva" />
               <label className="block">
                 <span className="mb-1.5 block text-xs font-medium text-muted-foreground">País</span>
                 <select
                   value={sCountry}
-                  onChange={(e) => setSCountry(e.target.value)}
+                  onChange={(e) => changeCountry(e.target.value)}
                   className="w-full rounded-lg border border-border bg-background px-4 py-3 text-sm outline-none focus:border-gold"
                 >
                   {COUNTRIES.map((c) => (
@@ -195,14 +242,28 @@ function AuthPage() {
                 </select>
               </label>
               <Field label="Nombre de usuario" value={sUsername} onChange={setSUsername} placeholder="joaosilva" autoComplete="username" />
-              <Field label="Teléfono" value={sPhone} onChange={setSPhone} placeholder="+55 11 90000-0000" />
+              <Field
+                label="Teléfono"
+                value={sPhone}
+                onChange={(v) => setSPhone(formatPhone(v, sCountry))}
+                placeholder="+55 11900000000"
+                inputMode="tel"
+              />
+              <Field label="Correo electrónico" type="email" value={sEmail} onChange={(v) => setSEmail(v.trim())} placeholder="tu@correo.com" autoComplete="email" />
               {sCountry === "BR" && (
-                <Field label="CPF" value={sCpf} onChange={setSCpf} placeholder="000.000.000-00" />
+                <Field
+                  label="CPF"
+                  value={sCpf}
+                  onChange={(v) => setSCpf(formatCpf(v))}
+                  placeholder="000.000.000-00"
+                  inputMode="numeric"
+                />
               )}
               <Field label="Contraseña" type="password" value={sPassword} onChange={setSPassword} placeholder="Mínimo 6 caracteres" autoComplete="new-password" />
               <p className="text-xs text-muted-foreground">
-                Sin correo: entras con tu usuario, teléfono {sCountry === "BR" ? "o CPF " : ""}y contraseña.
+                Entras con tu usuario, teléfono, correo {sCountry === "BR" ? "o CPF " : ""}y contraseña.
               </p>
+
               <SubmitButton loading={loading}>Crear cuenta VIP</SubmitButton>
             </form>
           )}
@@ -230,8 +291,9 @@ function AuthPage() {
   );
 }
 
-function Field({ label, value, onChange, type = "text", placeholder, autoComplete }: {
-  label: string; value: string; onChange: (v: string) => void; type?: string; placeholder?: string; autoComplete?: string;
+function Field({ label, value, onChange, type = "text", placeholder, autoComplete, inputMode }: {
+  label: string; value: string; onChange: (v: string) => void; type?: string; placeholder?: string;
+  autoComplete?: string; inputMode?: "text" | "tel" | "numeric" | "email";
 }) {
   return (
     <label className="block">
@@ -239,8 +301,10 @@ function Field({ label, value, onChange, type = "text", placeholder, autoComplet
       <input
         type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
         autoComplete={autoComplete}
+        inputMode={inputMode}
         className="w-full rounded-lg border border-border bg-background px-4 py-3 text-sm outline-none transition focus:border-gold"
       />
+
     </label>
   );
 }

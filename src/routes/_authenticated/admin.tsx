@@ -4,10 +4,10 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { formatMoney } from "@/lib/remittance";
-import { deleteUserAsAdmin } from "@/lib/admin.functions";
+import { deleteUserAsAdmin, setOrganizerRole } from "@/lib/admin.functions";
 import { syncRecharges } from "@/lib/payments.functions";
 import { toast } from "sonner";
-import { Shield, Loader2, Trash2, Plus, Check, RefreshCw, Smartphone, Zap, BarChart3, CreditCard, Copy } from "lucide-react";
+import { Shield, Loader2, Trash2, Plus, Check, RefreshCw, Smartphone, Zap, BarChart3, CreditCard, Copy, UserCheck } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   beforeLoad: async ({ context }) => {
@@ -15,9 +15,10 @@ export const Route = createFileRoute("/_authenticated/admin")({
       .from("user_roles")
       .select("role")
       .eq("user_id", context.user.id)
-      .eq("role", "admin")
-      .maybeSingle();
-    if (!data) throw redirect({ to: "/dashboard" });
+      .in("role", ["admin", "organizador"]);
+    const roles = (data ?? []).map((r) => r.role as string);
+    if (roles.length === 0) throw redirect({ to: "/dashboard" });
+    return { isAdmin: roles.includes("admin") };
   },
   component: AdminPanel,
 });
@@ -25,7 +26,17 @@ export const Route = createFileRoute("/_authenticated/admin")({
 type Tab = "tx" | "recargas" | "rates" | "promos" | "users" | "api" | "banners" | "payments" | "mp" | "reports";
 
 function AdminPanel() {
+  const { isAdmin } = Route.useRouteContext();
   const [tab, setTab] = useState<Tab>("tx");
+
+  const tabs: [Tab, string][] = isAdmin
+    ? [
+        ["tx", "Remesas"], ["recargas", "Recargas"], ["reports", "Reportes"],
+        ["rates", "Tasas"], ["promos", "Promos"], ["banners", "Banners"],
+        ["payments", "Cuentas de pago"], ["mp", "Mercado Pago"], ["users", "Usuarios"], ["api", "API"],
+      ]
+    : [["tx", "Remesas"], ["recargas", "Recargas"]];
+
   return (
     <div className="space-y-5">
       <div className="flex items-center gap-2">
@@ -33,18 +44,18 @@ function AdminPanel() {
           <Shield className="h-5 w-5 text-primary-foreground" />
         </div>
         <div>
-          <h1 className="font-display text-2xl font-bold">Panel admin</h1>
-          <p className="text-xs text-muted-foreground">Control total de VIP Remesas</p>
+          <h1 className="font-display text-2xl font-bold">
+            {isAdmin ? "Panel admin" : "Panel organizador"}
+          </h1>
+          <p className="text-xs text-muted-foreground">
+            {isAdmin ? "Control total de VIP Remesas" : "Procesa remesas y recargas"}
+          </p>
         </div>
       </div>
 
       <div className="flex gap-1 overflow-x-auto rounded-xl bg-secondary p-1 text-[10px] font-medium">
-        {[
-          ["tx", "Remesas"], ["recargas", "Recargas"], ["reports", "Reportes"],
-          ["rates", "Tasas"], ["promos", "Promos"], ["banners", "Banners"],
-          ["payments", "Cuentas de pago"], ["mp", "Mercado Pago"], ["users", "Usuarios"], ["api", "API"],
-        ].map(([id, label]) => (
-          <button key={id} onClick={() => setTab(id as Tab)}
+        {tabs.map(([id, label]) => (
+          <button key={id} onClick={() => setTab(id)}
             className={`shrink-0 rounded-lg px-3 py-2 ${tab === id ? "bg-gradient-gold text-primary-foreground shadow-gold" : "text-muted-foreground"}`}>
             {label}
           </button>
@@ -52,18 +63,19 @@ function AdminPanel() {
       </div>
 
       {tab === "tx" && <TransactionsTab />}
-      {tab === "recargas" && <RecargasTab />}
-      {tab === "reports" && <ReportsTab />}
-      {tab === "rates" && <RatesTab />}
-      {tab === "promos" && <PromosTab />}
-      {tab === "banners" && <BannersTab />}
-      {tab === "payments" && <PaymentMethodsTab />}
-      {tab === "mp" && <MercadoPagoTab />}
-      {tab === "users" && <UsersTab />}
-      {tab === "api" && <ApiTab />}
+      {tab === "recargas" && <RecargasTab canSync={isAdmin} />}
+      {isAdmin && tab === "reports" && <ReportsTab />}
+      {isAdmin && tab === "rates" && <RatesTab />}
+      {isAdmin && tab === "promos" && <PromosTab />}
+      {isAdmin && tab === "banners" && <BannersTab />}
+      {isAdmin && tab === "payments" && <PaymentMethodsTab />}
+      {isAdmin && tab === "mp" && <MercadoPagoTab />}
+      {isAdmin && tab === "users" && <UsersTab />}
+      {isAdmin && tab === "api" && <ApiTab />}
     </div>
   );
 }
+
 
 
 // ----------------- Transacciones -----------------
@@ -91,7 +103,12 @@ function CopyBlock({ tx }: { tx: AdminTx }) {
     ? formatMoney(Number(tx.amount_dest), tx.dest_currency || "CUP")
     : "";
   const lines = efectivo
-    ? [["Nombre", tx.recipient_name], ["Dirección", address], ["Monto a entregar", monto]]
+    ? [
+        ["Nombre", tx.recipient_name],
+        ["Teléfono", tx.recipient_phone],
+        ["Dirección", address],
+        ["Monto a entregar", monto],
+      ]
     : [["Teléfono", tx.recipient_phone], ["Tarjeta", tx.recipient_card || ""], ["Monto a enviar", monto]];
   const shown = lines.filter(([, v]) => (v ?? "").trim().length > 0) as [string, string][];
   if (shown.length === 0) return null;
@@ -364,13 +381,17 @@ function PromosTab() {
 function UsersTab() {
   const qc = useQueryClient();
   const delUser = useServerFn(deleteUserAsAdmin);
+  const setOrg = useServerFn(setOrganizerRole);
   const q = useQuery({
     queryKey: ["admin-users"],
     queryFn: async () => {
       const { data, error } = await supabase.from("profiles").select("*")
         .order("created_at", { ascending: false }).limit(100);
       if (error) throw error;
-      return data;
+      const { data: roles } = await supabase.from("user_roles").select("user_id, role");
+      const orgs = new Set((roles ?? []).filter((r) => r.role === "organizador").map((r) => r.user_id));
+      const admins = new Set((roles ?? []).filter((r) => r.role === "admin").map((r) => r.user_id));
+      return (data ?? []).map((u) => ({ ...u, isOrganizer: orgs.has(u.id), isAdmin: admins.has(u.id) }));
     },
   });
   const del = useMutation({
@@ -378,27 +399,51 @@ function UsersTab() {
     onSuccess: () => { toast.success("Usuario eliminado"); qc.invalidateQueries({ queryKey: ["admin-users"] }); },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Error"),
   });
+  const org = useMutation({
+    mutationFn: async (v: { userId: string; enabled: boolean }) => setOrg({ data: v }),
+    onSuccess: (r) => {
+      toast.success(r.enabled ? "Ahora es organizador" : "Ya no es organizador");
+      qc.invalidateQueries({ queryKey: ["admin-users"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Error"),
+  });
   if (q.isLoading) return <p className="text-sm text-muted-foreground">Cargando…</p>;
   return (
     <div className="space-y-2">
       {q.data?.map((u) => (
-        <div key={u.id} className="flex items-center justify-between rounded-xl border border-border bg-card p-3">
-          <div className="min-w-0">
-            <div className="text-sm font-semibold truncate">{u.full_name || "(sin nombre)"}</div>
-            <div className="text-[11px] text-muted-foreground">{u.phone || "sin teléfono"}</div>
-            <div className="text-[10px] text-muted-foreground">Alta: {new Date(u.created_at).toLocaleDateString("es")}</div>
+        <div key={u.id} className="rounded-xl border border-border bg-card p-3 space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0">
+              <div className="text-sm font-semibold truncate">{u.full_name || "(sin nombre)"}</div>
+              <div className="text-[11px] font-semibold text-muted-foreground">{u.phone || "sin teléfono"}</div>
+              <div className="text-[11px] text-muted-foreground truncate">{(u as { email?: string | null }).email || "sin correo"}</div>
+              <div className="text-[10px] text-muted-foreground">Alta: {new Date(u.created_at).toLocaleDateString("es")}</div>
+            </div>
+            {!u.isAdmin && (
+              <button
+                onClick={() => {
+                  if (confirm(`¿Eliminar a ${u.full_name || "este usuario"}? Se borran sus remesas y datos.`)) {
+                    del.mutate(u.id);
+                  }
+                }}
+                className="rounded-md p-2 text-destructive hover:bg-destructive/10">
+                <Trash2 className="h-4 w-4" />
+              </button>
+            )}
           </div>
-          <button
-            onClick={() => {
-              if (confirm(`¿Eliminar a ${u.full_name || "este usuario"}? Se borran sus remesas y datos.`)) {
-                del.mutate(u.id);
-              }
-            }}
-            className="rounded-md p-2 text-destructive hover:bg-destructive/10">
-            <Trash2 className="h-4 w-4" />
-          </button>
+          {!u.isAdmin && (
+            <button
+              onClick={() => org.mutate({ userId: u.id, enabled: !u.isOrganizer })}
+              disabled={org.isPending}
+              className={`flex w-full items-center justify-center gap-1 rounded-lg px-3 py-1.5 text-[11px] font-semibold ${u.isOrganizer ? "bg-gradient-gold text-primary-foreground shadow-gold" : "border border-border bg-background text-muted-foreground"}`}>
+              <UserCheck className="h-3 w-3" />
+              {u.isOrganizer ? "Organizador activo" : "Hacer organizador"}
+            </button>
+          )}
+          {u.isAdmin && <p className="text-[10px] font-semibold text-gold">Administrador</p>}
         </div>
       ))}
+
       {q.data && q.data.length === 0 && <p className="text-sm text-muted-foreground">Aún no hay usuarios.</p>}
     </div>
   );
@@ -615,7 +660,7 @@ function BannersTab() {
 }
 
 // ----------------- Recargas Cubacel pendientes -----------------
-function RecargasTab() {
+function RecargasTab({ canSync = true }: { canSync?: boolean }) {
   const qc = useQueryClient();
   const [view, setView] = useState<"active" | "done">("active");
   const q = useQuery({
@@ -658,7 +703,7 @@ function RecargasTab() {
           <p className="text-xs uppercase text-muted-foreground">Recargas pendientes</p>
           <p className="font-display text-xl font-bold text-gold">{active.length}</p>
         </div>
-        <SyncRecargasButton />
+        {canSync && <SyncRecargasButton />}
       </div>
       <div className="grid grid-cols-2 gap-1 rounded-xl bg-secondary p-1 text-xs font-medium">
         <button onClick={() => setView("active")}

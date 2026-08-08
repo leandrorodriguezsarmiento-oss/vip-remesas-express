@@ -7,6 +7,7 @@ const registerSchema = z.object({
   fullName: z.string().trim().min(2).max(80),
   username: z.string().trim().min(3).max(24).regex(/^[a-zA-Z0-9._-]+$/),
   phone: z.string().trim().min(8).max(24),
+  email: z.string().trim().email().max(255),
   cpf: z.string().trim().optional(),
   country: z.string().trim().min(2).max(4),
   password: z.string().min(6).max(72),
@@ -18,9 +19,18 @@ export const resolveLoginIdentifier = createServerFn({ method: "POST" })
     z.object({ identifier: z.string().trim().min(3).max(255) }).parse(input),
   )
   .handler(async ({ data }) => {
-    if (isEmailLike(data.identifier)) return { email: data.identifier.trim().toLowerCase() };
-
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    if (isEmailLike(data.identifier)) {
+      const email = data.identifier.trim().toLowerCase();
+      const { data: row } = await supabaseAdmin
+        .from("login_aliases")
+        .select("auth_email")
+        .ilike("alias", email)
+        .maybeSingle();
+      return { email: (row?.auth_email as string | undefined) ?? email };
+    }
+
     const candidates = Array.from(
       new Set([
         normalizeAlias("username", data.identifier),
@@ -38,13 +48,15 @@ export const resolveLoginIdentifier = createServerFn({ method: "POST" })
     return { email: null as string | null };
   });
 
-/** Crea la cuenta sin correo: usuario + teléfono (+ CPF si Brasil) + contraseña. */
+
+/** Crea la cuenta: usuario + teléfono + correo (+ CPF si Brasil) + contraseña. */
 export const registerAccount = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => registerSchema.parse(input))
   .handler(async ({ data }) => {
     const username = normalizeAlias("username", data.username);
     const phone = normalizeAlias("phone", data.phone);
     const cpf = data.cpf ? normalizeAlias("cpf", data.cpf) : "";
+    const contactEmail = data.email.trim().toLowerCase();
 
     if (username.length < 3) throw new Error("Nombre de usuario inválido");
     if (phone.length < 8) throw new Error("Teléfono inválido");
@@ -55,8 +67,18 @@ export const registerAccount = createServerFn({ method: "POST" })
     const aliases = [
       { alias: username, kind: "username" as const },
       { alias: phone, kind: "phone" as const },
+      { alias: contactEmail, kind: "email" as const },
       ...(cpf ? [{ alias: cpf, kind: "cpf" as const }] : []),
     ];
+
+    const takenMessage = (kind: string) =>
+      kind === "username"
+        ? "Ese nombre de usuario ya está en uso"
+        : kind === "phone"
+          ? "Ese teléfono ya tiene una cuenta"
+          : kind === "email"
+            ? "Ese correo ya tiene una cuenta"
+            : "Ese CPF ya tiene una cuenta";
 
     for (const a of aliases) {
       const { data: taken } = await supabaseAdmin
@@ -64,15 +86,7 @@ export const registerAccount = createServerFn({ method: "POST" })
         .select("id")
         .ilike("alias", a.alias)
         .maybeSingle();
-      if (taken) {
-        throw new Error(
-          a.kind === "username"
-            ? "Ese nombre de usuario ya está en uso"
-            : a.kind === "phone"
-              ? "Ese teléfono ya tiene una cuenta"
-              : "Ese CPF ya tiene una cuenta",
-        );
-      }
+      if (taken) throw new Error(takenMessage(a.kind));
     }
 
     const authEmail = syntheticEmail(username);
@@ -86,10 +100,12 @@ export const registerAccount = createServerFn({ method: "POST" })
         username,
         cpf,
         country: data.country,
+        contact_email: contactEmail,
       },
     });
     if (error || !created.user) throw new Error(error?.message ?? "No se pudo crear la cuenta");
 
+    // Los índices únicos de la base de datos son la garantía final contra duplicados.
     const { error: aliasErr } = await supabaseAdmin.from("login_aliases").insert(
       aliases.map((a) => ({
         alias: a.alias,
@@ -100,11 +116,17 @@ export const registerAccount = createServerFn({ method: "POST" })
     );
     if (aliasErr) {
       await supabaseAdmin.auth.admin.deleteUser(created.user.id);
-      throw new Error("No se pudo registrar el identificador. Intenta con otro usuario.");
+      const dup = aliases.find((a) => aliasErr.message?.includes(a.alias));
+      throw new Error(
+        dup
+          ? takenMessage(dup.kind)
+          : "Esos datos ya están registrados. Revisa usuario, teléfono, correo o CPF.",
+      );
     }
 
     return { email: authEmail };
   });
+
 
 /** Guarda/actualiza los alias de una cuenta existente (desde Ajustes). */
 export const updateMyAliases = createServerFn({ method: "POST" })
