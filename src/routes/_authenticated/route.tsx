@@ -33,11 +33,12 @@ function AuthedLayout() {
         .from("user_roles")
         .select("role")
         .eq("user_id", user.id)
-        .eq("role", "admin")
-        .maybeSingle();
-      return !!data;
+        .in("role", ["admin", "organizador"]);
+      const roles = (data ?? []).map((r) => r.role as string);
+      return roles.includes("admin") || roles.includes("organizador");
     },
   });
+
 
   const [showNotif, setShowNotif] = useState(false);
   const notifs = useQuery({
