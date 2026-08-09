@@ -1100,7 +1100,16 @@ function StoreTab() {
   });
 
   const update = useMutation({
-    mutationFn: async (p: { id: string } & Partial<StoreRow>) => {
+    mutationFn: async (p: {
+      id: string;
+      category?: string;
+      title?: string;
+      description?: string | null;
+      price_brl?: number;
+      images?: string[];
+      active?: boolean;
+      sort_order?: number;
+    }) => {
       const { id, ...rest } = p;
       const { error } = await supabase.from("store_products").update(rest).eq("id", id);
       if (error) throw error;
