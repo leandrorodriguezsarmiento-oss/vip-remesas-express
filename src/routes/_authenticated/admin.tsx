@@ -23,7 +23,7 @@ export const Route = createFileRoute("/_authenticated/admin")({
   component: AdminPanel,
 });
 
-type Tab = "tx" | "recargas" | "rates" | "promos" | "users" | "api" | "banners" | "payments" | "mp" | "reports";
+type Tab = "tx" | "recargas" | "rates" | "promos" | "users" | "api" | "banners" | "payments" | "mp" | "reports" | "store";
 
 function AdminPanel() {
   const { isAdmin } = Route.useRouteContext();
@@ -33,6 +33,7 @@ function AdminPanel() {
     ? [
         ["tx", "Remesas"], ["recargas", "Recargas"], ["reports", "Reportes"],
         ["rates", "Tasas"], ["promos", "Promos"], ["banners", "Banners"],
+        ["store", "VipTienda"],
         ["payments", "Cuentas de pago"], ["mp", "Mercado Pago"], ["users", "Usuarios"], ["api", "API"],
       ]
     : [["tx", "Remesas"], ["recargas", "Recargas"]];
