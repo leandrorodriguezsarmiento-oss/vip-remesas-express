@@ -79,7 +79,17 @@ function Dashboard() {
             <Smartphone className="h-5 w-5 text-primary-foreground" />
           </div>
         </Link>
+        <Link to="/tienda" className="col-span-2 flex items-center justify-between rounded-2xl border border-gold/40 bg-card p-4 shadow-card hover:border-gold">
+          <div>
+            <p className="font-display text-base font-bold">VipTienda</p>
+            <p className="text-[11px] text-muted-foreground">Celulares y electrodomésticos para Cuba</p>
+          </div>
+          <div className="grid h-10 w-10 place-items-center rounded-full bg-gradient-gold shadow-gold">
+            <ShoppingBag className="h-5 w-5 text-primary-foreground" />
+          </div>
+        </Link>
       </div>
+
 
       {/* Rates preview */}
       <section>
