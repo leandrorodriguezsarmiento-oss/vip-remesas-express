@@ -320,8 +320,8 @@ function SendFlow() {
                 {savedRecipients.data.map((r) => (
                   <button key={r.id}
                     onClick={() => setRecipient({
-                      name: r.full_name, phone: r.phone,
-                      card: r.account_details ?? "", address: "", notes: "",
+                      name: r.full_name, phone: formatCubaPhone(r.phone),
+                      card: formatCard(r.account_details ?? ""), address: "", notes: "",
                     })}
                     className="rounded-full border border-border bg-card px-3 py-1 text-xs hover:border-gold">
                     {r.full_name}
