@@ -5,7 +5,7 @@ import {
   ORIGINS, type OriginCode, type DestCurrency,
   type RateRow, findRate,
 } from "@/lib/remittance";
-import { Send, Smartphone, TrendingUp } from "lucide-react";
+import { Send, Smartphone, TrendingUp, ShoppingBag } from "lucide-react";
 import { BannerCarousel } from "@/components/BannerCarousel";
 import { PushToggle } from "@/components/PushToggle";
 import { FlagIcon } from "@/components/FlagIcon";
