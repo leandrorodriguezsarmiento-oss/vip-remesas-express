@@ -22,6 +22,23 @@ export const Route = createFileRoute("/_authenticated/send")({
   component: SendFlow,
 });
 
+/** Sólo letras y espacios para nombres. */
+function onlyLettersName(v: string): string {
+  return v.replace(/[^a-zA-ZÀ-ÿ' ]/g, "").slice(0, 60);
+}
+
+/** Teléfono de Cuba: +53 fijo + exactamente 8 dígitos. */
+function formatCubaPhone(v: string): string {
+  const digits = v.replace(/\D/g, "").replace(/^53/, "").slice(0, 8);
+  return `+53 ${digits}`.trimEnd();
+}
+
+/** Tarjeta/cuenta: máximo 16 dígitos en grupos de 4. */
+function formatCard(v: string): string {
+  const d = v.replace(/\D/g, "").slice(0, 16);
+  return d.replace(/(.{4})(?=.)/g, "$1 ");
+}
+
 type Recipient = { name: string; phone: string; card: string; address: string; notes: string };
 type Saved = {
   id: string; full_name: string; phone: string; account_details: string | null;
@@ -303,8 +320,8 @@ function SendFlow() {
                 {savedRecipients.data.map((r) => (
                   <button key={r.id}
                     onClick={() => setRecipient({
-                      name: r.full_name, phone: r.phone,
-                      card: r.account_details ?? "", address: "", notes: "",
+                      name: r.full_name, phone: formatCubaPhone(r.phone),
+                      card: formatCard(r.account_details ?? ""), address: "", notes: "",
                     })}
                     className="rounded-full border border-border bg-card px-3 py-1 text-xs hover:border-gold">
                     {r.full_name}
@@ -313,13 +330,13 @@ function SendFlow() {
               </div>
             </div>
           )}
-          <Input label="Nombre completo" value={recipient.name} onChange={(v) => setRecipient({ ...recipient, name: v })} placeholder="María Pérez" />
-          <Input label="Teléfono" value={recipient.phone} onChange={(v) => setRecipient({ ...recipient, phone: v })} placeholder="+53 55 000 000" />
+          <Input label="Nombre completo" value={recipient.name} onChange={(v) => setRecipient({ ...recipient, name: onlyLettersName(v) })} placeholder="María Pérez" />
+          <Input label="Teléfono en Cuba" value={recipient.phone} onChange={(v) => setRecipient({ ...recipient, phone: formatCubaPhone(v) })} placeholder="+53 56530329" />
           {method === "transferencia" && (
             <Input
-              label={currency === "MLC" ? "Tarjeta MLC" : currency === "USD" ? "Cuenta USD clásica" : "Tarjeta CUP"}
+              label={currency === "MLC" ? "Tarjeta MLC (16 dígitos)" : currency === "USD" ? "Cuenta USD clásica (16 dígitos)" : "Tarjeta CUP (16 dígitos)"}
               value={recipient.card}
-              onChange={(v) => setRecipient({ ...recipient, card: v })}
+              onChange={(v) => setRecipient({ ...recipient, card: formatCard(v) })}
               placeholder="XXXX XXXX XXXX XXXX" />
           )}
           {method === "efectivo" && (
@@ -335,7 +352,7 @@ function SendFlow() {
             Guardar destinatario para próximas remesas
           </label>
           <NextBtn
-            disabled={!recipient.name || !recipient.phone || (method === "transferencia" && !recipient.card) || (method === "efectivo" && recipient.address.trim().length < 8)}
+            disabled={!recipient.name || recipient.phone.replace(/\D/g, "").length !== 10 || (method === "transferencia" && recipient.card.replace(/\D/g, "").length !== 16) || (method === "efectivo" && recipient.address.trim().length < 8)}
             onClick={() => setStep(5)}
           >
             Continuar

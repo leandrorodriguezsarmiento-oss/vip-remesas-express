@@ -23,7 +23,7 @@ export const Route = createFileRoute("/_authenticated/admin")({
   component: AdminPanel,
 });
 
-type Tab = "tx" | "recargas" | "rates" | "promos" | "users" | "api" | "banners" | "payments" | "mp" | "reports";
+type Tab = "tx" | "recargas" | "rates" | "promos" | "users" | "api" | "banners" | "payments" | "mp" | "reports" | "store";
 
 function AdminPanel() {
   const { isAdmin } = Route.useRouteContext();
@@ -33,6 +33,7 @@ function AdminPanel() {
     ? [
         ["tx", "Remesas"], ["recargas", "Recargas"], ["reports", "Reportes"],
         ["rates", "Tasas"], ["promos", "Promos"], ["banners", "Banners"],
+        ["store", "VipTienda"],
         ["payments", "Cuentas de pago"], ["mp", "Mercado Pago"], ["users", "Usuarios"], ["api", "API"],
       ]
     : [["tx", "Remesas"], ["recargas", "Recargas"]];
@@ -69,6 +70,7 @@ function AdminPanel() {
       {isAdmin && tab === "promos" && <PromosTab />}
       {isAdmin && tab === "banners" && <BannersTab />}
       {isAdmin && tab === "payments" && <PaymentMethodsTab />}
+      {isAdmin && tab === "store" && <StoreTab />}
       {isAdmin && tab === "mp" && <MercadoPagoTab />}
       {isAdmin && tab === "users" && <UsersTab />}
       {isAdmin && tab === "api" && <ApiTab />}
@@ -1034,3 +1036,196 @@ function MercadoPagoTab() {
     </div>
   );
 }
+
+// ----------------- VipTienda: productos -----------------
+type StoreRow = {
+  id: string;
+  category: string;
+  title: string;
+  description: string | null;
+  price_brl: number | string;
+  images: string[] | null;
+  active: boolean;
+  sort_order: number;
+};
+
+async function uploadStoreImage(file: File): Promise<string> {
+  const ext = file.name.split(".").pop() || "jpg";
+  const path = `products/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+  const { error } = await supabase.storage.from("banners").upload(path, file, {
+    cacheControl: "3600", upsert: false, contentType: file.type,
+  });
+  if (error) throw error;
+  const { data: signed, error: sErr } = await supabase.storage.from("banners")
+    .createSignedUrl(path, 60 * 60 * 24 * 365 * 10);
+  if (sErr || !signed) throw sErr ?? new Error("No se pudo firmar la imagen");
+  return signed.signedUrl;
+}
+
+function StoreTab() {
+  const qc = useQueryClient();
+  const [category, setCategory] = useState("celulares");
+  const [title, setTitle] = useState("");
+  const [price, setPrice] = useState("");
+  const [description, setDescription] = useState("");
+  const [images, setImages] = useState<string[]>([]);
+  const [uploading, setUploading] = useState(false);
+
+  const q = useQuery<StoreRow[]>({
+    queryKey: ["admin-store"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("store_products").select("*").order("sort_order");
+      if (error) throw error;
+      return (data ?? []) as unknown as StoreRow[];
+    },
+  });
+
+  const refresh = () => {
+    qc.invalidateQueries({ queryKey: ["admin-store"] });
+    qc.invalidateQueries({ queryKey: ["store-products"] });
+  };
+
+  const create = useMutation({
+    mutationFn: async () => {
+      if (!title.trim()) throw new Error("Ponle un nombre al producto");
+      const { error } = await supabase.from("store_products").insert({
+        category, title: title.trim(), description: description.trim() || null,
+        price_brl: Number(price.replace(",", ".")) || 0, images,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      refresh(); setTitle(""); setPrice(""); setDescription(""); setImages([]);
+      toast.success("Producto publicado");
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Error"),
+  });
+
+  const update = useMutation({
+    mutationFn: async (p: {
+      id: string;
+      category?: string;
+      title?: string;
+      description?: string | null;
+      price_brl?: number;
+      images?: string[];
+      active?: boolean;
+      sort_order?: number;
+    }) => {
+      const { id, ...rest } = p;
+      const { error } = await supabase.from("store_products").update(rest).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => { refresh(); toast.success("Producto actualizado"); },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Error"),
+  });
+
+  const del = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("store_products").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => { refresh(); toast.success("Producto eliminado"); },
+  });
+
+  async function addFiles(files: FileList, target?: StoreRow) {
+    setUploading(true);
+    try {
+      const urls: string[] = [];
+      for (const f of Array.from(files)) urls.push(await uploadStoreImage(f));
+      if (target) update.mutate({ id: target.id, images: [...(target.images ?? []), ...urls] });
+      else setImages((prev) => [...prev, ...urls]);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "No se pudo subir la imagen");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="rounded-xl border border-primary/40 bg-card p-3 space-y-2">
+        <p className="text-xs font-bold uppercase text-muted-foreground">Nuevo producto</p>
+        <label className="block">
+          <span className="mb-1 block text-[10px] font-bold uppercase text-muted-foreground">Catálogo</span>
+          <select value={category} onChange={(e) => setCategory(e.target.value)}
+            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-xs font-semibold outline-none focus:border-gold">
+            <option value="celulares">Celulares, tablets y accesorios</option>
+            <option value="electrodomesticos">Electrodomésticos</option>
+          </select>
+        </label>
+        <MiniInput label="Nombre" value={title} onChange={setTitle} />
+        <MiniInput label="Precio (BRL)" value={price} onChange={setPrice} />
+        <MiniInput label="Descripción" value={description} onChange={setDescription} />
+        {images.length > 0 && (
+          <div className="flex gap-2 overflow-x-auto">
+            {images.map((src) => (
+              <img key={src} src={src} alt="" className="h-16 w-16 shrink-0 rounded-lg object-cover" />
+            ))}
+          </div>
+        )}
+        <label className={`flex w-full cursor-pointer items-center justify-center gap-1 rounded-lg border border-gold/50 px-3 py-2 text-xs font-bold text-gold ${uploading ? "opacity-60" : ""}`}>
+          <Plus className="h-3 w-3" /> {uploading ? "Subiendo…" : "Agregar fotos"}
+          <input type="file" accept="image/*" multiple className="hidden" disabled={uploading}
+            onChange={(e) => { const fs = e.target.files; if (fs?.length) void addFiles(fs); e.currentTarget.value = ""; }} />
+        </label>
+        <button onClick={() => create.mutate()} disabled={create.isPending || uploading}
+          className="w-full rounded-lg bg-gradient-gold px-3 py-2 text-xs font-bold text-primary-foreground shadow-gold disabled:opacity-60">
+          Publicar producto
+        </button>
+      </div>
+
+      {q.data?.map((p) => (
+        <div key={p.id} className="rounded-xl border border-border bg-card p-3 space-y-2">
+          <div className="flex gap-2 overflow-x-auto">
+            {(p.images ?? []).map((src) => (
+              <img key={src} src={src} alt="" className="h-16 w-16 shrink-0 rounded-lg object-cover" />
+            ))}
+          </div>
+          <MiniInput label="Nombre" value={p.title} onChange={(v) => update.mutate({ id: p.id, title: v })} />
+          <div className="grid grid-cols-2 gap-2">
+            <MiniInput label="Precio BRL" value={String(p.price_brl)} onChange={(v) => update.mutate({ id: p.id, price_brl: Number(v.replace(",", ".")) || 0 })} />
+            <MiniInput label="Orden" value={String(p.sort_order)} onChange={(v) => update.mutate({ id: p.id, sort_order: Number(v) || 0 })} />
+          </div>
+          <MiniInput label="Descripción" value={p.description ?? ""} onChange={(v) => update.mutate({ id: p.id, description: v })} />
+          <label className="block">
+            <span className="mb-1 block text-[10px] font-bold uppercase text-muted-foreground">Catálogo</span>
+            <select value={p.category} onChange={(e) => update.mutate({ id: p.id, category: e.target.value })}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-xs font-semibold">
+              <option value="celulares">Celulares, tablets y accesorios</option>
+              <option value="electrodomesticos">Electrodomésticos</option>
+            </select>
+          </label>
+          <div className="flex items-center justify-between">
+            <label className="flex items-center gap-2 text-[11px] font-semibold text-muted-foreground">
+              <input type="checkbox" checked={p.active}
+                onChange={(e) => update.mutate({ id: p.id, active: e.target.checked })}
+                className="h-3 w-3 accent-[color:var(--gold)]" />
+              Visible
+            </label>
+            <div className="flex items-center gap-2">
+              <label className="cursor-pointer rounded-md border border-gold/50 px-2 py-1 text-[11px] font-bold text-gold">
+                Fotos +
+                <input type="file" accept="image/*" multiple className="hidden"
+                  onChange={(e) => { const fs = e.target.files; if (fs?.length) void addFiles(fs, p); e.currentTarget.value = ""; }} />
+              </label>
+              {(p.images ?? []).length > 0 && (
+                <button onClick={() => update.mutate({ id: p.id, images: [] })}
+                  className="rounded-md border border-border px-2 py-1 text-[11px] font-semibold">
+                  Borrar fotos
+                </button>
+              )}
+              <button onClick={() => del.mutate(p.id)} className="rounded-md p-1 text-destructive hover:bg-destructive/10">
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      ))}
+      {q.data && q.data.length === 0 && (
+        <p className="text-sm font-semibold text-muted-foreground">Aún no hay productos en VipTienda.</p>
+      )}
+    </div>
+  );
+}
+

@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Sparkles, Shield, Zap, Globe2, TrendingUp, Smartphone } from "lucide-react";
 import { BrandMark } from "@/components/BrandMark";
 import { FlagIcon } from "@/components/FlagIcon";
+import { BannerCarousel } from "@/components/BannerCarousel";
 import { ORIGINS, findRate, formatMoney, type OriginCode, type DestCurrency, type RateRow } from "@/lib/remittance";
 
 export const Route = createFileRoute("/")({
@@ -73,6 +74,12 @@ function Landing() {
         <p className="mt-4 text-base font-medium text-muted-foreground">
           Mira las tasas de hoy y las promos de recarga. Crea tu cuenta solo cuando quieras enviar.
         </p>
+
+        {/* Banners (rotan cada 2 s) */}
+        <div className="mt-6">
+          <BannerCarousel />
+        </div>
+
 
         {/* Tasas públicas */}
         <section className="mt-8">

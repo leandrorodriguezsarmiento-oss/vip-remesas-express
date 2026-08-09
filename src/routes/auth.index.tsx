@@ -63,11 +63,19 @@ function formatCpf(v: string): string {
   return out;
 }
 
-/** Teléfono: prefijo del país + dígitos. */
+/** Teléfono: prefijo del país + cantidad exacta de dígitos permitida. */
+const PHONE_RULES: Record<string, { prefix: string; max: number }> = {
+  BR: { prefix: "+55", max: 12 },
+  MX: { prefix: "+52", max: 10 },
+  US: { prefix: "+1", max: 10 },
+  CU: { prefix: "+53", max: 8 },
+};
+
 function formatPhone(v: string, country: string): string {
-  const prefix = country === "BR" ? "+55" : country === "MX" ? "+52" : country === "US" ? "+1" : "+";
-  const digits = onlyDigits(v).replace(new RegExp(`^${prefix.slice(1)}`), "");
-  return digits ? `${prefix} ${digits}` : prefix + " ";
+  const rule = PHONE_RULES[country] ?? { prefix: "+", max: 15 };
+  const bare = rule.prefix.slice(1);
+  const digits = onlyDigits(v).replace(new RegExp(`^${bare}`), "").slice(0, rule.max);
+  return digits ? `${rule.prefix} ${digits}` : `${rule.prefix} `;
 }
 
 
