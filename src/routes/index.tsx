@@ -74,6 +74,12 @@ function Landing() {
           Mira las tasas de hoy y las promos de recarga. Crea tu cuenta solo cuando quieras enviar.
         </p>
 
+        {/* Banners (rotan cada 2 s) */}
+        <div className="mt-6">
+          <BannerCarousel />
+        </div>
+
+
         {/* Tasas públicas */}
         <section className="mt-8">
           <div className="mb-2 flex items-center justify-between">
