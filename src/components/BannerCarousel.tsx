@@ -28,7 +28,7 @@ export function BannerCarousel() {
 
   useEffect(() => {
     if (banners.length < 2) return;
-    const t = setInterval(() => setIdx((i) => (i + 1) % banners.length), 4000);
+    const t = setInterval(() => setIdx((i) => (i + 1) % banners.length), 2000);
     return () => clearInterval(t);
   }, [banners.length]);
 
