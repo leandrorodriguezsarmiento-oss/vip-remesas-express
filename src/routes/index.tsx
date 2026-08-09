@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Sparkles, Shield, Zap, Globe2, TrendingUp, Smartphone } from "lucide-react";
 import { BrandMark } from "@/components/BrandMark";
 import { FlagIcon } from "@/components/FlagIcon";
+import { BannerCarousel } from "@/components/BannerCarousel";
 import { ORIGINS, findRate, formatMoney, type OriginCode, type DestCurrency, type RateRow } from "@/lib/remittance";
 
 export const Route = createFileRoute("/")({
