@@ -313,13 +313,13 @@ function SendFlow() {
               </div>
             </div>
           )}
-          <Input label="Nombre completo" value={recipient.name} onChange={(v) => setRecipient({ ...recipient, name: v })} placeholder="María Pérez" />
-          <Input label="Teléfono" value={recipient.phone} onChange={(v) => setRecipient({ ...recipient, phone: v })} placeholder="+53 55 000 000" />
+          <Input label="Nombre completo" value={recipient.name} onChange={(v) => setRecipient({ ...recipient, name: onlyLettersName(v) })} placeholder="María Pérez" />
+          <Input label="Teléfono en Cuba" value={recipient.phone} onChange={(v) => setRecipient({ ...recipient, phone: formatCubaPhone(v) })} placeholder="+53 56530329" />
           {method === "transferencia" && (
             <Input
-              label={currency === "MLC" ? "Tarjeta MLC" : currency === "USD" ? "Cuenta USD clásica" : "Tarjeta CUP"}
+              label={currency === "MLC" ? "Tarjeta MLC (16 dígitos)" : currency === "USD" ? "Cuenta USD clásica (16 dígitos)" : "Tarjeta CUP (16 dígitos)"}
               value={recipient.card}
-              onChange={(v) => setRecipient({ ...recipient, card: v })}
+              onChange={(v) => setRecipient({ ...recipient, card: formatCard(v) })}
               placeholder="XXXX XXXX XXXX XXXX" />
           )}
           {method === "efectivo" && (
