@@ -22,6 +22,23 @@ export const Route = createFileRoute("/_authenticated/send")({
   component: SendFlow,
 });
 
+/** Sólo letras y espacios para nombres. */
+function onlyLettersName(v: string): string {
+  return v.replace(/[^a-zA-ZÀ-ÿ' ]/g, "").slice(0, 60);
+}
+
+/** Teléfono de Cuba: +53 fijo + exactamente 8 dígitos. */
+function formatCubaPhone(v: string): string {
+  const digits = v.replace(/\D/g, "").replace(/^53/, "").slice(0, 8);
+  return `+53 ${digits}`.trimEnd();
+}
+
+/** Tarjeta/cuenta: máximo 16 dígitos en grupos de 4. */
+function formatCard(v: string): string {
+  const d = v.replace(/\D/g, "").slice(0, 16);
+  return d.replace(/(.{4})(?=.)/g, "$1 ");
+}
+
 type Recipient = { name: string; phone: string; card: string; address: string; notes: string };
 type Saved = {
   id: string; full_name: string; phone: string; account_details: string | null;
