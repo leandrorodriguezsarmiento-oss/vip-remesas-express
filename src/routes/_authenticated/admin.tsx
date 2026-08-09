@@ -70,6 +70,7 @@ function AdminPanel() {
       {isAdmin && tab === "promos" && <PromosTab />}
       {isAdmin && tab === "banners" && <BannersTab />}
       {isAdmin && tab === "payments" && <PaymentMethodsTab />}
+      {isAdmin && tab === "store" && <StoreTab />}
       {isAdmin && tab === "mp" && <MercadoPagoTab />}
       {isAdmin && tab === "users" && <UsersTab />}
       {isAdmin && tab === "api" && <ApiTab />}
