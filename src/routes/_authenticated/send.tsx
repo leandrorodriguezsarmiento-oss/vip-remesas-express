@@ -352,7 +352,7 @@ function SendFlow() {
             Guardar destinatario para próximas remesas
           </label>
           <NextBtn
-            disabled={!recipient.name || !recipient.phone || (method === "transferencia" && !recipient.card) || (method === "efectivo" && recipient.address.trim().length < 8)}
+            disabled={!recipient.name || recipient.phone.replace(/\D/g, "").length !== 10 || (method === "transferencia" && recipient.card.replace(/\D/g, "").length !== 16) || (method === "efectivo" && recipient.address.trim().length < 8)}
             onClick={() => setStep(5)}
           >
             Continuar
