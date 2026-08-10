@@ -119,7 +119,7 @@ export function StoreCatalog() {
   const [rAddress, setRAddress] = useState("");
 
   useEffect(() => {
-    const t = setTimeout(() => setOpening(false), 1100);
+    const t = setTimeout(() => setOpening(false), 2300);
     try {
       const raw = localStorage.getItem(CART_KEY);
       if (raw) setCart(JSON.parse(raw) as CartLine[]);
