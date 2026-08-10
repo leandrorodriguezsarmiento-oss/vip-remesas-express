@@ -120,6 +120,8 @@ function Dashboard() {
           {ORIGINS.map((o, i) => {
             const rCup = findRate(rates.data, o.code as OriginCode, "transferencia", "CUP" as DestCurrency);
             const rMlc = findRate(rates.data, o.code as OriginCode, "transferencia", "MLC" as DestCurrency);
+            const eCup = findRate(rates.data, o.code as OriginCode, "efectivo", "CUP" as DestCurrency);
+            const eUsd = findRate(rates.data, o.code as OriginCode, "efectivo", "USD" as DestCurrency);
             return (
               <div
                 key={o.code}
@@ -144,8 +146,28 @@ function Dashboard() {
                     </div>
                   </div>
                 </div>
+                <div className="mt-2 rounded-lg border border-gold/30 bg-secondary/60 p-2">
+                  <p className="mb-1 flex items-center gap-1 text-[10px] font-extrabold uppercase text-gold">
+                    <Banknote className="h-3.5 w-3.5" /> Efectivo (entrega en mano)
+                  </p>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div>
+                      <div className="font-bold text-muted-foreground">1 {o.currency} · CUP</div>
+                      <div className="font-display text-base font-extrabold text-foreground">
+                        {eCup ? eCup.rate.toFixed(2) : "No disponible"}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="font-bold text-muted-foreground">1 {o.currency} · USD</div>
+                      <div className="font-display text-base font-extrabold text-foreground">
+                        {eUsd ? eUsd.rate.toFixed(2) : "No disponible"}
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             );
+
           })}
         </div>
       </section>

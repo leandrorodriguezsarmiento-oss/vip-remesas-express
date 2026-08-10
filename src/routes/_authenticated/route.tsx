@@ -127,10 +127,11 @@ function AuthedLayout() {
         { to: "/dashboard", icon: Home, label: "Inicio", grad: "bg-gradient-sky" },
         { to: "/recargas", icon: Smartphone, label: "Recargas", grad: "bg-gradient-emerald" },
         { to: "/send", icon: Send, label: "Remesas", grad: "bg-gradient-rose" },
-        { to: "/history", icon: ClockIcon, label: "Historial", grad: "bg-gradient-violet" },
         { to: "/tienda", icon: Store, label: "VipShop", grad: "bg-gradient-amber" },
+        { to: "/history", icon: ClockIcon, label: "Historial", grad: "bg-gradient-violet" },
         { to: "/settings", icon: SettingsIcon, label: "Ajustes", grad: "bg-gradient-gold" },
       ] as const);
+
 
   return (
     <div className="min-h-screen bg-gradient-vip pb-24">
