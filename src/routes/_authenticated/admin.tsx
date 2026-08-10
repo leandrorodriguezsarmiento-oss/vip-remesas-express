@@ -23,7 +23,7 @@ export const Route = createFileRoute("/_authenticated/admin")({
   component: AdminPanel,
 });
 
-type Tab = "tx" | "recargas" | "rates" | "promos" | "users" | "api" | "banners" | "payments" | "mp" | "reports" | "store";
+type Tab = "tx" | "recargas" | "rates" | "promos" | "users" | "api" | "banners" | "payments" | "mp" | "reports" | "store" | "orders";
 
 function AdminPanel() {
   const { isAdmin } = Route.useRouteContext();
@@ -31,12 +31,13 @@ function AdminPanel() {
 
   const tabs: [Tab, string][] = isAdmin
     ? [
-        ["tx", "Remesas"], ["recargas", "Recargas"], ["reports", "Reportes"],
+        ["tx", "Remesas"], ["recargas", "Recargas"], ["orders", "Pedidos"], ["reports", "Reportes"],
         ["rates", "Tasas"], ["promos", "Promos"], ["banners", "Banners"],
-        ["store", "VipTienda"],
+        ["store", "VipShop"],
         ["payments", "Cuentas de pago"], ["mp", "Mercado Pago"], ["users", "Usuarios"], ["api", "API"],
       ]
-    : [["tx", "Remesas"], ["recargas", "Recargas"]];
+    : [["tx", "Remesas"], ["recargas", "Recargas"], ["orders", "Pedidos"]];
+
 
   return (
     <div className="space-y-5">
@@ -64,7 +65,9 @@ function AdminPanel() {
       </div>
 
       {tab === "tx" && <TransactionsTab />}
+      {tab === "orders" && <StoreOrdersTab />}
       {tab === "recargas" && <RecargasTab canSync={isAdmin} />}
+
       {isAdmin && tab === "reports" && <ReportsTab />}
       {isAdmin && tab === "rates" && <RatesTab />}
       {isAdmin && tab === "promos" && <PromosTab />}
@@ -1231,3 +1234,131 @@ function StoreTab() {
   );
 }
 
+
+// ----------------- VipShop: pedidos -----------------
+type StoreOrderRow = {
+  id: string;
+  order_no: number;
+  recipient_name: string;
+  recipient_phone: string;
+  recipient_id_card: string;
+  recipient_address: string;
+  items: { title: string; qty: number; price_brl: number }[] | null;
+  total_brl: number | string;
+  status: string;
+  created_at: string;
+};
+
+function StoreOrdersTab() {
+  const qc = useQueryClient();
+  const q = useQuery<StoreOrderRow[]>({
+    queryKey: ["store-orders"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("store_orders")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as unknown as StoreOrderRow[];
+    },
+  });
+
+  const setStatus = useMutation({
+    mutationFn: async (p: { id: string; status: string }) => {
+      const { error } = await supabase
+        .from("store_orders")
+        .update({ status: p.status as "pending" | "processing" | "completed" | "rejected" })
+        .eq("id", p.id);
+      if (error) throw error;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["store-orders"] }); toast.success("Pedido actualizado"); },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Error"),
+  });
+
+  const active = (q.data ?? []).filter((o) => o.status === "pending" || o.status === "processing");
+  const done = (q.data ?? []).filter((o) => o.status === "completed" || o.status === "rejected");
+
+  function copy(text: string, label: string) {
+    void navigator.clipboard.writeText(text);
+    toast.success(`${label} copiado`);
+  }
+
+  const Card = ({ o, i }: { o: StoreOrderRow; i: number }) => (
+    <div
+      key={o.id}
+      style={{ animationDelay: `${i * 40}ms` }}
+      className="animate-rise space-y-2 rounded-xl border border-border bg-card p-3 shadow-card"
+    >
+      <div className="flex items-center justify-between">
+        <p className="font-display text-sm font-extrabold">Pedido #{o.order_no}</p>
+        <span className="rounded-md bg-secondary px-2 py-0.5 text-[10px] font-extrabold uppercase">
+          {STATUS_ES[o.status] ?? o.status}
+        </span>
+      </div>
+      <p className="text-base font-extrabold text-destructive">{o.recipient_name}</p>
+      <div className="space-y-1 rounded-lg bg-background p-2 text-[11px] font-extrabold">
+        {([
+          ["Nombre", o.recipient_name],
+          ["Teléfono", o.recipient_phone],
+          ["Carnet", o.recipient_id_card],
+          ["Dirección", o.recipient_address],
+          ["Total", formatMoney(Number(o.total_brl), "BRL")],
+        ] as [string, string][]).map(([k, v]) => (
+          <div key={k} className="flex items-center justify-between gap-2">
+            <span className="truncate"><span className="text-muted-foreground">{k}: </span>{v}</span>
+            <button onClick={() => copy(v, k)} className="shrink-0 rounded-md border border-gold/50 p-1 text-gold">
+              <Copy className="h-3 w-3" />
+            </button>
+          </div>
+        ))}
+      </div>
+      <ul className="space-y-0.5 text-[11px] font-bold text-muted-foreground">
+        {(o.items ?? []).map((it, idx) => (
+          <li key={idx}>{it.qty}× {it.title} — {formatMoney(Number(it.price_brl) * it.qty, "BRL")}</li>
+        ))}
+      </ul>
+      <div className="flex gap-2">
+        {o.status !== "processing" && o.status !== "completed" && (
+          <button onClick={() => setStatus.mutate({ id: o.id, status: "processing" })}
+            className="flex-1 rounded-lg bg-gradient-sky px-2 py-2 text-[11px] font-extrabold text-white shadow-glow">
+            Procesando
+          </button>
+        )}
+        {o.status !== "completed" && (
+          <button onClick={() => setStatus.mutate({ id: o.id, status: "completed" })}
+            className="flex-1 rounded-lg bg-gradient-emerald px-2 py-2 text-[11px] font-extrabold text-white shadow-glow">
+            <Check className="mr-1 inline h-3 w-3" />Listo
+          </button>
+        )}
+        {o.status !== "rejected" && o.status !== "completed" && (
+          <button onClick={() => setStatus.mutate({ id: o.id, status: "rejected" })}
+            className="rounded-lg border border-destructive px-2 py-2 text-[11px] font-extrabold text-destructive">
+            Rechazar
+          </button>
+        )}
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="space-y-3">
+      {q.isLoading && <p className="text-sm font-bold text-muted-foreground">Cargando pedidos…</p>}
+      {!q.isLoading && active.length === 0 && (
+        <p className="rounded-xl border border-border bg-card p-4 text-sm font-bold text-muted-foreground">
+          No hay pedidos pendientes de VipShop.
+        </p>
+      )}
+      {active.map((o, i) => <Card key={o.id} o={o} i={i} />)}
+      {done.length > 0 && (
+        <details className="rounded-xl border border-border bg-card p-3">
+          <summary className="cursor-pointer text-xs font-extrabold uppercase text-muted-foreground">
+            Historial de pedidos ({done.length})
+          </summary>
+          <div className="mt-2 space-y-2">
+            {done.map((o, i) => <Card key={o.id} o={o} i={i} />)}
+          </div>
+        </details>
+      )}
+    </div>
+  );
+}
