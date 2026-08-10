@@ -119,26 +119,29 @@ function AuthedLayout() {
   // El perfil admin no envía remesas: sólo gestiona.
   const nav = admin
     ? ([
-        { to: "/admin", icon: Shield, label: "Panel" },
-        { to: "/history", icon: ClockIcon, label: "Historial" },
-        { to: "/settings", icon: SettingsIcon, label: "Ajustes" },
+        { to: "/admin", icon: Shield, label: "Panel", grad: "bg-gradient-sky" },
+        { to: "/history", icon: ClockIcon, label: "Historial", grad: "bg-gradient-violet" },
+        { to: "/settings", icon: SettingsIcon, label: "Ajustes", grad: "bg-gradient-emerald" },
       ] as const)
     : ([
-        { to: "/dashboard", icon: Home, label: "Inicio" },
-        { to: "/recargas", icon: Smartphone, label: "Recargas" },
-        { to: "/send", icon: Send, label: "Remesas" },
-        { to: "/history", icon: ClockIcon, label: "Historial" },
-        { to: "/settings", icon: SettingsIcon, label: "Ajustes" },
+        { to: "/dashboard", icon: Home, label: "Inicio", grad: "bg-gradient-sky" },
+        { to: "/recargas", icon: Smartphone, label: "Recargas", grad: "bg-gradient-emerald" },
+        { to: "/send", icon: Send, label: "Remesas", grad: "bg-gradient-rose" },
+        { to: "/history", icon: ClockIcon, label: "Historial", grad: "bg-gradient-violet" },
+        { to: "/tienda", icon: Store, label: "VipShop", grad: "bg-gradient-amber" },
+        { to: "/settings", icon: SettingsIcon, label: "Ajustes", grad: "bg-gradient-gold" },
       ] as const);
-
 
   return (
     <div className="min-h-screen bg-gradient-vip pb-24">
       <header className="mx-auto flex max-w-md items-center justify-between px-5 pt-6">
-        <Link to={admin ? "/admin" : "/dashboard"} className="flex items-center gap-2">
-          <BrandMark className="h-8 w-8" />
-          <span className="font-display text-base font-bold">VIP Remesas</span>
-        </Link>
+        <div className="flex items-center gap-2">
+          <SectionMenu items={nav} />
+          <Link to={admin ? "/admin" : "/dashboard"} className="flex items-center gap-2">
+            <BrandMark className="h-8 w-8" />
+            <span className="font-display text-base font-extrabold">VIP Remesas</span>
+          </Link>
+        </div>
 
         <div className="flex items-center gap-1">
           <button
@@ -200,12 +203,15 @@ function AuthedLayout() {
           className="mx-auto grid max-w-md"
           style={{ gridTemplateColumns: `repeat(${nav.length}, minmax(0, 1fr))` }}
         >
-          {nav.map(({ to, icon: Icon, label }) => {
+          {nav.map(({ to, icon: Icon, label, grad }) => {
             const active = path === to || path.startsWith(`${to}/`);
             return (
               <Link key={to} to={to}
-                className={`flex flex-col items-center gap-1 py-3 text-[11px] font-medium ${active ? "text-gold" : "text-muted-foreground"}`}>
-                <Icon className="h-5 w-5" /> {label}
+                className={`flex flex-col items-center gap-1 py-2.5 text-[10px] font-extrabold transition-colors ${active ? "text-gold" : "text-muted-foreground"}`}>
+                <span className={`grid h-8 w-8 place-items-center rounded-xl transition-transform ${active ? `${grad} text-white shadow-glow scale-105` : "bg-secondary"}`}>
+                  <Icon className="h-4 w-4" />
+                </span>
+                {label}
               </Link>
             );
           })}
