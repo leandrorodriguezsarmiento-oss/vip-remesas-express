@@ -488,6 +488,54 @@ export type Database = {
         }
         Relationships: []
       }
+      store_orders: {
+        Row: {
+          created_at: string
+          id: string
+          items: Json
+          notes: string | null
+          order_no: number
+          recipient_address: string
+          recipient_id_card: string
+          recipient_name: string
+          recipient_phone: string
+          status: Database["public"]["Enums"]["recarga_status"]
+          total_brl: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          items?: Json
+          notes?: string | null
+          order_no?: number
+          recipient_address: string
+          recipient_id_card: string
+          recipient_name: string
+          recipient_phone: string
+          status?: Database["public"]["Enums"]["recarga_status"]
+          total_brl?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          items?: Json
+          notes?: string | null
+          order_no?: number
+          recipient_address?: string
+          recipient_id_card?: string
+          recipient_name?: string
+          recipient_phone?: string
+          status?: Database["public"]["Enums"]["recarga_status"]
+          total_brl?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       store_products: {
         Row: {
           active: boolean
