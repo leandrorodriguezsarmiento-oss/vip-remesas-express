@@ -102,9 +102,9 @@ function Recargas() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center gap-3">
+      <div className="animate-rise flex items-center gap-3">
         <img src={etecsaLogo} alt="ETECSA / Cubacel" width={512} height={512} loading="lazy"
-          className="h-12 w-12 shrink-0 object-contain" />
+          className="h-12 w-12 shrink-0 animate-float object-contain" />
         <div>
           <h1 className="font-display text-2xl font-extrabold">Recargas Cubacel</h1>
           <p className="mt-1 text-sm font-semibold text-muted-foreground">Promos vigentes desde Brasil, México, Europa y EE.UU.</p>
@@ -112,12 +112,12 @@ function Recargas() {
       </div>
 
       {active.length > 0 && (
-        <section className="rounded-2xl border border-gold/40 bg-card p-4">
+        <section className="animate-rise rounded-2xl border border-gold/40 bg-card p-4 shadow-glow">
           <h2 className="mb-2 font-display text-sm font-bold">Tus recargas en proceso</h2>
           <ul className="space-y-2">
             {active.map((r) => (
-              <li key={r.id} className="flex items-center gap-2 rounded-lg border border-border bg-background/60 p-3">
-                <Smartphone className="h-4 w-4 shrink-0 text-gold" />
+              <li key={r.id} className="animate-slide-left flex items-center gap-2 rounded-lg border border-border bg-background/60 p-3">
+                <Smartphone className="h-4 w-4 shrink-0 animate-wiggle text-gold" />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-semibold">
                     {r.promo_title}
@@ -141,10 +141,10 @@ function Recargas() {
       )}
 
       <div className="space-y-2">
-        {promos.data?.map((p) => (
-          <button key={p.id} onClick={() => setSelected(p)}
-            className={`flex w-full items-center gap-3 rounded-xl border p-4 text-left transition ${selected?.id === p.id ? "border-gold bg-accent" : "border-border bg-card hover:border-gold/60"}`}>
-            <div className="grid h-12 w-12 place-items-center rounded-full bg-gradient-gold shadow-gold">
+        {promos.data?.map((p, i) => (
+          <button key={p.id} onClick={() => setSelected(p)} style={{ animationDelay: `${i * 60}ms` }}
+            className={`animate-rise flex w-full items-center gap-3 active:scale-[0.98] rounded-xl border p-4 text-left transition ${selected?.id === p.id ? "border-gold bg-accent" : "border-border bg-card hover:border-gold/60"}`}>
+            <div className={`grid h-12 w-12 place-items-center rounded-full bg-gradient-gold shadow-gold ${selected?.id === p.id ? "animate-ring" : "animate-float"}`}>
               <Smartphone className="h-6 w-6 text-primary-foreground" />
             </div>
             <div className="flex-1">
@@ -161,7 +161,7 @@ function Recargas() {
       </div>
 
       {selected && (
-        <div className="rounded-2xl border border-gold/40 bg-card p-4 space-y-3">
+        <div className="animate-pop rounded-2xl border border-gold/40 bg-card p-4 space-y-3 shadow-glow">
           <div>
             <div className="text-xs text-muted-foreground">Recarga seleccionada</div>
             <div className="font-display text-lg font-bold">{selected.title}</div>
@@ -184,7 +184,7 @@ function Recargas() {
             </span>
           </label>
           <button onClick={recharge} disabled={loading || digits.length !== 8}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-gold px-4 py-3 text-sm font-semibold text-primary-foreground shadow-gold disabled:opacity-60">
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-gold px-4 py-3 text-sm font-semibold text-primary-foreground shadow-gold transition-transform active:scale-95 animate-glow-pulse disabled:opacity-60 disabled:animate-none">
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
             Recargar por {formatMoney(Number(selected.price_brl), "BRL")}
           </button>
