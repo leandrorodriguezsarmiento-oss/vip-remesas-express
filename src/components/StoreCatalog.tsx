@@ -5,7 +5,7 @@ import { formatMoney } from "@/lib/remittance";
 import { toast } from "sonner";
 import {
   ShoppingBag, Store, ShoppingCart, X, Plus, Minus, Trash2, Loader2, Check,
-  User, Phone, IdCard, MapPin,
+  User, Phone, IdCard, MapPin, Plane,
 } from "lucide-react";
 import catCelulares from "@/assets/cat-celulares.jpg";
 import catElectro from "@/assets/cat-electrodomesticos.jpg";
