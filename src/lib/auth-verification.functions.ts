@@ -80,13 +80,24 @@ export const sendVerificationCode = createServerFn({ method: "POST" })
       });
     if (insertError) throw insertError;
 
-    // SLOT: reemplazar por envío real vía email o WhatsApp.
-    // El código NUNCA debe devolverse al cliente; sólo debe llegar por un
-    // canal fuera de banda (email/SMS/WhatsApp) para que sirva como prueba
-    // de posesión del email.
-    // await sendCodeViaEmail(data.email, code);
-    // await sendCodeViaWhatsApp(data.phone, code);
-    void code;
+    // Envío del código por EmailJS. El código NUNCA se devuelve al cliente:
+    // sólo llega por email, para que sirva como prueba de posesión.
+    const { sendEmailJs } = await import("./emailjs.server");
+    const result = await sendEmailJs({
+      to_email: data.email,
+      to_name: data.fullName ?? "",
+      subject: "VIP Remesas · Tu código de verificación",
+      message: [
+        `Tu código de verificación es: ${code}`,
+        `Vence en ${CODE_TTL_MINUTES} minutos.`,
+        "",
+        "Si no solicitaste este código, ignora este mensaje.",
+      ].join("\n"),
+    });
+    if (!result.sent) {
+      throw new Error("No se pudo enviar el correo con el código. Intenta de nuevo.");
+    }
+
 
     return { email: data.email, sent: true };
   });
