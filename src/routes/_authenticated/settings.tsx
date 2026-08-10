@@ -331,9 +331,17 @@ function ContactsCard({ userId }: { userId: string }) {
         .select("*")
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return data;
+      // Un mismo contacto (nombre + teléfono) se muestra una sola vez.
+      const seen = new Set<string>();
+      return (data ?? []).filter((r) => {
+        const key = `${(r.full_name ?? "").trim().toLowerCase()}|${(r.phone ?? "").replace(/\D/g, "")}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
     },
   });
+
 
   const add = useMutation({
     mutationFn: async () => {
