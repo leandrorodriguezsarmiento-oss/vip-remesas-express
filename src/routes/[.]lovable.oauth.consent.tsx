@@ -2,27 +2,8 @@ import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Sparkles, Loader2 } from "lucide-react";
+import { authOauth } from "@/lib/oauth-consent";
 
-// Typed shim for the beta supabase.auth.oauth namespace.
-type OAuthDetails = {
-  client?: { name?: string; client_name?: string; redirect_uris?: string[] };
-  redirect_url?: string;
-  redirect_to?: string;
-  scope?: string;
-  scopes?: string[];
-};
-type OAuthResult<T> = { data: T | null; error: { message: string } | null };
-type OAuthNs = {
-  getAuthorizationDetails: (id: string) => Promise<OAuthResult<OAuthDetails>>;
-  approveAuthorization: (
-    id: string,
-  ) => Promise<OAuthResult<{ redirect_url?: string; redirect_to?: string }>>;
-  denyAuthorization: (
-    id: string,
-  ) => Promise<OAuthResult<{ redirect_url?: string; redirect_to?: string }>>;
-};
-const authOauth = () =>
-  (supabase.auth as unknown as { oauth: OAuthNs }).oauth;
 
 export const Route = createFileRoute("/.lovable/oauth/consent")({
   ssr: false,
