@@ -1,9 +1,15 @@
-import { useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useEffect, useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { formatMoney } from "@/lib/remittance";
-import { ShoppingBag, Store, Smartphone, Refrigerator, Apple, X } from "lucide-react";
-import { SUPPORT_WHATSAPP_URL } from "@/lib/alias";
+import { toast } from "sonner";
+import {
+  ShoppingBag, Store, ShoppingCart, X, Plus, Minus, Trash2, Loader2, Check,
+  User, Phone, IdCard, MapPin,
+} from "lucide-react";
+import catCelulares from "@/assets/cat-celulares.jpg";
+import catElectro from "@/assets/cat-electrodomesticos.jpg";
+import catAlimentos from "@/assets/cat-alimentos.jpg";
 
 export type StoreProduct = {
   id: string;
@@ -15,15 +21,19 @@ export type StoreProduct = {
 };
 
 export const STORE_CATEGORIES = [
-  { id: "celulares", label: "Celulares, tablets y accesorios", icon: Smartphone, grad: "bg-gradient-sky" },
-  { id: "electrodomesticos", label: "Electrodomésticos", icon: Refrigerator, grad: "bg-gradient-violet" },
-  { id: "alimentos", label: "Alimentos y combos", icon: Apple, grad: "bg-gradient-emerald" },
+  { id: "celulares", label: "Celulares, tablets y accesorios", photo: catCelulares, grad: "bg-gradient-sky" },
+  { id: "electrodomesticos", label: "Electrodomésticos", photo: catElectro, grad: "bg-gradient-violet" },
+  { id: "alimentos", label: "Alimentos y combos", photo: catAlimentos, grad: "bg-gradient-emerald" },
 ] as const;
+
+const CART_KEY = "vipshop-cart-v1";
+
+type CartLine = { id: string; title: string; price_brl: number; image: string | null; qty: number };
 
 export function VipShopLogo({ className = "" }: { className?: string }) {
   return (
     <div className={`flex items-center gap-2 ${className}`}>
-      <span className="grid h-11 w-11 place-items-center rounded-xl bg-gradient-amber text-white shadow-glow">
+      <span className="grid h-11 w-11 place-items-center rounded-xl bg-gradient-amber text-white shadow-glow animate-float">
         <Store className="h-6 w-6" />
       </span>
       <span className="font-display text-2xl font-extrabold tracking-tight">
@@ -53,15 +63,65 @@ function ShopOpening() {
   );
 }
 
+function Field({
+  label, icon: Icon, value, onChange, placeholder, hint,
+}: {
+  label: string;
+  icon: typeof User;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  hint?: string;
+}) {
+  return (
+    <label className="block animate-rise">
+      <span className="mb-1 flex items-center gap-1 text-[10px] font-extrabold uppercase tracking-wide text-muted-foreground">
+        <Icon className="h-3 w-3" /> {label}
+      </span>
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm font-bold outline-none transition focus:border-gold"
+      />
+      {hint && <span className="mt-1 block text-[10px] font-bold text-muted-foreground">{hint}</span>}
+    </label>
+  );
+}
+
 export function StoreCatalog() {
+  const qc = useQueryClient();
   const [cat, setCat] = useState<string>(STORE_CATEGORIES[0].id);
   const [open, setOpen] = useState<StoreProduct | null>(null);
   const [opening, setOpening] = useState(true);
+  const [cart, setCart] = useState<CartLine[]>([]);
+  const [cartOpen, setCartOpen] = useState(false);
+  const [checkout, setCheckout] = useState(false);
+
+  // datos de quien recibe en Cuba
+  const [rName, setRName] = useState("");
+  const [rPhone, setRPhone] = useState("");
+  const [rCard, setRCard] = useState("");
+  const [rAddress, setRAddress] = useState("");
 
   useEffect(() => {
-    const t = setTimeout(() => setOpening(false), 1300);
+    const t = setTimeout(() => setOpening(false), 1100);
+    try {
+      const raw = localStorage.getItem(CART_KEY);
+      if (raw) setCart(JSON.parse(raw) as CartLine[]);
+    } catch {
+      /* carrito vacío */
+    }
     return () => clearTimeout(t);
   }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(CART_KEY, JSON.stringify(cart));
+    } catch {
+      /* sin almacenamiento */
+    }
+  }, [cart]);
 
   const q = useQuery<StoreProduct[]>({
     queryKey: ["store-products"],
@@ -82,73 +142,171 @@ export function StoreCatalog() {
   });
 
   const items = (q.data ?? []).filter((p) => p.category === cat);
+  const count = cart.reduce((s, l) => s + l.qty, 0);
+  const total = useMemo(() => cart.reduce((s, l) => s + l.qty * l.price_brl, 0), [cart]);
+
+  function addToCart(p: StoreProduct) {
+    setCart((prev) => {
+      const found = prev.find((l) => l.id === p.id);
+      if (found) return prev.map((l) => (l.id === p.id ? { ...l, qty: l.qty + 1 } : l));
+      return [...prev, { id: p.id, title: p.title, price_brl: p.price_brl, image: p.images[0] ?? null, qty: 1 }];
+    });
+    toast.success(`${p.title} agregado al carrito`);
+  }
+
+  const setQty = (id: string, delta: number) =>
+    setCart((prev) =>
+      prev
+        .map((l) => (l.id === id ? { ...l, qty: l.qty + delta } : l))
+        .filter((l) => l.qty > 0),
+    );
+
+  const submit = useMutation({
+    mutationFn: async () => {
+      const name = rName.trim();
+      const phone = rPhone.replace(/\D/g, "");
+      const card = rCard.replace(/\D/g, "");
+      const address = rAddress.trim();
+      if (cart.length === 0) throw new Error("Tu carrito está vacío");
+      if (name.length < 5 || !/^[A-Za-zÀ-ÿ\s.']+$/.test(name)) throw new Error("Escribe el nombre completo (solo letras)");
+      if (phone.length !== 8) throw new Error("El teléfono en Cuba debe tener 8 dígitos");
+      if (card.length !== 11) throw new Error("El carnet de identidad debe tener 11 dígitos");
+      if (address.length < 10) throw new Error("Escribe la dirección completa de entrega");
+
+      const { data: auth } = await supabase.auth.getUser();
+      const uid = auth.user?.id;
+      if (!uid) throw new Error("Inicia sesión para pedir");
+
+      const { data, error } = await supabase
+        .from("store_orders")
+        .insert({
+          user_id: uid,
+          recipient_name: name,
+          recipient_phone: `+53${phone}`,
+          recipient_id_card: card,
+          recipient_address: address,
+          items: cart.map((l) => ({ id: l.id, title: l.title, qty: l.qty, price_brl: l.price_brl })),
+          total_brl: total,
+        })
+        .select("order_no")
+        .single();
+      if (error) throw error;
+      return data.order_no as number;
+    },
+    onSuccess: (orderNo) => {
+      setCart([]);
+      setCheckout(false);
+      setCartOpen(false);
+      setRName(""); setRPhone(""); setRCard(""); setRAddress("");
+      qc.invalidateQueries({ queryKey: ["store-orders"] });
+      toast.success(`¡Pedido #${orderNo} recibido! Te avisamos cuando esté listo.`);
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "No se pudo enviar el pedido"),
+  });
 
   return (
     <div className="space-y-4">
       {opening && <ShopOpening />}
-      <VipShopLogo className="animate-rise" />
+
+      <div className="flex items-center justify-between gap-2">
+        <VipShopLogo className="animate-rise" />
+        <button
+          onClick={() => setCartOpen(true)}
+          aria-label="Ver carrito"
+          className="relative grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-gradient-sky text-white shadow-glow transition-transform active:scale-95"
+        >
+          <ShoppingCart className="h-5 w-5" />
+          {count > 0 && (
+            <span className="animate-pop absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-destructive px-1 text-[10px] font-extrabold text-white">
+              {count}
+            </span>
+          )}
+        </button>
+      </div>
+
       <p className="text-sm font-bold text-muted-foreground">
         Elige lo que quieres enviarle a tu familia en Cuba. Nosotros lo entregamos.
       </p>
 
       <div className="grid grid-cols-3 gap-2">
-        {STORE_CATEGORIES.map(({ id, label, icon: Icon, grad }, i) => (
+        {STORE_CATEGORIES.map(({ id, label, photo, grad }, i) => (
           <button
             key={id}
             onClick={() => setCat(id)}
-            style={{ animationDelay: `${i * 50}ms` }}
-            className={`animate-rise flex flex-col items-center gap-2 rounded-xl border p-3 text-center text-[10px] font-extrabold uppercase leading-tight transition ${
-              cat === id ? "border-gold bg-accent text-gold" : "border-border bg-card text-foreground"
+            style={{ animationDelay: `${i * 60}ms` }}
+            className={`animate-rise overflow-hidden rounded-2xl border text-center transition active:scale-[0.97] ${
+              cat === id ? "border-gold shadow-glow" : "border-border"
             }`}
           >
-            <span className={`grid h-9 w-9 place-items-center rounded-lg text-white shadow-glow ${grad}`}>
-              <Icon className="h-4 w-4" />
+            <span className={`relative block aspect-square w-full ${grad}`}>
+              <img
+                src={photo}
+                alt={label}
+                loading="lazy"
+                width={512}
+                height={512}
+                className="h-full w-full object-cover"
+              />
+              {cat === id && (
+                <span className="animate-pop absolute right-1 top-1 grid h-5 w-5 place-items-center rounded-full bg-gold text-white">
+                  <Check className="h-3 w-3" />
+                </span>
+              )}
             </span>
-            {label}
+            <span className="block bg-card px-1 py-2 text-[10px] font-extrabold uppercase leading-tight">
+              {label}
+            </span>
           </button>
         ))}
       </div>
 
       {q.isLoading && <p className="text-sm font-bold text-muted-foreground">Cargando productos…</p>}
       {!q.isLoading && items.length === 0 && (
-        <p className="rounded-xl border border-border bg-card p-4 text-sm font-bold text-muted-foreground">
+        <p className="animate-rise rounded-xl border border-border bg-card p-4 text-sm font-bold text-muted-foreground">
           Pronto publicaremos productos en esta categoría.
         </p>
       )}
 
       <div className="grid grid-cols-2 gap-3">
         {items.map((p, i) => (
-          <button
+          <div
             key={p.id}
-            onClick={() => setOpen(p)}
             style={{ animationDelay: `${i * 40}ms` }}
-            className="animate-rise overflow-hidden rounded-2xl border border-border bg-card text-left shadow-card transition-transform hover:border-gold active:scale-[0.98]"
+            className="animate-rise overflow-hidden rounded-2xl border border-border bg-card text-left shadow-card transition-transform hover:border-gold"
           >
-            <div className="aspect-square w-full bg-secondary">
-              {p.images[0] ? (
-                <img
-                  src={p.images[0]}
-                  alt={p.title}
-                  loading="lazy"
-                  decoding="async"
-                  className="h-full w-full object-cover"
-                />
-              ) : (
-                <div className="grid h-full w-full place-items-center">
-                  <ShoppingBag className="h-8 w-8 text-muted-foreground" />
-                </div>
-              )}
+            <button onClick={() => setOpen(p)} className="block w-full text-left">
+              <div className="aspect-square w-full bg-secondary">
+                {p.images[0] ? (
+                  <img src={p.images[0]} alt={p.title} loading="lazy" decoding="async" className="h-full w-full object-cover" />
+                ) : (
+                  <div className="grid h-full w-full place-items-center">
+                    <ShoppingBag className="h-8 w-8 text-muted-foreground" />
+                  </div>
+                )}
+              </div>
+              <div className="px-3 pt-3">
+                <p className="text-sm font-extrabold leading-tight">{p.title}</p>
+                {p.description && (
+                  <p className="mt-1 line-clamp-2 text-[11px] font-bold text-muted-foreground">{p.description}</p>
+                )}
+                <p className="mt-1 font-display text-base font-extrabold text-gold">
+                  {formatMoney(p.price_brl, "BRL")}
+                </p>
+              </div>
+            </button>
+            <div className="p-3 pt-2">
+              <button
+                onClick={() => addToCart(p)}
+                className="flex w-full items-center justify-center gap-1 rounded-xl bg-gradient-amber px-2 py-2 text-[11px] font-extrabold text-white shadow-glow transition-transform active:scale-95"
+              >
+                <ShoppingCart className="h-3.5 w-3.5" /> Agregar al carrito
+              </button>
             </div>
-            <div className="p-3">
-              <p className="text-sm font-extrabold leading-tight">{p.title}</p>
-              <p className="mt-1 font-display text-base font-extrabold text-gold">
-                {formatMoney(p.price_brl, "BRL")}
-              </p>
-            </div>
-          </button>
+          </div>
         ))}
       </div>
 
+      {/* Detalle de producto */}
       {open && (
         <div className="fixed inset-0 z-50 flex items-end bg-foreground/60 p-0 sm:items-center sm:p-6">
           <div className="animate-rise max-h-[90vh] w-full overflow-y-auto rounded-t-2xl border border-gold/40 bg-card p-4 sm:mx-auto sm:max-w-md sm:rounded-2xl">
@@ -164,19 +322,125 @@ export function StoreCatalog() {
               ))}
             </div>
             {open.description && (
-              <p className="mt-3 text-sm font-semibold text-foreground/80">{open.description}</p>
+              <p className="mt-3 whitespace-pre-line text-sm font-bold text-foreground/80">{open.description}</p>
             )}
             <p className="mt-3 font-display text-2xl font-extrabold text-gold">
               {formatMoney(open.price_brl, "BRL")}
             </p>
-            <a
-              href={`${SUPPORT_WHATSAPP_URL}?text=${encodeURIComponent(`Hola, quiero comprar en VipShop Brasil: ${open.title}`)}`}
-              target="_blank"
-              rel="noreferrer"
-              className="mt-4 block w-full rounded-xl bg-gradient-amber px-4 py-3 text-center text-sm font-extrabold text-white shadow-glow"
+            <button
+              onClick={() => { addToCart(open); setOpen(null); }}
+              className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-amber px-4 py-3 text-sm font-extrabold text-white shadow-glow transition-transform active:scale-95"
             >
-              Pedir por WhatsApp
-            </a>
+              <ShoppingCart className="h-4 w-4" /> Agregar al carrito
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Carrito */}
+      {cartOpen && (
+        <div className="fixed inset-0 z-50 flex items-end bg-foreground/60 sm:items-center sm:p-6">
+          <div className="animate-rise max-h-[92vh] w-full overflow-y-auto rounded-t-2xl border border-gold/40 bg-card p-4 sm:mx-auto sm:max-w-md sm:rounded-2xl">
+            <div className="mb-3 flex items-center justify-between">
+              <p className="font-display text-lg font-extrabold">
+                {checkout ? "Datos de quien recibe" : "Tu carrito"}
+              </p>
+              <button onClick={() => { setCartOpen(false); setCheckout(false); }} aria-label="Cerrar" className="rounded-md p-1 text-muted-foreground hover:text-gold">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {cart.length === 0 && (
+              <p className="rounded-xl border border-border bg-background p-4 text-sm font-bold text-muted-foreground">
+                Aún no agregaste productos.
+              </p>
+            )}
+
+            {!checkout && cart.map((l, i) => (
+              <div
+                key={l.id}
+                style={{ animationDelay: `${i * 40}ms` }}
+                className="animate-rise mb-2 flex items-center gap-3 rounded-xl border border-border bg-background p-2"
+              >
+                {l.image ? (
+                  <img src={l.image} alt={l.title} loading="lazy" className="h-14 w-14 rounded-lg object-cover" />
+                ) : (
+                  <span className="grid h-14 w-14 place-items-center rounded-lg bg-secondary">
+                    <ShoppingBag className="h-5 w-5 text-muted-foreground" />
+                  </span>
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-extrabold">{l.title}</p>
+                  <p className="text-xs font-extrabold text-gold">{formatMoney(l.price_brl * l.qty, "BRL")}</p>
+                </div>
+                <div className="flex items-center gap-1">
+                  <button onClick={() => setQty(l.id, -1)} aria-label="Quitar uno" className="grid h-7 w-7 place-items-center rounded-lg border border-border">
+                    <Minus className="h-3 w-3" />
+                  </button>
+                  <span className="w-5 text-center text-sm font-extrabold">{l.qty}</span>
+                  <button onClick={() => setQty(l.id, 1)} aria-label="Agregar uno" className="grid h-7 w-7 place-items-center rounded-lg bg-gradient-sky text-white">
+                    <Plus className="h-3 w-3" />
+                  </button>
+                  <button onClick={() => setCart((p) => p.filter((x) => x.id !== l.id))} aria-label="Eliminar" className="grid h-7 w-7 place-items-center rounded-lg text-destructive">
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
+            ))}
+
+            {checkout && (
+              <div className="space-y-2">
+                <Field label="Nombre y apellidos" icon={User} value={rName} onChange={setRName} placeholder="Ej: María Pérez González" />
+                <Field
+                  label="Teléfono en Cuba"
+                  icon={Phone}
+                  value={rPhone}
+                  onChange={(v) => setRPhone(v.replace(/\D/g, "").slice(0, 8))}
+                  placeholder="56530329"
+                  hint={`+53 · ${rPhone.length}/8 dígitos`}
+                />
+                <Field
+                  label="Carnet de identidad"
+                  icon={IdCard}
+                  value={rCard}
+                  onChange={(v) => setRCard(v.replace(/\D/g, "").slice(0, 11))}
+                  placeholder="85010112345"
+                  hint={`${rCard.length}/11 dígitos`}
+                />
+                <Field label="Dirección de entrega" icon={MapPin} value={rAddress} onChange={setRAddress} placeholder="Calle, número, entre calles, municipio y provincia" />
+              </div>
+            )}
+
+            {cart.length > 0 && (
+              <>
+                <div className="mt-3 flex items-center justify-between rounded-xl bg-gradient-vip p-3">
+                  <span className="text-xs font-extrabold uppercase text-muted-foreground">Total</span>
+                  <span className="font-display text-xl font-extrabold text-gold">{formatMoney(total, "BRL")}</span>
+                </div>
+                {!checkout ? (
+                  <button
+                    onClick={() => setCheckout(true)}
+                    className="mt-3 w-full rounded-xl bg-gradient-amber px-4 py-3 text-sm font-extrabold text-white shadow-glow transition-transform active:scale-95"
+                  >
+                    Continuar con el pedido
+                  </button>
+                ) : (
+                  <div className="mt-3 flex gap-2">
+                    <button onClick={() => setCheckout(false)} className="rounded-xl border border-border px-4 py-3 text-sm font-extrabold">
+                      Atrás
+                    </button>
+                    <button
+                      onClick={() => submit.mutate()}
+                      disabled={submit.isPending}
+                      className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-gradient-emerald px-4 py-3 text-sm font-extrabold text-white shadow-glow transition-transform active:scale-95 disabled:opacity-60"
+                    >
+                      {submit.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                      Confirmar pedido
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
           </div>
         </div>
       )}
