@@ -5,7 +5,7 @@ import {
   ORIGINS, type OriginCode, type DestCurrency,
   type RateRow, findRate,
 } from "@/lib/remittance";
-import { Send, Smartphone, TrendingUp, Store, Sparkles } from "lucide-react";
+import { Send, Smartphone, TrendingUp, Store, Sparkles, Banknote } from "lucide-react";
 import { BannerHero } from "@/components/BannerCarousel";
 import { FlagIcon } from "@/components/FlagIcon";
 
