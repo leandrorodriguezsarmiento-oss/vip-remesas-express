@@ -16,7 +16,7 @@ import bgCash from "@/assets/bg-cash.jpg";
 import bgCard from "@/assets/bg-card.jpg";
 
 import { toast } from "sonner";
-import { ArrowLeft, ArrowRight, Check, Copy, CreditCard, Loader2, Sparkles } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Copy, CreditCard, Loader2, Plane, Sparkles } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/send")({
   component: SendFlow,
@@ -479,6 +479,19 @@ function SendFlow() {
           </div>
           <h1 className="animate-rise font-display text-3xl font-bold text-gradient-gold">¡Enviado!</h1>
           <p className="mt-2 text-sm text-muted-foreground">Tu remesa está siendo procesada.</p>
+
+          {/* Vuelo origen → Cuba */}
+          <div className="relative mx-auto mt-5 flex w-64 items-center justify-between">
+            <FlagIcon code={origin ?? "BR"} className="relative z-10 h-7 w-10 rounded" />
+            <svg viewBox="0 0 240 40" className="pointer-events-none absolute inset-x-0 top-1/2 h-10 w-full -translate-y-1/2" aria-hidden>
+              <path d="M14 28 C 70 -6, 170 -6, 226 28" fill="none" stroke="currentColor" className="animate-dash text-gold"
+                strokeWidth="2" strokeLinecap="round" strokeDasharray="4 6" />
+            </svg>
+            <FlagIcon code="CU" className="relative z-10 h-7 w-10 rounded" />
+            <span className="animate-fly absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+              <Plane className="h-6 w-6 text-gold" />
+            </span>
+          </div>
           <div className="animate-rise mx-auto mt-6 max-w-xs rounded-2xl border border-gold/40 bg-card p-5 shadow-glow">
             <p className="text-sm font-bold text-foreground">Estado: en proceso</p>
             <p className="mt-1 text-xs font-semibold text-muted-foreground">
