@@ -6,6 +6,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatMoney } from "@/lib/remittance";
 import { deleteUserAsAdmin, setOrganizerRole } from "@/lib/admin.functions";
 import { syncRecharges } from "@/lib/payments.functions";
+import { sendTransactionStatusEmail } from "@/lib/emails.functions";
+
 import { toast } from "sonner";
 import { Shield, Loader2, Trash2, Plus, Check, RefreshCw, Smartphone, Zap, BarChart3, CreditCard, Copy, UserCheck } from "lucide-react";
 
@@ -162,10 +164,16 @@ function TransactionsTab() {
     mutationFn: async ({ id, status }: { id: string; status: "pending" | "processing" | "completed" | "rejected" }) => {
       const { error } = await supabase.from("transactions").update({ status }).eq("id", id);
       if (error) throw error;
+      try {
+        await sendTransactionStatusEmail({ data: { transactionId: id, status } });
+      } catch {
+        /* el correo es complementario: no bloquea el cambio de estado */
+      }
     },
     onSuccess: () => { toast.success("Estado actualizado"); qc.invalidateQueries({ queryKey: ["admin-tx"] }); },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Error"),
   });
+
 
   if (q.isLoading) return <p className="text-sm text-muted-foreground">Cargando…</p>;
 
