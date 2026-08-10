@@ -10,6 +10,9 @@ import {
 import catCelulares from "@/assets/cat-celulares.jpg";
 import catElectro from "@/assets/cat-electrodomesticos.jpg";
 import catAlimentos from "@/assets/cat-alimentos.jpg";
+import mapRoute from "@/assets/map-route.jpg";
+import { FlagIcon } from "@/components/FlagIcon";
+
 
 export type StoreProduct = {
   id: string;
@@ -48,8 +51,11 @@ function ShopOpening() {
   return (
     <div className="pointer-events-none fixed inset-0 z-50 overflow-hidden">
       <div className="absolute inset-0 animate-shutter bg-gradient-amber">
+        <img src={mapRoute} alt="" aria-hidden width={1024} height={640}
+          className="absolute inset-0 h-full w-full animate-zoom-bg object-cover opacity-35" />
+        <div className="absolute inset-0 bg-black/35" />
         <div className="absolute inset-x-0 bottom-0 h-3 bg-black/25" />
-        <div className="grid h-full place-items-center">
+        <div className="relative grid h-full place-items-center">
           <div className="animate-pop text-center">
             <span className="mx-auto grid h-20 w-20 place-items-center rounded-2xl bg-white/20 animate-float">
               <Store className="h-10 w-10 text-white" />
@@ -57,14 +63,14 @@ function ShopOpening() {
             <p className="mt-3 font-display text-2xl font-extrabold text-white">VipShop Brasil</p>
             <p className="text-xs font-bold text-white/90">Abriendo la tienda…</p>
 
-            {/* Ruta Brasil → Cuba */}
+            {/* Ruta Brasil → Cuba (banderas reales sobre el mapa) */}
             <div className="relative mx-auto mt-6 flex w-64 items-center justify-between">
-              <span className="relative z-10 grid h-9 w-9 place-items-center rounded-full bg-white/25 text-[10px] font-extrabold text-white">BR</span>
+              <FlagIcon code="BR" className="relative z-10 h-8 w-11 animate-float rounded-md shadow-glow" />
               <svg viewBox="0 0 240 40" className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-10 w-full" aria-hidden>
                 <path d="M12 28 C 70 -6, 170 -6, 228 28" fill="none" stroke="white" strokeOpacity="0.75"
                   strokeWidth="2" strokeLinecap="round" className="animate-dash" />
               </svg>
-              <span className="relative z-10 grid h-9 w-9 place-items-center rounded-full bg-white/25 text-[10px] font-extrabold text-white">CU</span>
+              <FlagIcon code="CU" className="relative z-10 h-8 w-11 animate-float rounded-md shadow-glow" />
               <span className="animate-fly absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
                 <Plane className="h-7 w-7 text-white drop-shadow" />
               </span>
@@ -72,6 +78,7 @@ function ShopOpening() {
           </div>
         </div>
       </div>
+
     </div>
   );
 }
