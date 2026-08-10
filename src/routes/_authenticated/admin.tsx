@@ -162,10 +162,16 @@ function TransactionsTab() {
     mutationFn: async ({ id, status }: { id: string; status: "pending" | "processing" | "completed" | "rejected" }) => {
       const { error } = await supabase.from("transactions").update({ status }).eq("id", id);
       if (error) throw error;
+      try {
+        await sendTransactionStatusEmail({ data: { transactionId: id, status } });
+      } catch {
+        /* el correo es complementario: no bloquea el cambio de estado */
+      }
     },
     onSuccess: () => { toast.success("Estado actualizado"); qc.invalidateQueries({ queryKey: ["admin-tx"] }); },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Error"),
   });
+
 
   if (q.isLoading) return <p className="text-sm text-muted-foreground">Cargando…</p>;
 
