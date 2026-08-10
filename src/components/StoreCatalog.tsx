@@ -5,7 +5,7 @@ import { formatMoney } from "@/lib/remittance";
 import { toast } from "sonner";
 import {
   ShoppingBag, Store, ShoppingCart, X, Plus, Minus, Trash2, Loader2, Check,
-  User, Phone, IdCard, MapPin,
+  User, Phone, IdCard, MapPin, Plane,
 } from "lucide-react";
 import catCelulares from "@/assets/cat-celulares.jpg";
 import catElectro from "@/assets/cat-electrodomesticos.jpg";
@@ -43,7 +43,7 @@ export function VipShopLogo({ className = "" }: { className?: string }) {
   );
 }
 
-/** Animación de "tiendita que se abre" al entrar a VipShop. */
+/** Animación de "tiendita que se abre" + avión que vuela de Brasil a Cuba. */
 function ShopOpening() {
   return (
     <div className="pointer-events-none fixed inset-0 z-50 overflow-hidden">
@@ -51,17 +51,31 @@ function ShopOpening() {
         <div className="absolute inset-x-0 bottom-0 h-3 bg-black/25" />
         <div className="grid h-full place-items-center">
           <div className="animate-pop text-center">
-            <span className="mx-auto grid h-20 w-20 place-items-center rounded-2xl bg-white/20">
+            <span className="mx-auto grid h-20 w-20 place-items-center rounded-2xl bg-white/20 animate-float">
               <Store className="h-10 w-10 text-white" />
             </span>
             <p className="mt-3 font-display text-2xl font-extrabold text-white">VipShop Brasil</p>
             <p className="text-xs font-bold text-white/90">Abriendo la tienda…</p>
+
+            {/* Ruta Brasil → Cuba */}
+            <div className="relative mx-auto mt-6 flex w-64 items-center justify-between">
+              <span className="relative z-10 grid h-9 w-9 place-items-center rounded-full bg-white/25 text-[10px] font-extrabold text-white">BR</span>
+              <svg viewBox="0 0 240 40" className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-10 w-full" aria-hidden>
+                <path d="M12 28 C 70 -6, 170 -6, 228 28" fill="none" stroke="white" strokeOpacity="0.75"
+                  strokeWidth="2" strokeLinecap="round" className="animate-dash" />
+              </svg>
+              <span className="relative z-10 grid h-9 w-9 place-items-center rounded-full bg-white/25 text-[10px] font-extrabold text-white">CU</span>
+              <span className="animate-fly absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+                <Plane className="h-7 w-7 text-white drop-shadow" />
+              </span>
+            </div>
           </div>
         </div>
       </div>
     </div>
   );
 }
+
 
 function Field({
   label, icon: Icon, value, onChange, placeholder, hint,
@@ -105,7 +119,7 @@ export function StoreCatalog() {
   const [rAddress, setRAddress] = useState("");
 
   useEffect(() => {
-    const t = setTimeout(() => setOpening(false), 1100);
+    const t = setTimeout(() => setOpening(false), 2300);
     try {
       const raw = localStorage.getItem(CART_KEY);
       if (raw) setCart(JSON.parse(raw) as CartLine[]);

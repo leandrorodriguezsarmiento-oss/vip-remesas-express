@@ -16,7 +16,7 @@ import bgCash from "@/assets/bg-cash.jpg";
 import bgCard from "@/assets/bg-card.jpg";
 
 import { toast } from "sonner";
-import { ArrowLeft, ArrowRight, Check, Copy, CreditCard, Loader2, Sparkles } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Copy, CreditCard, Loader2, Plane, Sparkles } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/send")({
   component: SendFlow,
@@ -214,7 +214,7 @@ function SendFlow() {
           <div className="flex-1">
             <div className="text-xs text-muted-foreground">Paso {step} de 5</div>
             <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-secondary">
-              <div className="h-full bg-gradient-gold transition-all" style={{ width: `${(step / 5) * 100}%` }} />
+              <div className="h-full bg-gradient-gold transition-all duration-500" style={{ width: `${(step / 5) * 100}%` }} />
             </div>
           </div>
         </div>
@@ -224,16 +224,16 @@ function SendFlow() {
       {step === 1 && (
         <Step title="¿Desde dónde envías?" subtitle="Selecciona el país de origen">
           <div className="space-y-2">
-            {ORIGINS.map((o) => (
-              <button key={o.code}
+            {ORIGINS.map((o, i) => (
+              <button key={o.code} style={{ animationDelay: `${i * 70}ms` }}
                 onClick={() => { setOrigin(o.code); setStep(2); }}
-                className={`relative flex w-full items-center gap-3 overflow-hidden rounded-xl border p-4 text-left transition ${origin === o.code ? "border-gold bg-accent" : "border-border bg-card hover:border-gold/60"}`}>
+                className={`animate-rise relative flex w-full items-center gap-3 overflow-hidden rounded-xl border p-4 text-left transition active:scale-[0.98] ${origin === o.code ? "border-gold bg-accent" : "border-border bg-card hover:border-gold/60"}`}>
                 {/* Banderas de fondo: origen → Cuba */}
                 <span aria-hidden className="pointer-events-none absolute inset-0 flex items-center justify-end gap-2 pr-3 opacity-20 select-none">
                   <FlagIcon code={o.code} className="h-14 w-20" />
                   <FlagIcon code="CU" className="h-14 w-20" />
                 </span>
-                <FlagIcon code={o.code} className="relative h-7 w-10" />
+                <FlagIcon code={o.code} className="relative h-7 w-10 animate-float" />
                 <div className="relative flex-1">
                   <div className="text-base font-extrabold">{o.name} → Cuba</div>
                   <div className="text-xs font-semibold text-muted-foreground">Envías en {o.currency} → recibes en Cuba</div>
@@ -249,13 +249,14 @@ function SendFlow() {
       {step === 2 && (
         <Step title="¿Cómo lo reciben?" subtitle="Transferencia o efectivo">
           <div className="space-y-2">
-            {METHOD_CATEGORIES.map((m) => (
-              <button key={m.id}
+            {METHOD_CATEGORIES.map((m, i) => (
+              <button key={m.id} style={{ animationDelay: `${i * 90}ms` }}
                 onClick={() => { setMethod(m.id); setCurrency(null); setStep(3); }}
-                className={`relative flex w-full items-center gap-3 overflow-hidden rounded-xl border p-4 text-left transition ${method === m.id ? "border-gold bg-accent" : "border-border bg-card hover:border-gold/60"}`}>
-                <span aria-hidden className="pointer-events-none absolute inset-0 opacity-25">
-                  <img src={m.id === "efectivo" ? bgCash : bgCard} alt="" loading="lazy" width={1024} height={512}
-                    className="h-full w-full object-cover" />
+                className={`animate-rise group relative flex w-full items-center gap-3 overflow-hidden rounded-xl border p-4 text-left transition active:scale-[0.98] ${method === m.id ? "border-gold bg-accent" : "border-border bg-card hover:border-gold/60"}`}>
+                <span aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden opacity-30">
+                  <img src={m.id === "efectivo" ? bgCash : bgCard} alt="" loading="lazy" width={1200} height={640}
+                    className="h-full w-full animate-zoom-bg object-cover transition-transform duration-700 group-hover:scale-105" />
+                  <span className="absolute inset-0 bg-gradient-to-r from-card/90 via-card/55 to-card/10" />
                 </span>
                 <div className="relative flex-1">
                   <div className="text-base font-extrabold">{m.label}</div>
@@ -275,9 +276,9 @@ function SendFlow() {
           <div>
             <span className="mb-1.5 block text-xs font-medium text-muted-foreground">Moneda de destino</span>
             <div className="grid grid-cols-3 gap-2">
-              {availableCurrencies.map((c) => (
-                <button key={c} onClick={() => setCurrency(c)}
-                  className={`rounded-xl border p-3 text-center text-sm font-semibold ${currency === c ? "border-gold bg-accent text-gold" : "border-border bg-card"}`}>
+              {availableCurrencies.map((c, i) => (
+                <button key={c} onClick={() => setCurrency(c)} style={{ animationDelay: `${i * 60}ms` }}
+                  className={`animate-pop rounded-xl border p-3 transition active:scale-95 text-center text-sm font-semibold ${currency === c ? "border-gold bg-accent text-gold" : "border-border bg-card"}`}>
                   {c}
                 </button>
               ))}
@@ -297,7 +298,7 @@ function SendFlow() {
           </label>
 
           {quote && rate && !belowMin && (
-            <div className="rounded-xl border border-gold/40 bg-card p-4 space-y-2">
+            <div className="animate-pop rounded-xl border border-gold/40 bg-card p-4 space-y-2 shadow-glow">
               <Row k="Recibe" v={formatMoney(quote.amountDest, currency!)} strong />
               <Row k="Tasa" v={`1 ${originOpt.currency} = ${rate.rate} ${currency}`} />
               <Row k="Tiempo estimado" v={quote.timeLabel} />
@@ -363,7 +364,7 @@ function SendFlow() {
       {/* Paso 5: resumen + crear orden */}
       {step === 5 && originOpt && quote && rate && currency && method && (
         <Step title="Confirmar remesa" subtitle="Revisa antes de generar el pago">
-          <div className="rounded-xl border border-border bg-card p-4 space-y-2 text-sm">
+          <div className="animate-rise rounded-xl border border-border bg-card p-4 space-y-2 text-sm shadow-card">
             <Row k="Destinatario" v={recipient.name} />
             <Row k="Teléfono" v={recipient.phone} />
             {recipient.card && <Row k="Tarjeta / Cuenta" v={recipient.card} />}
@@ -379,7 +380,7 @@ function SendFlow() {
             <Row k="Recibe" v={formatMoney(quote.amountDest, currency)} strong />
           </div>
           <button onClick={createOrder} disabled={loading}
-            className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-gold px-4 py-4 text-base font-semibold text-primary-foreground shadow-gold disabled:opacity-70">
+            className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-gold px-4 py-4 text-base font-semibold text-primary-foreground shadow-gold transition-transform active:scale-95 animate-glow-pulse disabled:opacity-70 disabled:animate-none">
             {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}
             Crear orden y pagar con PIX
           </button>
@@ -473,12 +474,25 @@ function SendFlow() {
       {/* Paso 7: éxito */}
       {step === 7 && tracking && (
         <div className="pt-6 text-center">
-          <div className="mx-auto mb-4 grid h-20 w-20 place-items-center rounded-full bg-gradient-gold shadow-gold">
+          <div className="animate-pop animate-ring mx-auto mb-4 grid h-20 w-20 place-items-center rounded-full bg-gradient-gold shadow-gold">
             <Check className="h-10 w-10 text-primary-foreground" />
           </div>
-          <h1 className="font-display text-3xl font-bold">¡Enviado!</h1>
+          <h1 className="animate-rise font-display text-3xl font-bold text-gradient-gold">¡Enviado!</h1>
           <p className="mt-2 text-sm text-muted-foreground">Tu remesa está siendo procesada.</p>
-          <div className="mx-auto mt-6 max-w-xs rounded-2xl border border-gold/40 bg-card p-5">
+
+          {/* Vuelo origen → Cuba */}
+          <div className="relative mx-auto mt-5 flex w-64 items-center justify-between">
+            <FlagIcon code={origin ?? "BR"} className="relative z-10 h-7 w-10 rounded" />
+            <svg viewBox="0 0 240 40" className="pointer-events-none absolute inset-x-0 top-1/2 h-10 w-full -translate-y-1/2" aria-hidden>
+              <path d="M14 28 C 70 -6, 170 -6, 226 28" fill="none" stroke="currentColor" className="animate-dash text-gold"
+                strokeWidth="2" strokeLinecap="round" strokeDasharray="4 6" />
+            </svg>
+            <FlagIcon code="CU" className="relative z-10 h-7 w-10 rounded" />
+            <span className="animate-fly absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+              <Plane className="h-6 w-6 text-gold" />
+            </span>
+          </div>
+          <div className="animate-rise mx-auto mt-6 max-w-xs rounded-2xl border border-gold/40 bg-card p-5 shadow-glow">
             <p className="text-sm font-bold text-foreground">Estado: en proceso</p>
             <p className="mt-1 text-xs font-semibold text-muted-foreground">
               Te avisamos por notificación cuando esté completada.
@@ -503,9 +517,9 @@ function SendFlow() {
 
 function Step({ title, subtitle, children }: { title: string; subtitle?: string; children: React.ReactNode }) {
   return (
-    <div className="space-y-4">
+    <div className="animate-rise space-y-4">
       <div>
-        <h1 className="font-display text-2xl font-bold">{title}</h1>
+        <h1 className="font-display text-2xl font-bold text-gradient-gold">{title}</h1>
         {subtitle && <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>}
       </div>
       {children}
