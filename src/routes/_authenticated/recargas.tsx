@@ -69,12 +69,16 @@ function Recargas() {
   });
 
   const [selected, setSelected] = useState<Promo | null>(null);
-  const [phone, setPhone] = useState("");
+  const [digits, setDigits] = useState("");
+  const phone = digits ? `+53${digits}` : "";
   const [loading, setLoading] = useState(false);
   const submitRecharge = useServerFn(createRechargeRequest);
 
   async function recharge() {
-    if (!selected || !phone) return;
+    if (!selected || digits.length !== 8) {
+      toast.error("El teléfono de Cuba debe tener 8 dígitos");
+      return;
+    }
     setLoading(true);
     try {
       // Server function looks up the authoritative promo (title/price) so a
@@ -82,7 +86,7 @@ function Recargas() {
       await submitRecharge({ data: { promoId: selected.id, phone } });
       toast.success(`Recarga en proceso. Te avisamos al completarla (${phone}).`);
       setSelected(null);
-      setPhone("");
+      setDigits("");
       await qc.invalidateQueries({ queryKey: ["recargas-mine"] });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Error");
@@ -163,11 +167,23 @@ function Recargas() {
             <div className="font-display text-lg font-bold">{selected.title}</div>
           </div>
           <label className="block">
-            <span className="mb-1.5 block text-xs font-medium text-muted-foreground">Teléfono Cubacel</span>
-            <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+53 5X XXX XXX"
-              className="w-full rounded-lg border border-border bg-background px-4 py-3 text-sm outline-none focus:border-gold" />
+            <span className="mb-1.5 block text-xs font-extrabold uppercase text-muted-foreground">Teléfono Cubacel</span>
+            <div className="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-3 focus-within:border-gold">
+              <span className="shrink-0 text-sm font-extrabold text-gold">+53</span>
+              <input
+                value={digits}
+                onChange={(e) => setDigits(e.target.value.replace(/\D/g, "").slice(0, 8))}
+                inputMode="numeric"
+                autoComplete="off"
+                maxLength={8}
+                placeholder="56530329"
+                className="w-full bg-transparent text-sm font-extrabold outline-none" />
+            </div>
+            <span className="mt-1 block text-[11px] font-bold text-muted-foreground">
+              Solo 8 dígitos (sin el +53). {digits.length}/8
+            </span>
           </label>
-          <button onClick={recharge} disabled={loading || !phone}
+          <button onClick={recharge} disabled={loading || digits.length !== 8}
             className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-gold px-4 py-3 text-sm font-semibold text-primary-foreground shadow-gold disabled:opacity-60">
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
             Recargar por {formatMoney(Number(selected.price_brl), "BRL")}
