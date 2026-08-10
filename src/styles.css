@@ -219,3 +219,45 @@
 @utility animate-pop { animation: vip-pop 0.4s cubic-bezier(0.22, 1, 0.36, 1) both; }
 @utility animate-shutter { animation: vip-shutter 0.9s cubic-bezier(0.65, 0, 0.35, 1) 0.35s forwards; }
 @utility animate-diagonal { animation: vip-diagonal 0.32s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+/* ---- Extra: vuelo, pulsos y entradas ---- */
+@keyframes vip-fly {
+  0% { opacity: 0; transform: translate(-42vw, 18px) rotate(-8deg) scale(0.8); }
+  15% { opacity: 1; }
+  50% { transform: translate(0, -22px) rotate(2deg) scale(1.05); }
+  85% { opacity: 1; }
+  100% { opacity: 0; transform: translate(42vw, 14px) rotate(10deg) scale(0.85); }
+}
+@keyframes vip-dash {
+  from { stroke-dashoffset: 240; }
+  to { stroke-dashoffset: 0; }
+}
+@keyframes vip-ring {
+  0% { box-shadow: 0 0 0 0 var(--gold); opacity: 0.9; }
+  100% { box-shadow: 0 0 0 18px transparent; opacity: 1; }
+}
+@keyframes vip-slide-left {
+  from { opacity: 0; transform: translateX(26px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes vip-glow-pulse {
+  0%, 100% { filter: brightness(1); transform: scale(1); }
+  50% { filter: brightness(1.12); transform: scale(1.015); }
+}
+@keyframes vip-wiggle {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-6deg); }
+  75% { transform: rotate(6deg); }
+}
+@keyframes vip-zoom-bg {
+  from { transform: scale(1.12); }
+  to { transform: scale(1); }
+}
+
+@utility animate-fly { animation: vip-fly 2.1s cubic-bezier(0.4, 0, 0.4, 1) forwards; }
+@utility animate-dash { stroke-dasharray: 240; animation: vip-dash 1.8s ease-in-out forwards; }
+@utility animate-ring { animation: vip-ring 1.4s ease-out infinite; }
+@utility animate-slide-left { animation: vip-slide-left 0.4s cubic-bezier(0.22, 1, 0.36, 1) both; }
+@utility animate-glow-pulse { animation: vip-glow-pulse 2.2s ease-in-out infinite; }
+@utility animate-wiggle { animation: vip-wiggle 1.6s ease-in-out infinite; }
+@utility animate-zoom-bg { animation: vip-zoom-bg 6s ease-out both; }
