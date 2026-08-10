@@ -1152,6 +1152,7 @@ function StoreTab() {
             className="w-full rounded-lg border border-border bg-background px-3 py-2 text-xs font-semibold outline-none focus:border-gold">
             <option value="celulares">Celulares, tablets y accesorios</option>
             <option value="electrodomesticos">Electrodomésticos</option>
+              <option value="alimentos">Alimentos y combos</option>
           </select>
         </label>
         <MiniInput label="Nombre" value={title} onChange={setTitle} />
@@ -1194,6 +1195,7 @@ function StoreTab() {
               className="w-full rounded-lg border border-border bg-background px-3 py-2 text-xs font-semibold">
               <option value="celulares">Celulares, tablets y accesorios</option>
               <option value="electrodomesticos">Electrodomésticos</option>
+              <option value="alimentos">Alimentos y combos</option>
             </select>
           </label>
           <div className="flex items-center justify-between">
