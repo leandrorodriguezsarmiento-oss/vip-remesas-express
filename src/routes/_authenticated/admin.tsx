@@ -23,7 +23,7 @@ export const Route = createFileRoute("/_authenticated/admin")({
   component: AdminPanel,
 });
 
-type Tab = "tx" | "recargas" | "rates" | "promos" | "users" | "api" | "banners" | "payments" | "mp" | "reports" | "store";
+type Tab = "tx" | "recargas" | "rates" | "promos" | "users" | "api" | "banners" | "payments" | "mp" | "reports" | "store" | "orders";
 
 function AdminPanel() {
   const { isAdmin } = Route.useRouteContext();
@@ -31,12 +31,13 @@ function AdminPanel() {
 
   const tabs: [Tab, string][] = isAdmin
     ? [
-        ["tx", "Remesas"], ["recargas", "Recargas"], ["reports", "Reportes"],
+        ["tx", "Remesas"], ["recargas", "Recargas"], ["orders", "Pedidos"], ["reports", "Reportes"],
         ["rates", "Tasas"], ["promos", "Promos"], ["banners", "Banners"],
-        ["store", "VipTienda"],
+        ["store", "VipShop"],
         ["payments", "Cuentas de pago"], ["mp", "Mercado Pago"], ["users", "Usuarios"], ["api", "API"],
       ]
-    : [["tx", "Remesas"], ["recargas", "Recargas"]];
+    : [["tx", "Remesas"], ["recargas", "Recargas"], ["orders", "Pedidos"]];
+
 
   return (
     <div className="space-y-5">
@@ -64,7 +65,9 @@ function AdminPanel() {
       </div>
 
       {tab === "tx" && <TransactionsTab />}
+      {tab === "orders" && <StoreOrdersTab />}
       {tab === "recargas" && <RecargasTab canSync={isAdmin} />}
+
       {isAdmin && tab === "reports" && <ReportsTab />}
       {isAdmin && tab === "rates" && <RatesTab />}
       {isAdmin && tab === "promos" && <PromosTab />}
