@@ -37,11 +37,11 @@ function useBanners() {
 
   // Precargamos las imágenes para que el cambio sea instantáneo.
   useEffect(() => {
-    banners.forEach((b) => {
+    (data ?? []).forEach((b) => {
       const img = new Image();
       img.src = b.image_url;
     });
-  }, [banners]);
+  }, [data]);
 
   useEffect(() => {
     if (banners.length < 2) return;
