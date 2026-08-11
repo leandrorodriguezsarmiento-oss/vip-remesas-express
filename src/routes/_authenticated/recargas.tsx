@@ -161,23 +161,30 @@ function Recargas() {
       )}
 
       <div className="space-y-2">
-        {promos.data?.map((p, i) => (
-          <button key={p.id} onClick={() => setSelected(p)} style={{ animationDelay: `${i * 60}ms` }}
-            className={`animate-rise flex w-full items-center gap-3 active:scale-[0.98] rounded-xl border p-4 text-left transition ${selected?.id === p.id ? "border-gold bg-accent" : "border-border bg-card hover:border-gold/60"}`}>
-            <div className={`grid h-12 w-12 place-items-center rounded-full bg-gradient-gold shadow-gold ${selected?.id === p.id ? "animate-ring" : "animate-float"}`}>
-              <Smartphone className="h-6 w-6 text-primary-foreground" />
-            </div>
-            <div className="flex-1">
-              <div className="font-semibold">{p.title}</div>
-              {p.description && <div className="text-xs text-muted-foreground">{p.description}</div>}
-              {p.bonus_label && <div className="mt-1 text-[11px] font-medium text-gold">{p.bonus_label}</div>}
-            </div>
-            <div className="text-right">
-              <div className="font-display text-lg font-bold text-gold">{formatMoney(Number(p.price_brl), "BRL")}</div>
-              <div className="text-[10px] text-muted-foreground">o equivalente</div>
-            </div>
-          </button>
-        ))}
+        {promos.data?.map((p, i) => {
+          const isPromo = /promo/i.test(p.title) || /promo/i.test(p.bonus_label ?? "");
+          return (
+            <button key={p.id} onClick={() => { setSelected(p); setLastId(null); }} style={{ animationDelay: `${i * 60}ms` }}
+              className={`animate-rise flex w-full items-center gap-3 active:scale-[0.98] rounded-xl border p-4 text-left transition ${selected?.id === p.id ? "border-gold bg-accent" : "border-border bg-card hover:border-gold/60"}`}>
+              <div className={`grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-full bg-white shadow-gold ${selected?.id === p.id ? "animate-ring" : "animate-float"}`}>
+                <img
+                  src={isPromo ? promoGift : cubacelLogo}
+                  alt={isPromo ? "Promoción especial" : "Cubacel"}
+                  width={512} height={512} loading="lazy"
+                  className="h-9 w-9 object-contain" />
+              </div>
+              <div className="flex-1">
+                <div className="font-extrabold">{p.title}</div>
+                {p.description && <div className="text-xs font-semibold text-muted-foreground">{p.description}</div>}
+                {p.bonus_label && <div className="mt-1 text-[11px] font-bold text-gold">{p.bonus_label}</div>}
+              </div>
+              <div className="text-right">
+                <div className="font-display text-lg font-bold text-gold">{formatMoney(Number(p.price_brl), "BRL")}</div>
+                <div className="text-[10px] text-muted-foreground">o equivalente</div>
+              </div>
+            </button>
+          );
+        })}
       </div>
 
       {selected && (
@@ -208,8 +215,17 @@ function Recargas() {
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
             Recargar por {formatMoney(Number(selected.price_brl), "BRL")}
           </button>
-          <p className="text-center text-[11px] text-muted-foreground">
-            🔌 Conectaremos la API real de Cubacel desde el panel admin.
+
+          {lastId && (
+            <button onClick={payWithMercadoPago} disabled={paying}
+              className="animate-pop flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-sky px-4 py-3 text-sm font-extrabold text-white shadow-glow transition-transform active:scale-95 disabled:opacity-60">
+              {paying ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
+              Pagar {formatMoney(Number(selected.price_brl), "BRL")} con Mercado Pago
+            </button>
+          )}
+
+          <p className="text-center text-[11px] font-semibold text-muted-foreground">
+            Al recibir tu pago pasamos la recarga a proceso y te avisamos al completarla.
           </p>
         </div>
       )}
