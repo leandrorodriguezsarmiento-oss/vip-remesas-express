@@ -1223,7 +1223,7 @@ type StoreOrderRow = {
   created_at: string;
 };
 
-function StoreOrdersTab() {
+function StoreOrdersTab({ isAdmin }: { isAdmin: boolean }) {
   const qc = useQueryClient();
   const q = useQuery<StoreOrderRow[]>({
     queryKey: ["store-orders"],
@@ -1292,7 +1292,7 @@ function StoreOrdersTab() {
         ))}
       </ul>
       <div className="flex gap-2">
-        {o.status !== "processing" && o.status !== "completed" && (
+        {isAdmin && o.status !== "processing" && o.status !== "completed" && (
           <button onClick={() => setStatus.mutate({ id: o.id, status: "processing" })}
             className="flex-1 rounded-lg bg-gradient-sky px-2 py-2 text-[11px] font-extrabold text-white shadow-glow">
             Procesando
@@ -1304,7 +1304,7 @@ function StoreOrdersTab() {
             <Check className="mr-1 inline h-3 w-3" />Listo
           </button>
         )}
-        {o.status !== "rejected" && o.status !== "completed" && (
+        {isAdmin && o.status !== "rejected" && o.status !== "completed" && (
           <button onClick={() => setStatus.mutate({ id: o.id, status: "rejected" })}
             className="rounded-lg border border-destructive px-2 py-2 text-[11px] font-extrabold text-destructive">
             Rechazar
