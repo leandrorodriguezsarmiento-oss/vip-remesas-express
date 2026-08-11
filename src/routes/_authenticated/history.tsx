@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { formatMoney } from "@/lib/remittance";
-import { StatusBadge } from "./dashboard";
+import { StatusBadge } from "@/components/StatusBadge";
 import { ArrowUpRight, Smartphone, FolderOpen, Folder } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/history")({

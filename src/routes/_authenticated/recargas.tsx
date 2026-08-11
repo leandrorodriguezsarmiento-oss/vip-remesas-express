@@ -5,7 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { formatMoney } from "@/lib/remittance";
 import { createRechargeRequest } from "@/lib/orders.functions";
-import { StatusBadge } from "./dashboard";
+import { StatusBadge } from "@/components/StatusBadge";
 import { Smartphone, Loader2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import cubacelLogo from "@/assets/cubacel.png";
