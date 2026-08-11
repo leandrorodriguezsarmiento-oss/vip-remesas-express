@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -9,8 +9,11 @@ import { isSoundEnabled, setSoundEnabled, playNotificationSound } from "@/lib/no
 import { PushToggle } from "@/components/PushToggle";
 import {
   Loader2, User, Camera, Globe, Users, ShieldCheck, MessageCircle, Bell, Trash2, Save, Plus, KeyRound, Eye, EyeOff,
+  Clock as ClockIcon,
 } from "lucide-react";
 import { toast } from "sonner";
+
+const WHATSAPP_GROUP_URL = "https://chat.whatsapp.com/IJPFYGrhrc4JAddkp1ohnI?s=cl&p=a&ilr=0&amv=3";
 
 export const Route = createFileRoute("/_authenticated/settings")({
   component: Settings,
