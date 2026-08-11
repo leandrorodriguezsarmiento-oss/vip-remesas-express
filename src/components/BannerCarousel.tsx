@@ -1,6 +1,15 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import bannerVip from "@/assets/banner-vip.jpg";
+
+/** Banner de la casa: es siempre el primero y ya trae el mensaje impreso. */
+const HOUSE_BANNER: Banner = {
+  id: "vip-house",
+  image_url: bannerVip,
+  title: null,
+  link_url: null,
+};
 
 type Banner = {
   id: string;
@@ -23,7 +32,7 @@ function useBanners() {
       return (data ?? []) as Banner[];
     },
   });
-  const banners = data ?? [];
+  const banners = [HOUSE_BANNER, ...(data ?? [])];
   const [idx, setIdx] = useState(0);
 
   // Precargamos las imágenes para que el cambio sea instantáneo.
@@ -92,8 +101,9 @@ export function BannerCarousel() {
  */
 export function BannerHero({ children }: { children: ReactNode }) {
   const { banners, current, idx } = useBanners();
-  // El texto sólo se muestra sobre el primer banner (el de la casa).
-  const showText = idx === 0;
+  // El mensaje ya viene impreso en el banner de la casa: sólo se escribe
+  // encima cuando no hay ninguna imagen disponible.
+  const showText = !current;
 
   return (
     <div className="animate-rise relative overflow-hidden rounded-2xl border border-gold/30 shadow-glow">
