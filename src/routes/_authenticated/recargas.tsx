@@ -74,7 +74,10 @@ function Recargas() {
   const [digits, setDigits] = useState("");
   const phone = digits ? `+53${digits}` : "";
   const [loading, setLoading] = useState(false);
+  const [paying, setPaying] = useState(false);
+  const [lastId, setLastId] = useState<string | null>(null);
   const submitRecharge = useServerFn(createRechargeRequest);
+  const payRecharge = useServerFn(createRechargePreference);
 
   async function recharge() {
     if (!selected || digits.length !== 8) {
@@ -85,15 +88,29 @@ function Recargas() {
     try {
       // Server function looks up the authoritative promo (title/price) so a
       // manipulated client cannot claim a cheaper price than what admin sees.
-      await submitRecharge({ data: { promoId: selected.id, phone } });
-      toast.success(`Recarga en proceso. Te avisamos al completarla (${phone}).`);
-      setSelected(null);
+      const r = await submitRecharge({ data: { promoId: selected.id, phone } });
+      setLastId(r.id);
+      toast.success(`Recarga registrada. Paga y te avisamos al completarla (${phone}).`);
       setDigits("");
       await qc.invalidateQueries({ queryKey: ["recargas-mine"] });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Error");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function payWithMercadoPago() {
+    if (!lastId) return;
+    setPaying(true);
+    try {
+      const { checkoutUrl } = await payRecharge({ data: { rechargeId: lastId } });
+      if (!checkoutUrl) throw new Error("No se pudo abrir el pago");
+      window.location.href = checkoutUrl;
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Error al abrir Mercado Pago");
+    } finally {
+      setPaying(false);
     }
   }
 
