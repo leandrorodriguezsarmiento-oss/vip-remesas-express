@@ -58,21 +58,34 @@ function Settings() {
     },
   });
 
+  const staff = useQuery({
+    queryKey: ["is-staff", user.id],
+    queryFn: async () => {
+      const { data } = await supabase.from("user_roles").select("role")
+        .eq("user_id", user.id).in("role", ["admin", "organizador"]);
+      return (data ?? []).length > 0;
+    },
+  });
+
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="font-display text-2xl font-bold">Configuración</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Tu perfil, contactos e idioma.</p>
+      <div className="animate-rise">
+        <h1 className="font-display text-2xl font-extrabold">Configuración</h1>
+        <p className="mt-1 text-sm font-semibold text-muted-foreground">Tu perfil, contactos, historial e idioma.</p>
       </div>
 
       {profile.isLoading && <p className="text-sm text-muted-foreground">Cargando…</p>}
       {profile.data && <ProfileCard profile={profile.data} onSaved={() => qc.invalidateQueries({ queryKey: ["profile", user.id] })} />}
+      <HistoryCard />
       <PasswordCard />
+      {staff.data && <TwoFactorCard />}
       {profile.data && <LanguageCard profile={profile.data} />}
       <NotificationsCard />
       {profile.data && <VerificationCard verified={profile.data.verified} />}
       <ContactsCard userId={user.id} />
       <SupportCard />
+
+
 
     </div>
   );
