@@ -92,6 +92,8 @@ export function BannerCarousel() {
  */
 export function BannerHero({ children }: { children: ReactNode }) {
   const { banners, current, idx } = useBanners();
+  // El texto sólo se muestra sobre el primer banner (el de la casa).
+  const showText = idx === 0;
 
   return (
     <div className="animate-rise relative overflow-hidden rounded-2xl border border-gold/30 shadow-glow">
@@ -104,9 +106,9 @@ export function BannerHero({ children }: { children: ReactNode }) {
           className="absolute inset-0 h-full w-full object-cover transition-opacity duration-700"
         />
       ) : null}
-      <div className={`absolute inset-0 ${current ? "bg-linear-to-tr from-black/75 via-black/45 to-black/20" : "bg-gradient-sky"}`} />
+      <div className={`absolute inset-0 ${current ? (showText ? "bg-linear-to-tr from-black/75 via-black/45 to-black/20" : "bg-black/10") : "bg-gradient-sky"}`} />
       <span className="pointer-events-none absolute inset-y-0 -left-1/4 w-1/4 animate-shine bg-white/25 blur-md" />
-      <div className="relative min-h-[9.5rem] p-6">{children}</div>
+      <div className="relative min-h-[9.5rem] p-6">{showText ? children : null}</div>
       <Dots count={banners.length} idx={idx} />
     </div>
   );
