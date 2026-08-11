@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -9,8 +9,11 @@ import { isSoundEnabled, setSoundEnabled, playNotificationSound } from "@/lib/no
 import { PushToggle } from "@/components/PushToggle";
 import {
   Loader2, User, Camera, Globe, Users, ShieldCheck, MessageCircle, Bell, Trash2, Save, Plus, KeyRound, Eye, EyeOff,
+  Clock as ClockIcon,
 } from "lucide-react";
 import { toast } from "sonner";
+
+const WHATSAPP_GROUP_URL = "https://chat.whatsapp.com/IJPFYGrhrc4JAddkp1ohnI?s=cl&p=a&ilr=0&amv=3";
 
 export const Route = createFileRoute("/_authenticated/settings")({
   component: Settings,
@@ -55,21 +58,34 @@ function Settings() {
     },
   });
 
+  const staff = useQuery({
+    queryKey: ["is-staff", user.id],
+    queryFn: async () => {
+      const { data } = await supabase.from("user_roles").select("role")
+        .eq("user_id", user.id).in("role", ["admin", "organizador"]);
+      return (data ?? []).length > 0;
+    },
+  });
+
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="font-display text-2xl font-bold">Configuración</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Tu perfil, contactos e idioma.</p>
+      <div className="animate-rise">
+        <h1 className="font-display text-2xl font-extrabold">Configuración</h1>
+        <p className="mt-1 text-sm font-semibold text-muted-foreground">Tu perfil, contactos, historial e idioma.</p>
       </div>
 
       {profile.isLoading && <p className="text-sm text-muted-foreground">Cargando…</p>}
       {profile.data && <ProfileCard profile={profile.data} onSaved={() => qc.invalidateQueries({ queryKey: ["profile", user.id] })} />}
+      <HistoryCard />
       <PasswordCard />
+      {staff.data && <TwoFactorCard />}
       {profile.data && <LanguageCard profile={profile.data} />}
       <NotificationsCard />
       {profile.data && <VerificationCard verified={profile.data.verified} />}
       <ContactsCard userId={user.id} />
       <SupportCard />
+
+
 
     </div>
   );
@@ -439,9 +455,121 @@ function SupportCard() {
         <MessageCircle className="h-4 w-4" /> Escribir por WhatsApp
       </a>
       <p className="mt-2 text-center text-[11px] text-muted-foreground">+55 95 98100-6775</p>
+      <a href={WHATSAPP_GROUP_URL} target="_blank" rel="noopener noreferrer"
+        className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-emerald px-4 py-3 text-sm font-extrabold text-white shadow-glow transition-transform active:scale-95">
+        <Users className="h-4 w-4" /> Grupos de WhatsApp
+      </a>
     </Card>
   );
 }
+
+function HistoryCard() {
+  return (
+    <Card icon={<ClockIcon className="h-5 w-5" />} title="Mi historial">
+      <p className="mb-3 text-xs font-semibold text-muted-foreground">
+        Revisa tus remesas y recargas agrupadas por día.
+      </p>
+      <Link to="/history"
+        className="flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-violet px-4 py-3 text-sm font-extrabold text-white shadow-glow transition-transform active:scale-95">
+        <ClockIcon className="h-4 w-4" /> Ver historial
+      </Link>
+    </Card>
+  );
+}
+
+/** Doble factor (TOTP) para admin y organizadores. */
+function TwoFactorCard() {
+  const [enrolling, setEnrolling] = useState(false);
+  const [qr, setQr] = useState<string | null>(null);
+  const [factorId, setFactorId] = useState<string | null>(null);
+  const [code, setCode] = useState("");
+
+  const factors = useQuery({
+    queryKey: ["mfa-factors"],
+    queryFn: async () => {
+      const { data, error } = await supabase.auth.mfa.listFactors();
+      if (error) throw error;
+      return data.totp ?? [];
+    },
+  });
+
+  const verified = (factors.data ?? []).some((f) => f.status === "verified");
+
+  async function start() {
+    setEnrolling(true);
+    try {
+      const { data, error } = await supabase.auth.mfa.enroll({ factorType: "totp" });
+      if (error) throw error;
+      setQr(data.totp.qr_code);
+      setFactorId(data.id);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Error");
+      setEnrolling(false);
+    }
+  }
+
+  async function confirm() {
+    if (!factorId) return;
+    try {
+      const challenge = await supabase.auth.mfa.challenge({ factorId });
+      if (challenge.error) throw challenge.error;
+      const { error } = await supabase.auth.mfa.verify({
+        factorId,
+        challengeId: challenge.data.id,
+        code: code.trim(),
+      });
+      if (error) throw error;
+      toast.success("Doble factor activado");
+      setQr(null); setFactorId(null); setCode(""); setEnrolling(false);
+      void factors.refetch();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Código inválido");
+    }
+  }
+
+  async function disable(id: string) {
+    const { error } = await supabase.auth.mfa.unenroll({ factorId: id });
+    if (error) return toast.error(error.message);
+    toast.success("Doble factor desactivado");
+    void factors.refetch();
+  }
+
+  return (
+    <Card icon={<ShieldCheck className="h-5 w-5" />} title="Autenticación de doble factor">
+      {verified ? (
+        <div className="space-y-2">
+          <p className="text-sm font-bold text-success">Activado ✅</p>
+          {(factors.data ?? []).filter((f) => f.status === "verified").map((f) => (
+            <button key={f.id} onClick={() => void disable(f.id)}
+              className="w-full rounded-lg border border-destructive/40 px-3 py-2 text-xs font-bold text-destructive">
+              Desactivar doble factor
+            </button>
+          ))}
+        </div>
+      ) : qr ? (
+        <div className="space-y-3">
+          <p className="text-xs font-semibold text-muted-foreground">
+            Escanea el código con Google Authenticator y escribe los 6 dígitos.
+          </p>
+          <img src={qr} alt="Código QR de doble factor" className="mx-auto h-44 w-44 rounded-lg bg-white p-2" />
+          <input value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+            inputMode="numeric" placeholder="000000"
+            className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-center text-lg font-extrabold tracking-widest outline-none focus:border-gold" />
+          <button onClick={() => void confirm()} disabled={code.length !== 6}
+            className="flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-gold px-4 py-2.5 text-sm font-bold text-primary-foreground shadow-gold disabled:opacity-60">
+            Activar
+          </button>
+        </div>
+      ) : (
+        <button onClick={() => void start()} disabled={enrolling}
+          className="flex w-full items-center justify-center gap-2 rounded-lg border border-gold/50 px-4 py-2.5 text-sm font-bold text-gold disabled:opacity-60">
+          {enrolling && <Loader2 className="h-4 w-4 animate-spin" />} Activar doble factor
+        </button>
+      )}
+    </Card>
+  );
+}
+
 
 function Input({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
   return (

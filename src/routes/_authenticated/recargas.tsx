@@ -5,10 +5,12 @@ import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { formatMoney } from "@/lib/remittance";
 import { createRechargeRequest } from "@/lib/orders.functions";
-import { StatusBadge } from "./dashboard";
-import { Smartphone, Loader2, Sparkles } from "lucide-react";
+import { createRechargePreference } from "@/lib/recharge-payments.functions";
+import { StatusBadge } from "@/components/StatusBadge";
+import { Smartphone, Loader2, Sparkles, CreditCard } from "lucide-react";
 import { toast } from "sonner";
 import cubacelLogo from "@/assets/cubacel.png";
+import promoGift from "@/assets/promo-gift.png";
 
 export const Route = createFileRoute("/_authenticated/recargas")({
   beforeLoad: async ({ context }) => {
@@ -72,7 +74,10 @@ function Recargas() {
   const [digits, setDigits] = useState("");
   const phone = digits ? `+53${digits}` : "";
   const [loading, setLoading] = useState(false);
+  const [paying, setPaying] = useState(false);
+  const [lastId, setLastId] = useState<string | null>(null);
   const submitRecharge = useServerFn(createRechargeRequest);
+  const payRecharge = useServerFn(createRechargePreference);
 
   async function recharge() {
     if (!selected || digits.length !== 8) {
@@ -83,15 +88,29 @@ function Recargas() {
     try {
       // Server function looks up the authoritative promo (title/price) so a
       // manipulated client cannot claim a cheaper price than what admin sees.
-      await submitRecharge({ data: { promoId: selected.id, phone } });
-      toast.success(`Recarga en proceso. Te avisamos al completarla (${phone}).`);
-      setSelected(null);
+      const r = await submitRecharge({ data: { promoId: selected.id, phone } });
+      setLastId(r.id);
+      toast.success(`Recarga registrada. Paga y te avisamos al completarla (${phone}).`);
       setDigits("");
       await qc.invalidateQueries({ queryKey: ["recargas-mine"] });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Error");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function payWithMercadoPago() {
+    if (!lastId) return;
+    setPaying(true);
+    try {
+      const { checkoutUrl } = await payRecharge({ data: { rechargeId: lastId } });
+      if (!checkoutUrl) throw new Error("No se pudo abrir el pago");
+      window.location.href = checkoutUrl;
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Error al abrir Mercado Pago");
+    } finally {
+      setPaying(false);
     }
   }
 
@@ -142,23 +161,30 @@ function Recargas() {
       )}
 
       <div className="space-y-2">
-        {promos.data?.map((p, i) => (
-          <button key={p.id} onClick={() => setSelected(p)} style={{ animationDelay: `${i * 60}ms` }}
-            className={`animate-rise flex w-full items-center gap-3 active:scale-[0.98] rounded-xl border p-4 text-left transition ${selected?.id === p.id ? "border-gold bg-accent" : "border-border bg-card hover:border-gold/60"}`}>
-            <div className={`grid h-12 w-12 place-items-center rounded-full bg-gradient-gold shadow-gold ${selected?.id === p.id ? "animate-ring" : "animate-float"}`}>
-              <Smartphone className="h-6 w-6 text-primary-foreground" />
-            </div>
-            <div className="flex-1">
-              <div className="font-semibold">{p.title}</div>
-              {p.description && <div className="text-xs text-muted-foreground">{p.description}</div>}
-              {p.bonus_label && <div className="mt-1 text-[11px] font-medium text-gold">{p.bonus_label}</div>}
-            </div>
-            <div className="text-right">
-              <div className="font-display text-lg font-bold text-gold">{formatMoney(Number(p.price_brl), "BRL")}</div>
-              <div className="text-[10px] text-muted-foreground">o equivalente</div>
-            </div>
-          </button>
-        ))}
+        {promos.data?.map((p, i) => {
+          const isPromo = /promo/i.test(p.title) || /promo/i.test(p.bonus_label ?? "");
+          return (
+            <button key={p.id} onClick={() => { setSelected(p); setLastId(null); }} style={{ animationDelay: `${i * 60}ms` }}
+              className={`animate-rise flex w-full items-center gap-3 active:scale-[0.98] rounded-xl border p-4 text-left transition ${selected?.id === p.id ? "border-gold bg-accent" : "border-border bg-card hover:border-gold/60"}`}>
+              <div className={`grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-full bg-white shadow-gold ${selected?.id === p.id ? "animate-ring" : "animate-float"}`}>
+                <img
+                  src={isPromo ? promoGift : cubacelLogo}
+                  alt={isPromo ? "Promoción especial" : "Cubacel"}
+                  width={512} height={512} loading="lazy"
+                  className="h-9 w-9 object-contain" />
+              </div>
+              <div className="flex-1">
+                <div className="font-extrabold">{p.title}</div>
+                {p.description && <div className="text-xs font-semibold text-muted-foreground">{p.description}</div>}
+                {p.bonus_label && <div className="mt-1 text-[11px] font-bold text-gold">{p.bonus_label}</div>}
+              </div>
+              <div className="text-right">
+                <div className="font-display text-lg font-bold text-gold">{formatMoney(Number(p.price_brl), "BRL")}</div>
+                <div className="text-[10px] text-muted-foreground">o equivalente</div>
+              </div>
+            </button>
+          );
+        })}
       </div>
 
       {selected && (
@@ -189,8 +215,17 @@ function Recargas() {
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
             Recargar por {formatMoney(Number(selected.price_brl), "BRL")}
           </button>
-          <p className="text-center text-[11px] text-muted-foreground">
-            🔌 Conectaremos la API real de Cubacel desde el panel admin.
+
+          {lastId && (
+            <button onClick={payWithMercadoPago} disabled={paying}
+              className="animate-pop flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-sky px-4 py-3 text-sm font-extrabold text-white shadow-glow transition-transform active:scale-95 disabled:opacity-60">
+              {paying ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
+              Pagar {formatMoney(Number(selected.price_brl), "BRL")} con Mercado Pago
+            </button>
+          )}
+
+          <p className="text-center text-[11px] font-semibold text-muted-foreground">
+            Al recibir tu pago pasamos la recarga a proceso y te avisamos al completarla.
           </p>
         </div>
       )}

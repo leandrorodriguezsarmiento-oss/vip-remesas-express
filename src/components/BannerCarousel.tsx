@@ -1,6 +1,15 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import bannerVip from "@/assets/banner-vip.jpg";
+
+/** Banner de la casa: es siempre el primero y ya trae el mensaje impreso. */
+const HOUSE_BANNER: Banner = {
+  id: "vip-house",
+  image_url: bannerVip,
+  title: null,
+  link_url: null,
+};
 
 type Banner = {
   id: string;
@@ -23,16 +32,16 @@ function useBanners() {
       return (data ?? []) as Banner[];
     },
   });
-  const banners = data ?? [];
+  const banners = [HOUSE_BANNER, ...(data ?? [])];
   const [idx, setIdx] = useState(0);
 
   // Precargamos las imágenes para que el cambio sea instantáneo.
   useEffect(() => {
-    banners.forEach((b) => {
+    (data ?? []).forEach((b) => {
       const img = new Image();
       img.src = b.image_url;
     });
-  }, [banners]);
+  }, [data]);
 
   useEffect(() => {
     if (banners.length < 2) return;
@@ -92,6 +101,9 @@ export function BannerCarousel() {
  */
 export function BannerHero({ children }: { children: ReactNode }) {
   const { banners, current, idx } = useBanners();
+  // El mensaje ya viene impreso en el banner de la casa: sólo se escribe
+  // encima cuando no hay ninguna imagen disponible.
+  const showText = !current;
 
   return (
     <div className="animate-rise relative overflow-hidden rounded-2xl border border-gold/30 shadow-glow">
@@ -104,9 +116,9 @@ export function BannerHero({ children }: { children: ReactNode }) {
           className="absolute inset-0 h-full w-full object-cover transition-opacity duration-700"
         />
       ) : null}
-      <div className={`absolute inset-0 ${current ? "bg-linear-to-tr from-black/75 via-black/45 to-black/20" : "bg-gradient-sky"}`} />
+      <div className={`absolute inset-0 ${current ? (showText ? "bg-linear-to-tr from-black/75 via-black/45 to-black/20" : "bg-black/10") : "bg-gradient-sky"}`} />
       <span className="pointer-events-none absolute inset-y-0 -left-1/4 w-1/4 animate-shine bg-white/25 blur-md" />
-      <div className="relative min-h-[9.5rem] p-6">{children}</div>
+      <div className="relative min-h-[9.5rem] p-6">{showText ? children : null}</div>
       <Dots count={banners.length} idx={idx} />
     </div>
   );

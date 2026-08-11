@@ -116,14 +116,14 @@ export const createRechargeRequest = createServerFn({ method: "POST" })
     if (promoErr) throw promoErr;
     if (!promo || !promo.active) throw new Error("Promoción no disponible");
 
-    const { error } = await supabaseAdmin.from("recargas_requests").insert({
+    const { data: inserted, error } = await supabaseAdmin.from("recargas_requests").insert({
       user_id: context.userId,
       phone: data.phone,
       promo_id: promo.id,
       promo_title: promo.title,
       price_brl: promo.price_brl,
       status: "pending",
-    });
+    }).select("id").single();
     if (error) throw error;
-    return { ok: true };
+    return { ok: true, id: inserted.id as string, priceBrl: Number(promo.price_brl) };
   });

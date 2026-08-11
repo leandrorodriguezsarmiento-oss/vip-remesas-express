@@ -1,12 +1,14 @@
 import { createFileRoute, Outlet, Link, redirect, useNavigate, useLocation } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
-import { Home, Send, ClockIcon, LogOut, Smartphone, Shield, Bell, Settings as SettingsIcon, Store } from "lucide-react";
+import { Home, Send, LogOut, Smartphone, Shield, Bell, Settings as SettingsIcon, Store } from "lucide-react";
 import { BrandMark } from "@/components/BrandMark";
 import { SectionMenu } from "@/components/SectionMenu";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { playNotificationSound } from "@/lib/notify-sound";
+import { preloadAppImages } from "@/lib/preload-images";
+import bgFlags from "@/assets/bg-flags.jpg";
 
 
 
@@ -116,11 +118,14 @@ function AuthedLayout() {
 
   const path = location.pathname;
   const admin = isAdmin.data === true;
-  // El perfil admin no envía remesas: sólo gestiona.
+
+  // Descarga anticipada de imágenes para que la app se sienta rápida.
+  useEffect(() => { preloadAppImages(); }, []);
+
+  // El perfil admin no envía remesas: sólo gestiona. El historial vive en Ajustes.
   const nav = admin
     ? ([
         { to: "/admin", icon: Shield, label: "Panel", grad: "bg-gradient-sky" },
-        { to: "/history", icon: ClockIcon, label: "Historial", grad: "bg-gradient-violet" },
         { to: "/settings", icon: SettingsIcon, label: "Ajustes", grad: "bg-gradient-emerald" },
       ] as const)
     : ([
@@ -128,13 +133,19 @@ function AuthedLayout() {
         { to: "/recargas", icon: Smartphone, label: "Recargas", grad: "bg-gradient-emerald" },
         { to: "/send", icon: Send, label: "Remesas", grad: "bg-gradient-rose" },
         { to: "/tienda", icon: Store, label: "VipShop", grad: "bg-gradient-amber" },
-        { to: "/history", icon: ClockIcon, label: "Historial", grad: "bg-gradient-violet" },
         { to: "/settings", icon: SettingsIcon, label: "Ajustes", grad: "bg-gradient-gold" },
       ] as const);
 
 
   return (
-    <div className="min-h-screen bg-gradient-vip pb-24">
+    <div className="relative min-h-screen bg-gradient-vip pb-24">
+      {/* Fondo opaco con las banderas de Brasil y Cuba */}
+      <div
+        aria-hidden
+        className="pointer-events-none fixed inset-0 z-0 bg-cover bg-center opacity-[0.09]"
+        style={{ backgroundImage: `url(${bgFlags})` }}
+      />
+      <div className="relative z-10">
       <header className="mx-auto flex max-w-md items-center justify-between px-5 pt-6">
         <div className="flex items-center gap-2">
           <SectionMenu items={nav} />
@@ -218,7 +229,7 @@ function AuthedLayout() {
           })}
         </div>
       </nav>
-
+      </div>
     </div>
   );
 }

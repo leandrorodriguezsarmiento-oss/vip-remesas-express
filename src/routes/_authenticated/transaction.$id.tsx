@@ -2,7 +2,7 @@ import { createFileRoute, Link, useParams } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { formatBRL, formatCurrency } from "@/lib/remittance";
-import { StatusBadge } from "./dashboard";
+import { StatusBadge } from "@/components/StatusBadge";
 import { ArrowLeft } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/transaction/$id")({
