@@ -5,7 +5,6 @@ import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { formatMoney } from "@/lib/remittance";
 import { deleteUserAsAdmin, setOrganizerRole } from "@/lib/admin.functions";
-import { syncRecharges } from "@/lib/payments.functions";
 import { sendTransactionStatusEmail } from "@/lib/emails.functions";
 
 import { toast } from "sonner";
@@ -38,7 +37,7 @@ function AdminPanel() {
         ["store", "VipShop"],
         ["payments", "Cuentas de pago"], ["mp", "Mercado Pago"], ["users", "Usuarios"], ["api", "API"],
       ]
-    : [["tx", "Remesas"], ["recargas", "Recargas"], ["orders", "Pedidos"]];
+    : [["tx", "Remesas"], ["recargas", "Recargas"], ["orders", "Pedidos"], ["store", "VipShop"]];
 
 
   return (
@@ -66,16 +65,16 @@ function AdminPanel() {
         ))}
       </div>
 
-      {tab === "tx" && <TransactionsTab />}
-      {tab === "orders" && <StoreOrdersTab />}
-      {tab === "recargas" && <RecargasTab canSync={isAdmin} />}
+      {tab === "tx" && <TransactionsTab isAdmin={isAdmin} />}
+      {tab === "orders" && <StoreOrdersTab isAdmin={isAdmin} />}
+      {tab === "recargas" && <RecargasTab isAdmin={isAdmin} />}
+      {tab === "store" && <StoreTab />}
 
       {isAdmin && tab === "reports" && <ReportsTab />}
       {isAdmin && tab === "rates" && <RatesTab />}
       {isAdmin && tab === "promos" && <PromosTab />}
       {isAdmin && tab === "banners" && <BannersTab />}
       {isAdmin && tab === "payments" && <PaymentMethodsTab />}
-      {isAdmin && tab === "store" && <StoreTab />}
       {isAdmin && tab === "mp" && <MercadoPagoTab />}
       {isAdmin && tab === "users" && <UsersTab />}
       {isAdmin && tab === "api" && <ApiTab />}
@@ -147,7 +146,7 @@ function CopyBlock({ tx }: { tx: AdminTx }) {
 
 
 
-function TransactionsTab() {
+function TransactionsTab({ isAdmin }: { isAdmin: boolean }) {
   const qc = useQueryClient();
   const [view, setView] = useState<"active" | "done">("active");
   const q = useQuery({
@@ -223,7 +222,7 @@ function TransactionsTab() {
           </div>
 
           <div className="flex flex-wrap gap-1">
-            {(["pending", "processing", "completed", "rejected"] as const).map((s) => (
+            {(isAdmin ? (["pending", "processing", "completed", "rejected"] as const) : (["completed"] as const)).map((s) => (
               <button key={s}
                 onClick={() => upd.mutate({ id: t.id, status: s })}
                 className={`rounded-full px-2 py-1 text-[10px] font-semibold ${t.status === s ? "bg-gradient-gold text-primary-foreground" : "border border-border bg-background text-muted-foreground"}`}>
@@ -530,43 +529,11 @@ function ApiTab() {
             className="flex flex-1 items-center justify-center gap-1 rounded-lg bg-gradient-gold px-3 py-2 text-xs font-semibold text-primary-foreground shadow-gold">
             <Check className="h-3 w-3" /> Guardar
           </button>
-          <SyncRecargasButton />
         </div>
       </div>
     </div>
   );
 }
-
-// Botón reutilizable: despacha recargas pendientes al proveedor y actualiza estados
-function SyncRecargasButton({ full = false }: { full?: boolean }) {
-  const qc = useQueryClient();
-  const sync = useServerFn(syncRecharges);
-  const m = useMutation({
-    mutationFn: async () => await sync({ data: undefined }),
-    onSuccess: (r) => {
-      const parts = [
-        `${r.dispatched} despachadas`,
-        `${r.completed} completadas`,
-        r.rejected ? `${r.rejected} rechazadas` : null,
-        r.stillProcessing ? `${r.stillProcessing} en proceso` : null,
-      ].filter(Boolean).join(" · ");
-      toast.success(`Sincronizado (${r.provider}): ${parts}`);
-      if (r.errors.length) toast.error(r.errors[0]);
-      qc.invalidateQueries({ queryKey: ["admin-recargas"] });
-    },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Error al sincronizar"),
-  });
-  return (
-    <button
-      onClick={() => m.mutate()}
-      disabled={m.isPending}
-      className={`${full ? "w-full" : ""} flex items-center justify-center gap-1 rounded-lg border border-gold/40 bg-card px-3 py-2 text-xs font-semibold text-gold disabled:opacity-60`}>
-      {m.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
-      Sincronizar
-    </button>
-  );
-}
-
 
 // ----------------- Banners -----------------
 function BannersTab() {
@@ -673,7 +640,7 @@ function BannersTab() {
 }
 
 // ----------------- Recargas Cubacel pendientes -----------------
-function RecargasTab({ canSync = true }: { canSync?: boolean }) {
+function RecargasTab({ isAdmin = true }: { isAdmin?: boolean }) {
   const qc = useQueryClient();
   const [view, setView] = useState<"active" | "done">("active");
   const q = useQuery({
@@ -716,7 +683,6 @@ function RecargasTab({ canSync = true }: { canSync?: boolean }) {
           <p className="text-xs uppercase text-muted-foreground">Recargas pendientes</p>
           <p className="font-display text-xl font-bold text-gold">{active.length}</p>
         </div>
-        {canSync && <SyncRecargasButton />}
       </div>
       <div className="grid grid-cols-2 gap-1 rounded-xl bg-secondary p-1 text-xs font-medium">
         <button onClick={() => setView("active")}
@@ -744,7 +710,7 @@ function RecargasTab({ canSync = true }: { canSync?: boolean }) {
             </div>
           </div>
           <div className="flex flex-wrap gap-1">
-            {(["pending", "processing", "completed", "rejected"] as const).map((s) => (
+            {(isAdmin ? (["pending", "processing", "completed", "rejected"] as const) : (["completed"] as const)).map((s) => (
               <button key={s} onClick={() => upd.mutate({ id: r.id, status: s })}
                 className={`rounded-full px-2 py-1 text-[10px] font-semibold ${r.status === s ? "bg-gradient-gold text-primary-foreground" : "border border-border bg-background text-muted-foreground"}`}>
                 {STATUS_ES[s]}
