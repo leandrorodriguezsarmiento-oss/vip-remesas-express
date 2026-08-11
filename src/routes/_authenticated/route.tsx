@@ -229,7 +229,7 @@ function AuthedLayout() {
           })}
         </div>
       </nav>
-
+      </div>
     </div>
   );
 }
