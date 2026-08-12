@@ -338,16 +338,25 @@ function PromosTab() {
     onSuccess: () => { toast.success("Promo eliminada"); qc.invalidateQueries({ queryKey: ["admin-promos"] }); qc.invalidateQueries({ queryKey: ["promos"] }); },
   });
   const add = useMutation({
-    mutationFn: async (p: { title: string; description: string; price_brl: number; bonus_label: string }) => {
+    mutationFn: async (p: { title: string; description: string; price_brl: number; bonus_label: string; image_url: string | null }) => {
       const { error } = await supabase.from("promos").insert(p);
       if (error) throw error;
     },
     onSuccess: () => { toast.success("Promo creada"); qc.invalidateQueries({ queryKey: ["admin-promos"] }); qc.invalidateQueries({ queryKey: ["promos"] }); },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Error"),
   });
+  const toggle = useMutation({
+    mutationFn: async (v: { id: string; active: boolean }) => {
+      const { error } = await supabase.from("promos").update({ active: v.active }).eq("id", v.id);
+      if (error) throw error;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["admin-promos"] }); qc.invalidateQueries({ queryKey: ["promos"] }); qc.invalidateQueries({ queryKey: ["public-promos"] }); },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Error"),
+  });
 
   const [nt, setNt] = useState(""); const [nd, setNd] = useState("");
   const [np, setNp] = useState(""); const [nb, setNb] = useState("");
+  const [gift, setGift] = useState(false);
 
   return (
     <div className="space-y-3">
@@ -359,11 +368,20 @@ function PromosTab() {
           <MiniInput label="Precio BRL" value={np} onChange={setNp} />
           <MiniInput label="Bono (texto)" value={nb} onChange={setNb} />
         </div>
+        <label className="flex items-center gap-2 rounded-lg border border-border bg-background px-2 py-2">
+          <input type="checkbox" checked={gift} onChange={(e) => setGift(e.target.checked)} className="h-4 w-4 accent-[hsl(var(--gold))]" />
+          <span className="text-[11px] font-extrabold">
+            Recarga promocional 🎁 (usa el ícono de regalo en vez de Cubacel)
+          </span>
+        </label>
         <button
           onClick={() => {
             if (!nt || !np) return toast.error("Título y precio requeridos");
-            add.mutate({ title: nt, description: nd, price_brl: Number(np), bonus_label: nb });
-            setNt(""); setNd(""); setNp(""); setNb("");
+            add.mutate({
+              title: nt, description: nd, price_brl: Number(np), bonus_label: nb,
+              image_url: gift ? "gift" : null,
+            });
+            setNt(""); setNd(""); setNp(""); setNb(""); setGift(false);
           }}
           className="flex w-full items-center justify-center gap-1 rounded-lg bg-gradient-gold px-3 py-1.5 text-xs font-semibold text-primary-foreground shadow-gold">
           <Plus className="h-3 w-3" /> Añadir
@@ -373,9 +391,15 @@ function PromosTab() {
       {q.data?.map((p) => (
         <div key={p.id} className="flex items-center justify-between rounded-xl border border-border bg-card p-3">
           <div className="min-w-0">
-            <div className="truncate text-sm font-semibold">{p.title}</div>
+            <div className="truncate text-sm font-semibold">
+              {p.image_url === "gift" ? "🎁 " : ""}{p.title}
+            </div>
             <div className="text-[11px] text-muted-foreground">{p.description}</div>
             <div className="text-[11px] font-medium text-gold">{p.bonus_label}</div>
+            <button onClick={() => toggle.mutate({ id: p.id, active: !p.active })}
+              className={`mt-1 rounded-full px-2 py-0.5 text-[10px] font-extrabold ${p.active ? "bg-success/20 text-success" : "bg-muted text-muted-foreground"}`}>
+              {p.active ? "Activa" : "Inactiva"}
+            </button>
           </div>
           <div className="flex items-center gap-2">
             <span className="font-display text-sm font-bold text-gold">{formatMoney(Number(p.price_brl), "BRL")}</span>
@@ -388,6 +412,7 @@ function PromosTab() {
     </div>
   );
 }
+
 
 // ----------------- Usuarios -----------------
 function UsersTab() {
