@@ -5,9 +5,10 @@ import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { formatMoney } from "@/lib/remittance";
 import { createRechargeRequest } from "@/lib/orders.functions";
-import { createRechargePreference } from "@/lib/recharge-payments.functions";
+import { generatePixCode } from "@/lib/remittance";
+import { PixQrCode } from "@/components/PixQrCode";
 import { StatusBadge } from "@/components/StatusBadge";
-import { Smartphone, Loader2, Sparkles, CreditCard } from "lucide-react";
+import { Smartphone, Loader2, Sparkles, Copy } from "lucide-react";
 import { toast } from "sonner";
 import cubacelLogo from "@/assets/cubacel.png";
 import promoGift from "@/assets/promo-gift.png";
@@ -74,10 +75,10 @@ function Recargas() {
   const [digits, setDigits] = useState("");
   const phone = digits ? `+53${digits}` : "";
   const [loading, setLoading] = useState(false);
-  const [paying, setPaying] = useState(false);
   const [lastId, setLastId] = useState<string | null>(null);
   const submitRecharge = useServerFn(createRechargeRequest);
-  const payRecharge = useServerFn(createRechargePreference);
+  // PIX copia y pega con el monto de la promo ya embebido (llave VIP Remesas).
+  const pixCode = selected ? generatePixCode(lastId ?? "recarga", Number(selected.price_brl)) : null;
 
   async function recharge() {
     if (!selected || digits.length !== 8) {
@@ -97,20 +98,6 @@ function Recargas() {
       toast.error(e instanceof Error ? e.message : "Error");
     } finally {
       setLoading(false);
-    }
-  }
-
-  async function payWithMercadoPago() {
-    if (!lastId) return;
-    setPaying(true);
-    try {
-      const { checkoutUrl } = await payRecharge({ data: { rechargeId: lastId } });
-      if (!checkoutUrl) throw new Error("No se pudo abrir el pago");
-      window.location.href = checkoutUrl;
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Error al abrir Mercado Pago");
-    } finally {
-      setPaying(false);
     }
   }
 
@@ -216,12 +203,22 @@ function Recargas() {
             Recargar por {formatMoney(Number(selected.price_brl), "BRL")}
           </button>
 
-          {lastId && (
-            <button onClick={payWithMercadoPago} disabled={paying}
-              className="animate-pop flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-sky px-4 py-3 text-sm font-extrabold text-white shadow-glow transition-transform active:scale-95 disabled:opacity-60">
-              {paying ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
-              Pagar {formatMoney(Number(selected.price_brl), "BRL")} con Mercado Pago
-            </button>
+          {lastId && pixCode && (
+            <div className="animate-pop rounded-xl border border-gold/40 bg-background/60 p-4 text-center">
+              <p className="text-xs font-extrabold uppercase text-gold">Paga con PIX</p>
+              <div className="mt-3 flex justify-center">
+                <PixQrCode value={pixCode} fileName={`pix-recarga-${lastId}.png`} />
+              </div>
+              <p className="mt-3 text-[11px] font-bold text-muted-foreground">
+                PIX copia y pega · monto {formatMoney(Number(selected.price_brl), "BRL")} incluido
+              </p>
+              <p className="mt-1 break-all font-mono text-[10px] leading-relaxed">{pixCode}</p>
+              <button
+                onClick={() => { void navigator.clipboard.writeText(pixCode); toast.success("Código PIX copiado"); }}
+                className="mt-3 inline-flex items-center gap-2 rounded-lg bg-gradient-gold px-4 py-2.5 text-xs font-extrabold text-primary-foreground shadow-gold transition-transform active:scale-95">
+                <Copy className="h-4 w-4" /> Copiar código PIX
+              </button>
+            </div>
           )}
 
           <p className="text-center text-[11px] font-semibold text-muted-foreground">
