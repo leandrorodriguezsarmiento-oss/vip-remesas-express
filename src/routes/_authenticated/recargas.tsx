@@ -149,7 +149,7 @@ function Recargas() {
 
       <div className="space-y-2">
         {promos.data?.map((p, i) => {
-          const isPromo = /promo/i.test(p.title) || /promo/i.test(p.bonus_label ?? "");
+          const isPromo = p.image_url === "gift" || /promo/i.test(p.title) || /promo/i.test(p.bonus_label ?? "");
           return (
             <button key={p.id} onClick={() => { setSelected(p); setLastId(null); }} style={{ animationDelay: `${i * 60}ms` }}
               className={`animate-rise flex w-full items-center gap-3 active:scale-[0.98] rounded-xl border p-4 text-left transition ${selected?.id === p.id ? "border-gold bg-accent" : "border-border bg-card hover:border-gold/60"}`}>
