@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { playNotificationSound } from "@/lib/notify-sound";
 import { preloadAppImages } from "@/lib/preload-images";
 import bgFlags from "@/assets/bg-flags.jpg";
+import { MfaGate } from "@/components/MfaGate";
 
 
 
@@ -138,6 +139,7 @@ function AuthedLayout() {
 
 
   return (
+    <MfaGate userId={user.id} email={user.email}>
     <div className="relative min-h-screen bg-gradient-vip pb-24">
       {/* Fondo opaco con las banderas de Brasil y Cuba */}
       <div
@@ -231,5 +233,6 @@ function AuthedLayout() {
       </nav>
       </div>
     </div>
+    </MfaGate>
   );
 }
