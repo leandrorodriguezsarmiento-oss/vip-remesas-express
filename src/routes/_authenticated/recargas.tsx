@@ -165,7 +165,7 @@ function Recargas() {
         {promos.data?.map((p, i) => {
           const isPromo = p.image_url === "gift" || /promo/i.test(p.title) || /promo/i.test(p.bonus_label ?? "");
           return (
-            <button key={p.id} onClick={() => { setSelected(p); setLastId(null); }} style={{ animationDelay: `${i * 60}ms` }}
+            <button key={p.id} onClick={() => { setSelected(p); setStep("form"); setPaid(false); }} style={{ animationDelay: `${i * 60}ms` }}
               className={`animate-rise flex w-full items-center gap-3 active:scale-[0.98] rounded-xl border p-4 text-left transition ${selected?.id === p.id ? "border-gold bg-accent" : "border-border bg-card hover:border-gold/60"}`}>
               <div className={`grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-full bg-white shadow-gold ${selected?.id === p.id ? "animate-ring" : "animate-float"}`}>
                 <img
