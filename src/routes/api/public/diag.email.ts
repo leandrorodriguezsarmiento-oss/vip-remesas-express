@@ -11,13 +11,18 @@ export const Route = createFileRoute("/api/public/diag/email")({
           publicKey: Boolean(process.env["EMAILJS_PUBLIC_KEY"]),
           privateKey: Boolean(process.env["EMAILJS_PRIVATE_KEY"]),
         };
-        const { sendEmailJs } = await import("@/lib/emailjs.server");
-        const res = await sendEmailJs({
-          to_email: "leandrorodriguezsarmiento@gmail.com",
-          subject: "VIP Remesas · diagnóstico",
-          message: "Prueba de diagnóstico",
+        const r = await fetch("https://api.emailjs.com/api/v1.0/email/send", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", origin: "http://localhost" },
+          body: JSON.stringify({
+            service_id: process.env["EMAILJS_SERVICE_ID"],
+            template_id: process.env["EMAILJS_TEMPLATE_ID"],
+            user_id: process.env["EMAILJS_PUBLIC_KEY"],
+            accessToken: process.env["EMAILJS_PRIVATE_KEY"],
+            template_params: { to_email: "leandrorodriguezsarmiento@gmail.com", email: "leandrorodriguezsarmiento@gmail.com", subject: "diag", message: "diag" },
+          }),
         });
-        return Response.json({ present, res });
+        return Response.json({ present, status: r.status, body: await r.text() });
       },
     },
   },
