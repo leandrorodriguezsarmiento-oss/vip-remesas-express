@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { formatMoney } from "@/lib/remittance";
+import { formatMoney, generatePixCode } from "@/lib/remittance";
+import { PixQrCode } from "@/components/PixQrCode";
 import { toast } from "sonner";
 import {
   ShoppingBag, Store, ShoppingCart, X, Plus, Minus, Trash2, Loader2, Check,
-  User, Phone, IdCard, MapPin, Plane,
+  User, Phone, IdCard, MapPin, Plane, Copy,
 } from "lucide-react";
 import catCelulares from "@/assets/cat-celulares.jpg";
 import catElectro from "@/assets/cat-electrodomesticos.jpg";
