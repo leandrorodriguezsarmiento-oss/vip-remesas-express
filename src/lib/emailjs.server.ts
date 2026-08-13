@@ -26,7 +26,12 @@ export async function sendEmailJs(params: EmailJsParams): Promise<{ sent: boolea
 
   const res = await fetch(ENDPOINT, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    // EmailJS rechaza (403) las peticiones sin `origin`; al enviarlo desde el
+    // servidor la API acepta la llamada como aplicación autorizada.
+    headers: {
+      "Content-Type": "application/json",
+      origin: process.env["EMAILJS_ORIGIN"] ?? "https://vip-remesas-express.lovable.app",
+    },
     body: JSON.stringify({
       service_id: serviceId,
       template_id: templateId,
