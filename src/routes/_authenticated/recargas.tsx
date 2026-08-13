@@ -211,33 +211,61 @@ function Recargas() {
               Solo 8 dígitos (sin el +53). {digits.length}/8
             </span>
           </label>
-          <button onClick={recharge} disabled={loading || digits.length !== 8}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-gold px-4 py-3 text-sm font-semibold text-primary-foreground shadow-gold transition-transform active:scale-95 animate-glow-pulse disabled:opacity-60 disabled:animate-none">
-            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-            Recargar por {formatMoney(Number(selected.price_brl), "BRL")}
-          </button>
-
-          {lastId && pixCode && (
-            <div className="animate-pop rounded-xl border border-gold/40 bg-background/60 p-4 text-center">
-              <p className="text-xs font-extrabold uppercase text-gold">Paga con PIX</p>
-              <div className="mt-3 flex justify-center">
-                <PixQrCode value={pixCode} fileName={`pix-recarga-${lastId}.png`} />
-              </div>
-              <p className="mt-3 text-[11px] font-bold text-muted-foreground">
-                PIX copia y pega · monto {formatMoney(Number(selected.price_brl), "BRL")} incluido
-              </p>
-              <p className="mt-1 break-all font-mono text-[10px] leading-relaxed">{pixCode}</p>
-              <button
-                onClick={() => { void navigator.clipboard.writeText(pixCode); toast.success("Código PIX copiado"); }}
-                className="mt-3 inline-flex items-center gap-2 rounded-lg bg-gradient-gold px-4 py-2.5 text-xs font-extrabold text-primary-foreground shadow-gold transition-transform active:scale-95">
-                <Copy className="h-4 w-4" /> Copiar código PIX
+          {step === "form" ? (
+            <>
+              <button onClick={goToPay} disabled={digits.length !== 8}
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-gold px-4 py-3 text-sm font-semibold text-primary-foreground shadow-gold transition-transform active:scale-95 animate-glow-pulse disabled:opacity-60 disabled:animate-none">
+                <Sparkles className="h-4 w-4" />
+                Pagar {formatMoney(Number(selected.price_brl), "BRL")} con PIX
               </button>
-            </div>
-          )}
+              <p className="text-center text-[11px] font-semibold text-muted-foreground">
+                Primero se paga: la recarga se envía después de confirmar tu pago.
+              </p>
+            </>
+          ) : (
+            <>
+              {pixCode && (
+                <div className="animate-pop rounded-xl border border-gold/40 bg-background/60 p-4 text-center">
+                  <p className="text-xs font-extrabold uppercase text-gold">Paso 1 · Paga con PIX</p>
+                  <div className="mt-3 flex justify-center">
+                    <PixQrCode value={pixCode} fileName={`pix-recarga-${digits}.png`} />
+                  </div>
+                  <p className="mt-3 text-[11px] font-bold text-muted-foreground">
+                    PIX copia y pega · monto {formatMoney(Number(selected.price_brl), "BRL")} incluido
+                  </p>
+                  <p className="mt-1 break-all font-mono text-[10px] leading-relaxed">{pixCode}</p>
+                  <button
+                    onClick={() => { void navigator.clipboard.writeText(pixCode); toast.success("Código PIX copiado"); }}
+                    className="mt-3 inline-flex items-center gap-2 rounded-lg bg-gradient-gold px-4 py-2.5 text-xs font-extrabold text-primary-foreground shadow-gold transition-transform active:scale-95">
+                    <Copy className="h-4 w-4" /> Copiar código PIX
+                  </button>
+                </div>
+              )}
 
-          <p className="text-center text-[11px] font-semibold text-muted-foreground">
-            Al recibir tu pago pasamos la recarga a proceso y te avisamos al completarla.
-          </p>
+              <label className="flex items-start gap-2 rounded-xl border border-border bg-background/60 p-3 text-left">
+                <input type="checkbox" checked={paid} onChange={(e) => setPaid(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 accent-current" />
+                <span className="text-[11px] font-bold">
+                  Ya pagué {formatMoney(Number(selected.price_brl), "BRL")} por PIX y confirmo el envío de la recarga a {phone}.
+                </span>
+              </label>
+
+              <div className="flex gap-2">
+                <button onClick={() => { setStep("form"); setPaid(false); }}
+                  className="rounded-xl border border-border px-4 py-3 text-sm font-extrabold">
+                  Atrás
+                </button>
+                <button onClick={recharge} disabled={loading || !paid}
+                  className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-gradient-emerald px-4 py-3 text-sm font-extrabold text-white shadow-glow transition-transform active:scale-95 disabled:opacity-60">
+                  {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                  Ya pagué · enviar recarga
+                </button>
+              </div>
+              <p className="text-center text-[11px] font-semibold text-muted-foreground">
+                Verificamos tu pago, pasamos la recarga a proceso y te avisamos al completarla.
+              </p>
+            </>
+          )}
         </div>
       )}
     </div>
