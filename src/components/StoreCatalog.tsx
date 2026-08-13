@@ -186,17 +186,40 @@ export function StoreCatalog() {
         .filter((l) => l.qty > 0),
     );
 
+  /** Valida los datos de quien recibe; lanza con el primer error encontrado. */
+  function validateRecipient() {
+    const name = rName.trim();
+    const phone = rPhone.replace(/\D/g, "");
+    const card = rCard.replace(/\D/g, "");
+    const address = rAddress.trim();
+    if (cart.length === 0) throw new Error("Tu carrito está vacío");
+    if (name.length < 5 || !/^[A-Za-zÀ-ÿ\s.']+$/.test(name)) throw new Error("Escribe el nombre completo (solo letras)");
+    if (phone.length !== 8) throw new Error("El teléfono en Cuba debe tener 8 dígitos");
+    if (card.length !== 11) throw new Error("El carnet de identidad debe tener 11 dígitos");
+    if (address.length < 10) throw new Error("Escribe la dirección completa de entrega");
+    return { name, phone, card, address };
+  }
+
+  function goToPayment() {
+    try {
+      validateRecipient();
+      setPaid(false);
+      setPaying(true);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Revisa los datos");
+    }
+  }
+
+  // PIX copia y pega con el total del carrito ya embebido.
+  const pixCode = useMemo(
+    () => (total > 0 ? generatePixCode(`vipshop-${cart.length}`, total) : null),
+    [total, cart.length],
+  );
+
   const submit = useMutation({
     mutationFn: async () => {
-      const name = rName.trim();
-      const phone = rPhone.replace(/\D/g, "");
-      const card = rCard.replace(/\D/g, "");
-      const address = rAddress.trim();
-      if (cart.length === 0) throw new Error("Tu carrito está vacío");
-      if (name.length < 5 || !/^[A-Za-zÀ-ÿ\s.']+$/.test(name)) throw new Error("Escribe el nombre completo (solo letras)");
-      if (phone.length !== 8) throw new Error("El teléfono en Cuba debe tener 8 dígitos");
-      if (card.length !== 11) throw new Error("El carnet de identidad debe tener 11 dígitos");
-      if (address.length < 10) throw new Error("Escribe la dirección completa de entrega");
+      const { name, phone, card, address } = validateRecipient();
+      if (!paid) throw new Error("Confirma primero el pago por PIX");
 
       const { data: auth } = await supabase.auth.getUser();
       const uid = auth.user?.id;
