@@ -119,6 +119,9 @@ export function StoreCatalog() {
   const [cart, setCart] = useState<CartLine[]>([]);
   const [cartOpen, setCartOpen] = useState(false);
   const [checkout, setCheckout] = useState(false);
+  // Pago primero: no se crea el pedido hasta que el cliente confirma el PIX.
+  const [paying, setPaying] = useState(false);
+  const [paid, setPaid] = useState(false);
 
   // datos de quien recibe en Cuba
   const [rName, setRName] = useState("");
