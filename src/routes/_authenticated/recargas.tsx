@@ -75,24 +75,38 @@ function Recargas() {
   const [digits, setDigits] = useState("");
   const phone = digits ? `+53${digits}` : "";
   const [loading, setLoading] = useState(false);
-  const [lastId, setLastId] = useState<string | null>(null);
+  // Paso 1: datos → Paso 2: pagar PIX → Paso 3 (sólo al confirmar el pago): enviar
+  const [step, setStep] = useState<"form" | "pay">("form");
+  const [paid, setPaid] = useState(false);
   const submitRecharge = useServerFn(createRechargeRequest);
   // PIX copia y pega con el monto de la promo ya embebido (llave VIP Remesas).
-  const pixCode = selected ? generatePixCode(lastId ?? "recarga", Number(selected.price_brl)) : null;
+  const pixCode = selected ? generatePixCode(`recarga-${digits || "0"}`, Number(selected.price_brl)) : null;
 
-  async function recharge() {
+  function goToPay() {
     if (!selected || digits.length !== 8) {
       toast.error("El teléfono de Cuba debe tener 8 dígitos");
+      return;
+    }
+    setPaid(false);
+    setStep("pay");
+  }
+
+  async function recharge() {
+    if (!selected || digits.length !== 8) return;
+    if (!paid) {
+      toast.error("Primero paga con PIX y luego confirma el pago");
       return;
     }
     setLoading(true);
     try {
       // Server function looks up the authoritative promo (title/price) so a
       // manipulated client cannot claim a cheaper price than what admin sees.
-      const r = await submitRecharge({ data: { promoId: selected.id, phone } });
-      setLastId(r.id);
-      toast.success(`Recarga registrada. Paga y te avisamos al completarla (${phone}).`);
+      await submitRecharge({ data: { promoId: selected.id, phone } });
+      toast.success(`Recarga enviada. Verificamos tu pago y te avisamos (${phone}).`);
       setDigits("");
+      setStep("form");
+      setPaid(false);
+      setSelected(null);
       await qc.invalidateQueries({ queryKey: ["recargas-mine"] });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Error");
