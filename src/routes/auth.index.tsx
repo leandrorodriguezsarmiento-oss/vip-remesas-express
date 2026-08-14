@@ -82,7 +82,9 @@ function formatPhone(v: string, country: string): string {
 function AuthPage() {
   const [tab, setTab] = useState<"login" | "signup">("login");
   const [loading, setLoading] = useState(false);
+  const [showForgot, setShowForgot] = useState(false);
   const navigate = useNavigate();
+
 
   // login
   const [identifier, setIdentifier] = useState("");
