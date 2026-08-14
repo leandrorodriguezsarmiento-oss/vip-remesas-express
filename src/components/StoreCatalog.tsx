@@ -244,8 +244,11 @@ export function StoreCatalog() {
     onSuccess: (orderNo) => {
       setCart([]);
       setCheckout(false);
+      setPaying(false);
+      setPaid(false);
       setCartOpen(false);
       setRName(""); setRPhone(""); setRCard(""); setRAddress("");
+
       qc.invalidateQueries({ queryKey: ["store-orders"] });
       toast.success(`¡Pedido #${orderNo} recibido! Te avisamos cuando esté listo.`);
     },
