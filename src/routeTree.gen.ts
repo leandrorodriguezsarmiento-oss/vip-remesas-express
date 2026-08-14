@@ -30,7 +30,6 @@ import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.
 import { Route as ApiPublicRecargasWebhookRouteImport } from './routes/api/public/recargas.webhook'
 import { Route as ApiPublicPushDispatchRouteImport } from './routes/api/public/push.dispatch'
 import { Route as ApiPublicMercadopagoWebhookRouteImport } from './routes/api/public/mercadopago.webhook'
-import { Route as ApiPublicDiagEmailRouteImport } from './routes/api/public/diag.email'
 
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
@@ -142,11 +141,6 @@ const ApiPublicMercadopagoWebhookRoute =
     path: '/api/public/mercadopago/webhook',
     getParentRoute: () => rootRouteImport,
   } as any)
-const ApiPublicDiagEmailRoute = ApiPublicDiagEmailRouteImport.update({
-  id: '/api/public/diag/email',
-  path: '/api/public/diag/email',
-  getParentRoute: () => rootRouteImport,
-} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -166,7 +160,6 @@ export interface FileRoutesByFullPath {
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/transaction/$id': typeof AuthenticatedTransactionIdRoute
-  '/api/public/diag/email': typeof ApiPublicDiagEmailRoute
   '/api/public/mercadopago/webhook': typeof ApiPublicMercadopagoWebhookRoute
   '/api/public/push/dispatch': typeof ApiPublicPushDispatchRoute
   '/api/public/recargas/webhook': typeof ApiPublicRecargasWebhookRoute
@@ -188,7 +181,6 @@ export interface FileRoutesByTo {
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/transaction/$id': typeof AuthenticatedTransactionIdRoute
-  '/api/public/diag/email': typeof ApiPublicDiagEmailRoute
   '/api/public/mercadopago/webhook': typeof ApiPublicMercadopagoWebhookRoute
   '/api/public/push/dispatch': typeof ApiPublicPushDispatchRoute
   '/api/public/recargas/webhook': typeof ApiPublicRecargasWebhookRoute
@@ -213,7 +205,6 @@ export interface FileRoutesById {
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/_authenticated/transaction/$id': typeof AuthenticatedTransactionIdRoute
-  '/api/public/diag/email': typeof ApiPublicDiagEmailRoute
   '/api/public/mercadopago/webhook': typeof ApiPublicMercadopagoWebhookRoute
   '/api/public/push/dispatch': typeof ApiPublicPushDispatchRoute
   '/api/public/recargas/webhook': typeof ApiPublicRecargasWebhookRoute
@@ -238,7 +229,6 @@ export interface FileRouteTypes {
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/transaction/$id'
-    | '/api/public/diag/email'
     | '/api/public/mercadopago/webhook'
     | '/api/public/push/dispatch'
     | '/api/public/recargas/webhook'
@@ -260,7 +250,6 @@ export interface FileRouteTypes {
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/transaction/$id'
-    | '/api/public/diag/email'
     | '/api/public/mercadopago/webhook'
     | '/api/public/push/dispatch'
     | '/api/public/recargas/webhook'
@@ -284,7 +273,6 @@ export interface FileRouteTypes {
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/_authenticated/transaction/$id'
-    | '/api/public/diag/email'
     | '/api/public/mercadopago/webhook'
     | '/api/public/push/dispatch'
     | '/api/public/recargas/webhook'
@@ -300,7 +288,6 @@ export interface RootRouteChildren {
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
-  ApiPublicDiagEmailRoute: typeof ApiPublicDiagEmailRoute
   ApiPublicMercadopagoWebhookRoute: typeof ApiPublicMercadopagoWebhookRoute
   ApiPublicPushDispatchRoute: typeof ApiPublicPushDispatchRoute
   ApiPublicRecargasWebhookRoute: typeof ApiPublicRecargasWebhookRoute
@@ -455,13 +442,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicMercadopagoWebhookRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/diag/email': {
-      id: '/api/public/diag/email'
-      path: '/api/public/diag/email'
-      fullPath: '/api/public/diag/email'
-      preLoaderRoute: typeof ApiPublicDiagEmailRouteImport
-      parentRoute: typeof rootRouteImport
-    }
   }
 }
 
@@ -511,7 +491,6 @@ const rootRouteChildren: RootRouteChildren = {
     Char91DotwellKnownChar93OauthProtectedResourceRoute,
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
-  ApiPublicDiagEmailRoute: ApiPublicDiagEmailRoute,
   ApiPublicMercadopagoWebhookRoute: ApiPublicMercadopagoWebhookRoute,
   ApiPublicPushDispatchRoute: ApiPublicPushDispatchRoute,
   ApiPublicRecargasWebhookRoute: ApiPublicRecargasWebhookRoute,

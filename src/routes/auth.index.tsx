@@ -337,3 +337,57 @@ function SubmitButton({ children, loading }: { children: React.ReactNode; loadin
     </button>
   );
 }
+
+/** Recuperación de contraseña por correo (enlace seguro de Lovable Cloud). */
+function ForgotPassword({ onBack }: { onBack: () => void }) {
+  const [email, setEmail] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [sent, setSent] = useState(false);
+
+  async function send(e: React.FormEvent) {
+    e.preventDefault();
+    const parsed = z.string().trim().email().safeParse(email);
+    if (!parsed.success) return toast.error("Escribe un correo válido");
+    setLoading(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(parsed.data, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    setLoading(false);
+    if (error) return toast.error("No se pudo enviar el correo. Intenta de nuevo.");
+    setSent(true);
+    toast.success("Te enviamos un enlace para crear una contraseña nueva.");
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-vip px-5 py-8">
+      <div className="mx-auto max-w-md">
+        <div className="mb-8 flex items-center gap-2">
+          <BrandMark />
+          <span className="font-display text-lg font-bold">VIP Remesas</span>
+        </div>
+        <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
+          <h1 className="font-display text-2xl font-extrabold">Recuperar contraseña</h1>
+          {sent ? (
+            <div className="mt-4 space-y-4">
+              <p className="text-sm font-semibold text-muted-foreground">
+                Revisa tu correo <span className="text-gold">{email}</span> y abre el enlace para crear tu
+                contraseña nueva.
+              </p>
+              <button type="button" onClick={onBack} className="w-full rounded-lg border border-border px-4 py-3 text-sm font-bold">
+                Volver a entrar
+              </button>
+            </div>
+          ) : (
+            <form onSubmit={send} className="mt-5 space-y-4">
+              <Field label="Tu correo registrado" type="email" value={email} onChange={(v) => setEmail(v.trim())} placeholder="tu@correo.com" autoComplete="email" />
+              <SubmitButton loading={loading}>Enviar enlace</SubmitButton>
+              <button type="button" onClick={onBack} className="w-full text-center text-sm text-muted-foreground">
+                Volver
+              </button>
+            </form>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
