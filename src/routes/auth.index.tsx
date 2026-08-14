@@ -192,9 +192,10 @@ function AuthPage() {
       setLoading(false);
     }
   }
-
+  if (showForgot) return <ForgotPassword onBack={() => setShowForgot(false)} />;
 
   return (
+
     <div className="min-h-screen bg-gradient-vip px-5 py-8">
       <div className="mx-auto max-w-md">
         <Link to="/" className="mb-8 flex items-center gap-2">
