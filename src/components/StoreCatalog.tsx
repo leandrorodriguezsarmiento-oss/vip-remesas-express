@@ -436,7 +436,7 @@ export function StoreCatalog() {
               </div>
             ))}
 
-            {checkout && (
+            {checkout && !paying && (
               <div className="space-y-2">
                 <Field label="Nombre y apellidos" icon={User} value={rName} onChange={setRName} placeholder="Ej: María Pérez González" />
                 <Field
@@ -459,6 +459,32 @@ export function StoreCatalog() {
               </div>
             )}
 
+            {checkout && paying && pixCode && (
+              <div className="space-y-3 rounded-2xl border border-gold/40 bg-card p-3 animate-rise">
+                <p className="text-xs font-extrabold uppercase text-muted-foreground">
+                  Paga primero por PIX — el pedido se envía al confirmar el pago
+                </p>
+                <div className="rounded-xl bg-gradient-vip p-3">
+                  <p className="text-[11px] font-extrabold uppercase text-muted-foreground">Monto exacto</p>
+                  <p className="font-display text-2xl font-extrabold text-gold">{formatMoney(total, "BRL")}</p>
+                </div>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(pixCode);
+                    toast.success("Código PIX copiado");
+                  }}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-sky px-4 py-3 text-sm font-extrabold text-white shadow-glow transition-transform active:scale-95"
+                >
+                  <Copy className="h-4 w-4" /> Copiar código PIX
+                </button>
+                <PixQrCode value={pixCode} />
+                <label className="flex items-start gap-2 rounded-xl border border-border p-3 text-sm font-bold">
+                  <input type="checkbox" checked={paid} onChange={(e) => setPaid(e.target.checked)} className="mt-0.5 h-4 w-4" />
+                  <span>Ya realicé el pago por PIX de {formatMoney(total, "BRL")}</span>
+                </label>
+              </div>
+            )}
+
             {cart.length > 0 && (
               <>
                 <div className="mt-3 flex items-center justify-between rounded-xl bg-gradient-vip p-3">
@@ -472,23 +498,36 @@ export function StoreCatalog() {
                   >
                     Continuar con el pedido
                   </button>
-                ) : (
+                ) : !paying ? (
                   <div className="mt-3 flex gap-2">
                     <button onClick={() => setCheckout(false)} className="rounded-xl border border-border px-4 py-3 text-sm font-extrabold">
                       Atrás
                     </button>
                     <button
+                      onClick={goToPayment}
+                      className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-gradient-amber px-4 py-3 text-sm font-extrabold text-white shadow-glow transition-transform active:scale-95"
+                    >
+                      <Copy className="h-4 w-4" /> Pagar con PIX
+                    </button>
+                  </div>
+                ) : (
+                  <div className="mt-3 flex gap-2">
+                    <button onClick={() => { setPaying(false); setPaid(false); }} className="rounded-xl border border-border px-4 py-3 text-sm font-extrabold">
+                      Atrás
+                    </button>
+                    <button
                       onClick={() => submit.mutate()}
-                      disabled={submit.isPending}
+                      disabled={submit.isPending || !paid}
                       className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-gradient-emerald px-4 py-3 text-sm font-extrabold text-white shadow-glow transition-transform active:scale-95 disabled:opacity-60"
                     >
                       {submit.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                      Confirmar pedido
+                      Confirmar pago y pedido
                     </button>
                   </div>
                 )}
               </>
             )}
+
           </div>
         </div>
       )}
