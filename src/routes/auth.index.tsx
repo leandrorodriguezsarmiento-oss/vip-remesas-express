@@ -229,11 +229,19 @@ function AuthPage() {
                 placeholder="••••••••"
                 autoComplete="current-password"
               />
+              <button
+                type="button"
+                onClick={() => setShowForgot(true)}
+                className="text-sm font-semibold text-gold underline-offset-2 hover:underline"
+              >
+                ¿Olvidaste tu contraseña?
+              </button>
               <p className="text-xs text-muted-foreground">
                 Tu sesión queda guardada en este dispositivo: la próxima vez entras directo.
               </p>
               <SubmitButton loading={loading}>Entrar</SubmitButton>
             </form>
+
           ) : (
             <form onSubmit={handleSignup} className="space-y-4">
               <Field label="Nombre completo" value={sFullName} onChange={(v) => setSFullName(onlyLetters(v))} placeholder="João da Silva" />
