@@ -1072,8 +1072,10 @@ function StoreTab() {
   const [title, setTitle] = useState("");
   const [price, setPrice] = useState("");
   const [description, setDescription] = useState("");
+  const [province, setProvince] = useState("");
   const [images, setImages] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
+
 
   const q = useQuery<StoreRow[]>({
     queryKey: ["admin-store"],
