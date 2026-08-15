@@ -22,7 +22,9 @@ export type StoreProduct = {
   description: string | null;
   price_brl: number;
   images: string[];
+  province: string | null;
 };
+
 
 export const STORE_CATEGORIES = [
   { id: "celulares", label: "Celulares, tablets y accesorios", photo: catCelulares, grad: "bg-gradient-sky" },
