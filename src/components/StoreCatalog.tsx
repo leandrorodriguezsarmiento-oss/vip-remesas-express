@@ -116,9 +116,11 @@ function Field({
 export function StoreCatalog() {
   const qc = useQueryClient();
   const [cat, setCat] = useState<string>(STORE_CATEGORIES[0].id);
+  const [province, setProvince] = useState("");
   const [open, setOpen] = useState<StoreProduct | null>(null);
   const [opening, setOpening] = useState(true);
   const [cart, setCart] = useState<CartLine[]>([]);
+
   const [cartOpen, setCartOpen] = useState(false);
   const [checkout, setCheckout] = useState(false);
   // Pago primero: no se crea el pedido hasta que el cliente confirma el PIX.
