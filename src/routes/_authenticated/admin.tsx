@@ -1167,6 +1167,15 @@ function StoreTab() {
         <MiniInput label="Nombre" value={title} onChange={setTitle} />
         <MiniInput label="Precio (BRL)" value={price} onChange={setPrice} />
         <MiniInput label="Descripción" value={description} onChange={setDescription} />
+        <label className="block">
+          <span className="mb-1 block text-[10px] font-bold uppercase text-muted-foreground">Provincia</span>
+          <select value={province} onChange={(e) => setProvince(e.target.value)}
+            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-xs font-semibold outline-none focus:border-gold">
+            <option value="">Toda Cuba</option>
+            {CUBA_PROVINCES.map((pr) => <option key={pr} value={pr}>{pr}</option>)}
+          </select>
+        </label>
+
         {images.length > 0 && (
           <div className="flex gap-2 overflow-x-auto">
             {images.map((src) => (
