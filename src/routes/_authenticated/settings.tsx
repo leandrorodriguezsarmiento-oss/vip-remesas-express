@@ -205,6 +205,17 @@ function ProfileCard({ profile, onSaved }: { profile: Profile; onSaved: () => vo
           </select>
         </label>
         {country === "BR" && <Input label="CPF" value={cpf} onChange={setCpf} />}
+        <label className="block">
+          <span className="mb-1.5 block text-xs font-medium text-muted-foreground">
+            Provincia en Cuba (entregas y productos de tu zona)
+          </span>
+          <select value={province} onChange={(e) => { setProvince(e.target.value); try { localStorage.setItem(PROVINCE_STORAGE_KEY, e.target.value); } catch { /* sin almacenamiento */ } }}
+            className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm outline-none focus:border-gold">
+            <option value="">Todas las provincias</option>
+            {CUBA_PROVINCES.map((p) => <option key={p} value={p}>{p}</option>)}
+          </select>
+        </label>
+
         <button onClick={() => save.mutate()} disabled={save.isPending}
           className="flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-gold px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-gold disabled:opacity-60">
           {save.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
