@@ -455,7 +455,11 @@ function UsersTab() {
               <div className="text-sm font-semibold truncate">{u.full_name || "(sin nombre)"}</div>
               <div className="text-[11px] font-semibold text-muted-foreground">{u.phone || "sin teléfono"}</div>
               <div className="text-[11px] text-muted-foreground truncate">{(u as { email?: string | null }).email || "sin correo"}</div>
+              <div className="text-[10px] font-bold text-primary">
+                {(u as { province?: string | null }).province || "Sin provincia"}
+              </div>
               <div className="text-[10px] text-muted-foreground">Alta: {new Date(u.created_at).toLocaleDateString("es")}</div>
+
             </div>
             {!u.isAdmin && (
               <button
