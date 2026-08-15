@@ -111,8 +111,10 @@ function ProfileCard({ profile, onSaved }: { profile: Profile; onSaved: () => vo
   const [username, setUsername] = useState(profile.username ?? "");
   const [cpf, setCpf] = useState(profile.cpf ?? "");
   const [country, setCountry] = useState(profile.country ?? "BR");
+  const [province, setProvince] = useState(profile.province ?? "");
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+
   const syncAliases = useServerFn(updateMyAliases);
 
   useEffect(() => {
