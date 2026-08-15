@@ -138,9 +138,11 @@ function ProfileCard({ profile, onSaved }: { profile: Profile; onSaved: () => vo
           username: username.trim() || null,
           cpf: cpf.replace(/\D/g, "") || null,
           country,
+          province: province || null,
         })
         .eq("id", profile.id);
       if (error) throw error;
+
       await syncAliases({ data: { username: username.trim(), phone: phone.trim(), cpf } });
     },
     onSuccess: () => { toast.success("Perfil actualizado"); onSaved(); },
