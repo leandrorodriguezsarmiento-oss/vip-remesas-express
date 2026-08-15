@@ -1217,6 +1217,15 @@ function StoreTab() {
               <option value="alimentos">Alimentos y combos</option>
             </select>
           </label>
+          <label className="block">
+            <span className="mb-1 block text-[10px] font-bold uppercase text-muted-foreground">Provincia</span>
+            <select value={p.province ?? ""} onChange={(e) => update.mutate({ id: p.id, province: e.target.value || null })}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-xs font-semibold">
+              <option value="">Toda Cuba</option>
+              {CUBA_PROVINCES.map((pr) => <option key={pr} value={pr}>{pr}</option>)}
+            </select>
+          </label>
+
           <div className="flex items-center justify-between">
             <label className="flex items-center gap-2 text-[11px] font-semibold text-muted-foreground">
               <input type="checkbox" checked={p.active}
