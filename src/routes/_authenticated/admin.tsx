@@ -1097,6 +1097,7 @@ function StoreTab() {
       const { error } = await supabase.from("store_products").insert({
         category, title: title.trim(), description: description.trim() || null,
         price_brl: Number(price.replace(",", ".")) || 0, images,
+        province: province || null,
       });
       if (error) throw error;
     },
@@ -1117,7 +1118,9 @@ function StoreTab() {
       images?: string[];
       active?: boolean;
       sort_order?: number;
+      province?: string | null;
     }) => {
+
       const { id, ...rest } = p;
       const { error } = await supabase.from("store_products").update(rest).eq("id", id);
       if (error) throw error;
