@@ -216,6 +216,7 @@ export type Database = {
           id: string
           phone: string | null
           preferred_language: string
+          province: string | null
           updated_at: string
           username: string | null
           verified: boolean
@@ -231,6 +232,7 @@ export type Database = {
           id: string
           phone?: string | null
           preferred_language?: string
+          province?: string | null
           updated_at?: string
           username?: string | null
           verified?: boolean
@@ -246,6 +248,7 @@ export type Database = {
           id?: string
           phone?: string | null
           preferred_language?: string
+          province?: string | null
           updated_at?: string
           username?: string | null
           verified?: boolean
@@ -545,6 +548,7 @@ export type Database = {
           id: string
           images: string[]
           price_brl: number
+          province: string | null
           sort_order: number
           title: string
           updated_at: string
@@ -557,6 +561,7 @@ export type Database = {
           id?: string
           images?: string[]
           price_brl?: number
+          province?: string | null
           sort_order?: number
           title: string
           updated_at?: string
@@ -569,6 +574,7 @@ export type Database = {
           id?: string
           images?: string[]
           price_brl?: number
+          province?: string | null
           sort_order?: number
           title?: string
           updated_at?: string
