@@ -13,6 +13,7 @@ import catElectro from "@/assets/cat-electrodomesticos.jpg";
 import catAlimentos from "@/assets/cat-alimentos.jpg";
 import mapRoute from "@/assets/map-route.jpg";
 import { FlagIcon } from "@/components/FlagIcon";
+import { CUBA_PROVINCES, PROVINCE_STORAGE_KEY } from "@/lib/provinces";
 
 
 export type StoreProduct = {
