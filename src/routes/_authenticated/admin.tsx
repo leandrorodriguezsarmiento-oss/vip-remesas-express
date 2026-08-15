@@ -1049,7 +1049,9 @@ type StoreRow = {
   images: string[] | null;
   active: boolean;
   sort_order: number;
+  province: string | null;
 };
+
 
 async function uploadStoreImage(file: File): Promise<string> {
   const ext = file.name.split(".").pop() || "jpg";
