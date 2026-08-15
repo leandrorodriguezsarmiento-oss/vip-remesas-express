@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { formatMoney } from "@/lib/remittance";
+import { CUBA_PROVINCES } from "@/lib/provinces";
 import { deleteUserAsAdmin, setOrganizerRole } from "@/lib/admin.functions";
 import { sendTransactionStatusEmail } from "@/lib/emails.functions";
 
