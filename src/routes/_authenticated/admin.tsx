@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { formatMoney } from "@/lib/remittance";
+import { CUBA_PROVINCES } from "@/lib/provinces";
 import { deleteUserAsAdmin, setOrganizerRole } from "@/lib/admin.functions";
 import { sendTransactionStatusEmail } from "@/lib/emails.functions";
 
@@ -454,7 +455,11 @@ function UsersTab() {
               <div className="text-sm font-semibold truncate">{u.full_name || "(sin nombre)"}</div>
               <div className="text-[11px] font-semibold text-muted-foreground">{u.phone || "sin teléfono"}</div>
               <div className="text-[11px] text-muted-foreground truncate">{(u as { email?: string | null }).email || "sin correo"}</div>
+              <div className="text-[10px] font-bold text-primary">
+                {(u as { province?: string | null }).province || "Sin provincia"}
+              </div>
               <div className="text-[10px] text-muted-foreground">Alta: {new Date(u.created_at).toLocaleDateString("es")}</div>
+
             </div>
             {!u.isAdmin && (
               <button
@@ -1049,7 +1054,9 @@ type StoreRow = {
   images: string[] | null;
   active: boolean;
   sort_order: number;
+  province: string | null;
 };
+
 
 async function uploadStoreImage(file: File): Promise<string> {
   const ext = file.name.split(".").pop() || "jpg";
@@ -1070,8 +1077,10 @@ function StoreTab() {
   const [title, setTitle] = useState("");
   const [price, setPrice] = useState("");
   const [description, setDescription] = useState("");
+  const [province, setProvince] = useState("");
   const [images, setImages] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
+
 
   const q = useQuery<StoreRow[]>({
     queryKey: ["admin-store"],
@@ -1093,6 +1102,7 @@ function StoreTab() {
       const { error } = await supabase.from("store_products").insert({
         category, title: title.trim(), description: description.trim() || null,
         price_brl: Number(price.replace(",", ".")) || 0, images,
+        province: province || null,
       });
       if (error) throw error;
     },
@@ -1113,7 +1123,9 @@ function StoreTab() {
       images?: string[];
       active?: boolean;
       sort_order?: number;
+      province?: string | null;
     }) => {
+
       const { id, ...rest } = p;
       const { error } = await supabase.from("store_products").update(rest).eq("id", id);
       if (error) throw error;
@@ -1160,6 +1172,15 @@ function StoreTab() {
         <MiniInput label="Nombre" value={title} onChange={setTitle} />
         <MiniInput label="Precio (BRL)" value={price} onChange={setPrice} />
         <MiniInput label="Descripción" value={description} onChange={setDescription} />
+        <label className="block">
+          <span className="mb-1 block text-[10px] font-bold uppercase text-muted-foreground">Provincia</span>
+          <select value={province} onChange={(e) => setProvince(e.target.value)}
+            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-xs font-semibold outline-none focus:border-gold">
+            <option value="">Toda Cuba</option>
+            {CUBA_PROVINCES.map((pr) => <option key={pr} value={pr}>{pr}</option>)}
+          </select>
+        </label>
+
         {images.length > 0 && (
           <div className="flex gap-2 overflow-x-auto">
             {images.map((src) => (
@@ -1200,6 +1221,15 @@ function StoreTab() {
               <option value="alimentos">Alimentos y combos</option>
             </select>
           </label>
+          <label className="block">
+            <span className="mb-1 block text-[10px] font-bold uppercase text-muted-foreground">Provincia</span>
+            <select value={p.province ?? ""} onChange={(e) => update.mutate({ id: p.id, province: e.target.value || null })}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-xs font-semibold">
+              <option value="">Toda Cuba</option>
+              {CUBA_PROVINCES.map((pr) => <option key={pr} value={pr}>{pr}</option>)}
+            </select>
+          </label>
+
           <div className="flex items-center justify-between">
             <label className="flex items-center gap-2 text-[11px] font-semibold text-muted-foreground">
               <input type="checkbox" checked={p.active}

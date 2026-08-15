@@ -5,6 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { requestAccountVerification, updateMyAliases } from "@/lib/account.functions";
 import { COUNTRIES, SUPPORT_WHATSAPP_URL } from "@/lib/alias";
+import { CUBA_PROVINCES, PROVINCE_STORAGE_KEY } from "@/lib/provinces";
 import { isSoundEnabled, setSoundEnabled, playNotificationSound } from "@/lib/notify-sound";
 import { PushToggle } from "@/components/PushToggle";
 import {
@@ -39,6 +40,7 @@ type Profile = {
   avatar_url: string | null;
   verified: boolean;
   preferred_language: string;
+  province: string | null;
 };
 
 function Settings() {
@@ -50,13 +52,14 @@ function Settings() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("profiles")
-        .select("id, full_name, phone, username, cpf, country, avatar_url, verified, preferred_language")
+        .select("id, full_name, phone, username, cpf, country, avatar_url, verified, preferred_language, province")
         .eq("id", user.id)
         .maybeSingle();
       if (error) throw error;
       return data as unknown as Profile | null;
     },
   });
+
 
   const staff = useQuery({
     queryKey: ["is-staff", user.id],
@@ -109,8 +112,10 @@ function ProfileCard({ profile, onSaved }: { profile: Profile; onSaved: () => vo
   const [username, setUsername] = useState(profile.username ?? "");
   const [cpf, setCpf] = useState(profile.cpf ?? "");
   const [country, setCountry] = useState(profile.country ?? "BR");
+  const [province, setProvince] = useState(profile.province ?? "");
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+
   const syncAliases = useServerFn(updateMyAliases);
 
   useEffect(() => {
@@ -134,9 +139,11 @@ function ProfileCard({ profile, onSaved }: { profile: Profile; onSaved: () => vo
           username: username.trim() || null,
           cpf: cpf.replace(/\D/g, "") || null,
           country,
+          province: province || null,
         })
         .eq("id", profile.id);
       if (error) throw error;
+
       await syncAliases({ data: { username: username.trim(), phone: phone.trim(), cpf } });
     },
     onSuccess: () => { toast.success("Perfil actualizado"); onSaved(); },
@@ -199,6 +206,17 @@ function ProfileCard({ profile, onSaved }: { profile: Profile; onSaved: () => vo
           </select>
         </label>
         {country === "BR" && <Input label="CPF" value={cpf} onChange={setCpf} />}
+        <label className="block">
+          <span className="mb-1.5 block text-xs font-medium text-muted-foreground">
+            Provincia en Cuba (entregas y productos de tu zona)
+          </span>
+          <select value={province} onChange={(e) => { setProvince(e.target.value); try { localStorage.setItem(PROVINCE_STORAGE_KEY, e.target.value); } catch { /* sin almacenamiento */ } }}
+            className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm outline-none focus:border-gold">
+            <option value="">Todas las provincias</option>
+            {CUBA_PROVINCES.map((p) => <option key={p} value={p}>{p}</option>)}
+          </select>
+        </label>
+
         <button onClick={() => save.mutate()} disabled={save.isPending}
           className="flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-gold px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-gold disabled:opacity-60">
           {save.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}

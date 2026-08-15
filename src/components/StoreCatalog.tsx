@@ -13,6 +13,7 @@ import catElectro from "@/assets/cat-electrodomesticos.jpg";
 import catAlimentos from "@/assets/cat-alimentos.jpg";
 import mapRoute from "@/assets/map-route.jpg";
 import { FlagIcon } from "@/components/FlagIcon";
+import { CUBA_PROVINCES, PROVINCE_STORAGE_KEY } from "@/lib/provinces";
 
 
 export type StoreProduct = {
@@ -22,7 +23,9 @@ export type StoreProduct = {
   description: string | null;
   price_brl: number;
   images: string[];
+  province: string | null;
 };
+
 
 export const STORE_CATEGORIES = [
   { id: "celulares", label: "Celulares, tablets y accesorios", photo: catCelulares, grad: "bg-gradient-sky" },
@@ -114,9 +117,11 @@ function Field({
 export function StoreCatalog() {
   const qc = useQueryClient();
   const [cat, setCat] = useState<string>(STORE_CATEGORIES[0].id);
+  const [province, setProvince] = useState("");
   const [open, setOpen] = useState<StoreProduct | null>(null);
   const [opening, setOpening] = useState(true);
   const [cart, setCart] = useState<CartLine[]>([]);
+
   const [cartOpen, setCartOpen] = useState(false);
   const [checkout, setCheckout] = useState(false);
   // Pago primero: no se crea el pedido hasta que el cliente confirma el PIX.
@@ -130,15 +135,31 @@ export function StoreCatalog() {
   const [rAddress, setRAddress] = useState("");
 
   useEffect(() => {
-    const t = setTimeout(() => setOpening(false), 2300);
+    const t = setTimeout(() => setOpening(false), 1100);
     try {
       const raw = localStorage.getItem(CART_KEY);
       if (raw) setCart(JSON.parse(raw) as CartLine[]);
+      const saved = localStorage.getItem(PROVINCE_STORAGE_KEY);
+      if (saved) setProvince(saved);
     } catch {
       /* carrito vacío */
     }
+    // Si el perfil ya tiene provincia, esa manda.
+    void (async () => {
+      const { data: auth } = await supabase.auth.getUser();
+      if (!auth.user) return;
+      const { data } = await supabase.from("profiles").select("province").eq("id", auth.user.id).maybeSingle();
+      const p = (data as { province?: string | null } | null)?.province;
+      if (p) setProvince(p);
+    })();
     return () => clearTimeout(t);
   }, []);
+
+  const changeProvince = (v: string) => {
+    setProvince(v);
+    try { localStorage.setItem(PROVINCE_STORAGE_KEY, v); } catch { /* sin almacenamiento */ }
+  };
+
 
   useEffect(() => {
     try {
@@ -154,7 +175,7 @@ export function StoreCatalog() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("store_products")
-        .select("id, category, title, description, price_brl, images")
+        .select("id, category, title, description, price_brl, images, province")
         .eq("active", true)
         .order("sort_order");
       if (error) throw error;
@@ -166,7 +187,10 @@ export function StoreCatalog() {
     },
   });
 
-  const items = (q.data ?? []).filter((p) => p.category === cat);
+  const items = (q.data ?? []).filter(
+    (p) => p.category === cat && (!province || !p.province || p.province === province),
+  );
+
   const count = cart.reduce((s, l) => s + l.qty, 0);
   const total = useMemo(() => cart.reduce((s, l) => s + l.qty * l.price_brl, 0), [cart]);
 
