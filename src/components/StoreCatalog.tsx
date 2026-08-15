@@ -156,7 +156,7 @@ export function StoreCatalog() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("store_products")
-        .select("id, category, title, description, price_brl, images")
+        .select("id, category, title, description, price_brl, images, province")
         .eq("active", true)
         .order("sort_order");
       if (error) throw error;
@@ -168,7 +168,10 @@ export function StoreCatalog() {
     },
   });
 
-  const items = (q.data ?? []).filter((p) => p.category === cat);
+  const items = (q.data ?? []).filter(
+    (p) => p.category === cat && (!province || !p.province || p.province === province),
+  );
+
   const count = cart.reduce((s, l) => s + l.qty, 0);
   const total = useMemo(() => cart.reduce((s, l) => s + l.qty * l.price_brl, 0), [cart]);
 
