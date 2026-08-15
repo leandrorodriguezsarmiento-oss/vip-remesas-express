@@ -39,6 +39,7 @@ type Profile = {
   avatar_url: string | null;
   verified: boolean;
   preferred_language: string;
+  province: string | null;
 };
 
 function Settings() {
@@ -50,13 +51,14 @@ function Settings() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("profiles")
-        .select("id, full_name, phone, username, cpf, country, avatar_url, verified, preferred_language")
+        .select("id, full_name, phone, username, cpf, country, avatar_url, verified, preferred_language, province")
         .eq("id", user.id)
         .maybeSingle();
       if (error) throw error;
       return data as unknown as Profile | null;
     },
   });
+
 
   const staff = useQuery({
     queryKey: ["is-staff", user.id],
