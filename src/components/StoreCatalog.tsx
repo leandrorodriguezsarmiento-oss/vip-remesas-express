@@ -134,15 +134,31 @@ export function StoreCatalog() {
   const [rAddress, setRAddress] = useState("");
 
   useEffect(() => {
-    const t = setTimeout(() => setOpening(false), 2300);
+    const t = setTimeout(() => setOpening(false), 1100);
     try {
       const raw = localStorage.getItem(CART_KEY);
       if (raw) setCart(JSON.parse(raw) as CartLine[]);
+      const saved = localStorage.getItem(PROVINCE_STORAGE_KEY);
+      if (saved) setProvince(saved);
     } catch {
       /* carrito vacío */
     }
+    // Si el perfil ya tiene provincia, esa manda.
+    void (async () => {
+      const { data: auth } = await supabase.auth.getUser();
+      if (!auth.user) return;
+      const { data } = await supabase.from("profiles").select("province").eq("id", auth.user.id).maybeSingle();
+      const p = (data as { province?: string | null } | null)?.province;
+      if (p) setProvince(p);
+    })();
     return () => clearTimeout(t);
   }, []);
+
+  const changeProvince = (v: string) => {
+    setProvince(v);
+    try { localStorage.setItem(PROVINCE_STORAGE_KEY, v); } catch { /* sin almacenamiento */ }
+  };
+
 
   useEffect(() => {
     try {
