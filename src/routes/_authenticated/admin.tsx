@@ -420,6 +420,7 @@ function UsersTab() {
   const qc = useQueryClient();
   const delUser = useServerFn(deleteUserAsAdmin);
   const setOrg = useServerFn(setOrganizerRole);
+  const setProv = useServerFn(setUserProvince);
   const q = useQuery({
     queryKey: ["admin-users"],
     queryFn: async () => {
