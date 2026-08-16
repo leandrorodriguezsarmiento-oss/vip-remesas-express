@@ -35,7 +35,7 @@ export const STORE_CATEGORIES = [
 
 const CART_KEY = "vipshop-cart-v1";
 
-type CartLine = { id: string; title: string; price_brl: number; image: string | null; qty: number };
+type CartLine = { id: string; title: string; price_brl: number; image: string | null; qty: number; province?: string | null };
 
 export function VipShopLogo({ className = "" }: { className?: string }) {
   return (
@@ -198,7 +198,7 @@ export function StoreCatalog() {
     setCart((prev) => {
       const found = prev.find((l) => l.id === p.id);
       if (found) return prev.map((l) => (l.id === p.id ? { ...l, qty: l.qty + 1 } : l));
-      return [...prev, { id: p.id, title: p.title, price_brl: p.price_brl, image: p.images[0] ?? null, qty: 1 }];
+      return [...prev, { id: p.id, title: p.title, price_brl: p.price_brl, image: p.images[0] ?? null, qty: 1, province: p.province }];
     });
     toast.success(`${p.title} agregado al carrito`);
   }
@@ -257,7 +257,7 @@ export function StoreCatalog() {
           recipient_phone: `+53${phone}`,
           recipient_id_card: card,
           recipient_address: address,
-          items: cart.map((l) => ({ id: l.id, title: l.title, qty: l.qty, price_brl: l.price_brl })),
+          items: cart.map((l) => ({ id: l.id, title: l.title, qty: l.qty, price_brl: l.price_brl, province: l.province ?? null })),
           total_brl: total,
         })
         .select("order_no")
@@ -302,6 +302,25 @@ export function StoreCatalog() {
       <p className="text-sm font-bold text-muted-foreground">
         Elige lo que quieres enviarle a tu familia en Cuba. Nosotros lo entregamos.
       </p>
+
+      <label className="animate-rise block rounded-2xl border border-gold/30 bg-card p-3 shadow-card">
+        <span className="mb-1 flex items-center gap-1 text-[10px] font-extrabold uppercase tracking-wide text-muted-foreground">
+          <MapPin className="h-3 w-3 text-gold" /> Provincia de entrega en Cuba
+        </span>
+        <select
+          value={province}
+          onChange={(e) => changeProvince(e.target.value)}
+          className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm font-extrabold outline-none transition focus:border-gold"
+        >
+          <option value="">Todas las provincias</option>
+          {CUBA_PROVINCES.map((pr) => (
+            <option key={pr} value={pr}>{pr}</option>
+          ))}
+        </select>
+        <span className="mt-1 block text-[10px] font-bold text-muted-foreground">
+          Verás primero los artículos disponibles en esa provincia.
+        </span>
+      </label>
 
       <div className="grid grid-cols-3 gap-2">
         {STORE_CATEGORIES.map(({ id, label, photo, grad }, i) => (
@@ -352,7 +371,7 @@ export function StoreCatalog() {
             <button onClick={() => setOpen(p)} className="block w-full text-left">
               <div className="aspect-square w-full bg-secondary">
                 {p.images[0] ? (
-                  <img src={p.images[0]} alt={p.title} loading="lazy" decoding="async" className="h-full w-full object-cover" />
+                  <img src={p.images[0]} alt={p.title} loading="lazy" decoding="async" width={512} height={512} className="h-full w-full object-cover" />
                 ) : (
                   <div className="grid h-full w-full place-items-center">
                     <ShoppingBag className="h-8 w-8 text-muted-foreground" />
@@ -367,6 +386,9 @@ export function StoreCatalog() {
                 <p className="mt-1 font-display text-base font-extrabold text-gold">
                   {formatMoney(p.price_brl, "BRL")}
                 </p>
+                <span className="mt-1 inline-flex items-center gap-1 rounded-md bg-secondary px-1.5 py-0.5 text-[10px] font-extrabold text-foreground/80">
+                  <MapPin className="h-3 w-3 text-gold" /> {p.province ?? "Toda Cuba"}
+                </span>
               </div>
             </button>
             <div className="p-3 pt-2">
@@ -393,7 +415,7 @@ export function StoreCatalog() {
             </div>
             <div className="flex gap-2 overflow-x-auto">
               {open.images.map((src) => (
-                <img key={src} src={src} alt={open.title} loading="lazy" decoding="async" className="h-40 w-40 shrink-0 rounded-xl object-cover" />
+                <img key={src} src={src} alt={open.title} loading="lazy" decoding="async" width={320} height={320} className="h-40 w-40 shrink-0 rounded-xl object-cover" />
               ))}
             </div>
             {open.description && (
@@ -401,6 +423,9 @@ export function StoreCatalog() {
             )}
             <p className="mt-3 font-display text-2xl font-extrabold text-gold">
               {formatMoney(open.price_brl, "BRL")}
+            </p>
+            <p className="mt-1 inline-flex items-center gap-1 rounded-md bg-secondary px-2 py-0.5 text-[11px] font-extrabold">
+              <MapPin className="h-3 w-3 text-gold" /> {open.province ?? "Toda Cuba"}
             </p>
             <button
               onClick={() => { addToCart(open); setOpen(null); }}
@@ -438,7 +463,7 @@ export function StoreCatalog() {
                 className="animate-rise mb-2 flex items-center gap-3 rounded-xl border border-border bg-background p-2"
               >
                 {l.image ? (
-                  <img src={l.image} alt={l.title} loading="lazy" className="h-14 w-14 rounded-lg object-cover" />
+                  <img src={l.image} alt={l.title} loading="lazy" decoding="async" width={56} height={56} className="h-14 w-14 rounded-lg object-cover" />
                 ) : (
                   <span className="grid h-14 w-14 place-items-center rounded-lg bg-secondary">
                     <ShoppingBag className="h-5 w-5 text-muted-foreground" />
