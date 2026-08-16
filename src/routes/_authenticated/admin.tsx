@@ -5,7 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { formatMoney } from "@/lib/remittance";
 import { CUBA_PROVINCES } from "@/lib/provinces";
-import { deleteUserAsAdmin, setOrganizerRole } from "@/lib/admin.functions";
+import { deleteUserAsAdmin, setOrganizerRole, setUserProvince } from "@/lib/admin.functions";
 import { sendTransactionStatusEmail } from "@/lib/emails.functions";
 
 import { toast } from "sonner";
@@ -420,6 +420,7 @@ function UsersTab() {
   const qc = useQueryClient();
   const delUser = useServerFn(deleteUserAsAdmin);
   const setOrg = useServerFn(setOrganizerRole);
+  const setProv = useServerFn(setUserProvince);
   const q = useQuery({
     queryKey: ["admin-users"],
     queryFn: async () => {
@@ -443,6 +444,11 @@ function UsersTab() {
       toast.success(r.enabled ? "Ahora es organizador" : "Ya no es organizador");
       qc.invalidateQueries({ queryKey: ["admin-users"] });
     },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Error"),
+  });
+  const prov = useMutation({
+    mutationFn: async (v: { userId: string; province: string | null }) => setProv({ data: v }),
+    onSuccess: () => { toast.success("Provincia actualizada"); qc.invalidateQueries({ queryKey: ["admin-users"] }); },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Error"),
   });
   if (q.isLoading) return <p className="text-sm text-muted-foreground">Cargando…</p>;
@@ -481,6 +487,19 @@ function UsersTab() {
               <UserCheck className="h-3 w-3" />
               {u.isOrganizer ? "Organizador activo" : "Hacer organizador"}
             </button>
+          )}
+          {!u.isAdmin && (
+            <label className="block">
+              <span className="text-[10px] font-bold uppercase text-muted-foreground">Provincia</span>
+              <select
+                value={(u as { province?: string | null }).province ?? ""}
+                disabled={prov.isPending}
+                onChange={(e) => prov.mutate({ userId: u.id, province: e.target.value || null })}
+                className="mt-1 w-full rounded-lg border border-border bg-background px-2 py-1.5 text-[11px] font-semibold">
+                <option value="">Sin provincia</option>
+                {CUBA_PROVINCES.map((p) => <option key={p} value={p}>{p}</option>)}
+              </select>
+            </label>
           )}
           {u.isAdmin && <p className="text-[10px] font-semibold text-gold">Administrador</p>}
         </div>
