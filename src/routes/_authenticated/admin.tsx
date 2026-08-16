@@ -1291,7 +1291,7 @@ type StoreOrderRow = {
   recipient_phone: string;
   recipient_id_card: string;
   recipient_address: string;
-  items: { title: string; qty: number; price_brl: number }[] | null;
+  items: { title: string; qty: number; price_brl: number; province?: string | null }[] | null;
   total_brl: number | string;
   status: string;
   created_at: string;
@@ -1362,7 +1362,12 @@ function StoreOrdersTab({ isAdmin }: { isAdmin: boolean }) {
       </div>
       <ul className="space-y-0.5 text-[11px] font-bold text-muted-foreground">
         {(o.items ?? []).map((it, idx) => (
-          <li key={idx}>{it.qty}× {it.title} — {formatMoney(Number(it.price_brl) * it.qty, "BRL")}</li>
+          <li key={idx}>
+            {it.qty}× {it.title} — {formatMoney(Number(it.price_brl) * it.qty, "BRL")}
+            <span className="ml-1 rounded bg-secondary px-1 py-0.5 text-[10px] font-extrabold text-foreground/80">
+              {it.province ?? "Toda Cuba"}
+            </span>
+          </li>
         ))}
       </ul>
       <div className="flex gap-2">

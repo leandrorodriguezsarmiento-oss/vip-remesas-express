@@ -37,10 +37,9 @@ function useBanners() {
 
   // Precargamos las imágenes para que el cambio sea instantáneo.
   useEffect(() => {
-    (data ?? []).forEach((b) => {
-      const img = new Image();
-      img.src = b.image_url;
-    });
+    // Solo el siguiente banner: evita descargar todo de golpe.
+    const next = (data ?? [])[0];
+    if (next) { const img = new Image(); img.decoding = "async"; img.src = next.image_url; }
   }, [data]);
 
   useEffect(() => {
@@ -75,6 +74,8 @@ export function BannerCarousel() {
         alt={current.title ?? "Promoción VIP Remesas"}
         loading="eager"
         decoding="async"
+        width={1200}
+        height={525}
         className="h-full w-full object-cover transition-opacity duration-500"
       />
       {current.title && (
@@ -113,6 +114,8 @@ export function BannerHero({ children }: { children: ReactNode }) {
           alt={current.title ?? "Promoción VIP Remesas"}
           loading="eager"
           decoding="async"
+          width={1200}
+          height={525}
           className="absolute inset-0 h-full w-full object-cover transition-opacity duration-700"
         />
       ) : null}
