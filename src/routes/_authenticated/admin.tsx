@@ -446,6 +446,11 @@ function UsersTab() {
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Error"),
   });
+  const prov = useMutation({
+    mutationFn: async (v: { userId: string; province: string | null }) => setProv({ data: v }),
+    onSuccess: () => { toast.success("Provincia actualizada"); qc.invalidateQueries({ queryKey: ["admin-users"] }); },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Error"),
+  });
   if (q.isLoading) return <p className="text-sm text-muted-foreground">Cargando…</p>;
   return (
     <div className="space-y-2">
