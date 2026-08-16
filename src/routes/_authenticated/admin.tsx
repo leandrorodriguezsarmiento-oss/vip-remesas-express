@@ -488,6 +488,19 @@ function UsersTab() {
               {u.isOrganizer ? "Organizador activo" : "Hacer organizador"}
             </button>
           )}
+          {!u.isAdmin && (
+            <label className="block">
+              <span className="text-[10px] font-bold uppercase text-muted-foreground">Provincia</span>
+              <select
+                value={(u as { province?: string | null }).province ?? ""}
+                disabled={prov.isPending}
+                onChange={(e) => prov.mutate({ userId: u.id, province: e.target.value || null })}
+                className="mt-1 w-full rounded-lg border border-border bg-background px-2 py-1.5 text-[11px] font-semibold">
+                <option value="">Sin provincia</option>
+                {CUBA_PROVINCES.map((p) => <option key={p} value={p}>{p}</option>)}
+              </select>
+            </label>
+          )}
           {u.isAdmin && <p className="text-[10px] font-semibold text-gold">Administrador</p>}
         </div>
       ))}
