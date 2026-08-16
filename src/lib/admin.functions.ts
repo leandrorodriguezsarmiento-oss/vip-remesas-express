@@ -60,3 +60,29 @@ export const deleteUserAsAdmin = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true };
   });
+
+/** El admin asigna/cambia la provincia de un usuario (organizador). */
+export const setUserProvince = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { userId: string; province: string | null }) => {
+    if (!input?.userId || typeof input.userId !== "string") throw new Error("userId requerido");
+    const province = input.province ? String(input.province).trim() : null;
+    if (province && province.length > 60) throw new Error("Provincia inválida");
+    return { userId: input.userId, province };
+  })
+  .handler(async ({ data, context }) => {
+    const { data: isAdmin, error: roleErr } = await context.supabase.rpc("has_role", {
+      _user_id: context.userId,
+      _role: "admin",
+    });
+    if (roleErr) throw new Error("No se pudo verificar rol");
+    if (!isAdmin) throw new Error("Solo el admin puede cambiar la provincia");
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin
+      .from("profiles")
+      .update({ province: data.province })
+      .eq("id", data.userId);
+    if (error) throw new Error(error.message);
+    return { ok: true, province: data.province };
+  });
