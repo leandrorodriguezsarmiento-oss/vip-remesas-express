@@ -86,3 +86,35 @@ export const setUserProvince = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true, province: data.province };
   });
+
+/** Lista de organizadores (para asignar remesas / recargas / pedidos). Sólo staff. */
+export const listOrganizers = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data: isAdmin } = await context.supabase.rpc("has_role", {
+      _user_id: context.userId,
+      _role: "admin",
+    });
+    if (!isAdmin) throw new Error("Solo el admin puede ver los organizadores");
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: roles, error: rolesErr } = await supabaseAdmin
+      .from("user_roles")
+      .select("user_id")
+      .eq("role", "organizador");
+    if (rolesErr) throw new Error(rolesErr.message);
+    const ids = (roles ?? []).map((r) => r.user_id);
+    if (ids.length === 0) return [] as { id: string; full_name: string | null; email: string | null; province: string | null }[];
+
+    const { data: profs, error } = await supabaseAdmin
+      .from("profiles")
+      .select("id, full_name, email, province")
+      .in("id", ids);
+    if (error) throw new Error(error.message);
+    return (profs ?? []).map((p) => ({
+      id: p.id,
+      full_name: p.full_name,
+      email: p.email ?? null,
+      province: p.province ?? null,
+    }));
+  });
