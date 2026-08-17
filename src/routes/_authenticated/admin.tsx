@@ -147,6 +147,52 @@ function CopyBlock({ tx }: { tx: AdminTx }) {
 
 
 
+// ----------------- Organizadores (asignación) -----------------
+type Organizer = { id: string; full_name: string | null; email: string | null; province: string | null };
+
+function useOrganizers(enabled: boolean) {
+  const list = useServerFn(listOrganizers);
+  return useQuery<Organizer[]>({
+    queryKey: ["organizers"],
+    queryFn: async () => (await list()) as Organizer[],
+    enabled,
+    staleTime: 60_000,
+  });
+}
+
+function orgLabel(o: Organizer) {
+  return `${o.full_name || o.email || "Organizador"}${o.province ? ` · ${o.province}` : ""}`;
+}
+
+function OrgPicker({
+  organizers,
+  value,
+  onChange,
+}: { organizers: Organizer[]; value: string; onChange: (v: string) => void }) {
+  return (
+    <label className="block">
+      <span className="text-[10px] font-bold uppercase text-muted-foreground">Organizador que procesa</span>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="mt-1 w-full rounded-lg border border-primary/40 bg-background px-2 py-1.5 text-[11px] font-bold">
+        <option value="">Todos los organizadores</option>
+        {organizers.map((o) => <option key={o.id} value={o.id}>{orgLabel(o)}</option>)}
+      </select>
+    </label>
+  );
+}
+
+function AssignedBadge({ organizers, id }: { organizers: Organizer[]; id: string | null | undefined }) {
+  if (!id) return null;
+  const o = organizers.find((x) => x.id === id);
+  return (
+    <p className="text-[10px] font-extrabold text-primary">
+      Asignado a: {o ? orgLabel(o) : "organizador"}
+    </p>
+  );
+}
+
 function TransactionsTab({ isAdmin }: { isAdmin: boolean }) {
   const qc = useQueryClient();
   const [view, setView] = useState<"active" | "done">("active");
