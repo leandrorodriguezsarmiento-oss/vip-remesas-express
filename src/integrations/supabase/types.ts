@@ -404,6 +404,7 @@ export type Database = {
       }
       recargas_requests: {
         Row: {
+          assigned_to: string | null
           created_at: string
           id: string
           notes: string | null
@@ -418,6 +419,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          assigned_to?: string | null
           created_at?: string
           id?: string
           notes?: string | null
@@ -432,6 +434,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          assigned_to?: string | null
           created_at?: string
           id?: string
           notes?: string | null
@@ -493,6 +496,7 @@ export type Database = {
       }
       store_orders: {
         Row: {
+          assigned_to: string | null
           created_at: string
           id: string
           items: Json
@@ -508,6 +512,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          assigned_to?: string | null
           created_at?: string
           id?: string
           items?: Json
@@ -523,6 +528,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          assigned_to?: string | null
           created_at?: string
           id?: string
           items?: Json
@@ -585,6 +591,7 @@ export type Database = {
         Row: {
           amount_brl: number
           amount_dest: number
+          assigned_to: string | null
           created_at: string
           delivery_method: string
           dest_currency: string
@@ -610,6 +617,7 @@ export type Database = {
         Insert: {
           amount_brl: number
           amount_dest: number
+          assigned_to?: string | null
           created_at?: string
           delivery_method: string
           dest_currency: string
@@ -635,6 +643,7 @@ export type Database = {
         Update: {
           amount_brl?: number
           amount_dest?: number
+          assigned_to?: string | null
           created_at?: string
           delivery_method?: string
           dest_currency?: string
