@@ -5,7 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { formatMoney } from "@/lib/remittance";
 import { CUBA_PROVINCES } from "@/lib/provinces";
-import { deleteUserAsAdmin, setOrganizerRole, setUserProvince } from "@/lib/admin.functions";
+import { deleteUserAsAdmin, listOrganizers, setOrganizerRole, setUserProvince } from "@/lib/admin.functions";
 import { sendTransactionStatusEmail } from "@/lib/emails.functions";
 
 import { toast } from "sonner";
