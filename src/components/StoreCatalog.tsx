@@ -187,8 +187,9 @@ export function StoreCatalog() {
     },
   });
 
+  // Filtro estricto: si hay provincia elegida, solo se ven artículos publicados para ella.
   const items = (q.data ?? []).filter(
-    (p) => p.category === cat && (!province || !p.province || p.province === province),
+    (p) => p.category === cat && (!province || p.province === province),
   );
 
   const count = cart.reduce((s, l) => s + l.qty, 0);
