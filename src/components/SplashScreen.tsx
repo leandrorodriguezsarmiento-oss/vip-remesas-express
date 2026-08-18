@@ -16,6 +16,7 @@ export function SplashScreen({ children }: { children: ReactNode }) {
         <img
           src="/icon-192-v8.png"
           alt="VIP Remesas"
+          decoding="async"
           width={112}
           height={112}
           className="h-28 w-28 rounded-2xl object-contain drop-shadow-[0_0_24px_rgba(212,175,55,0.35)]"
