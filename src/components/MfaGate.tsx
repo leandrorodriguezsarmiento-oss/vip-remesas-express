@@ -55,8 +55,9 @@ export function MfaGate({
         .eq("user_id", userId)
         .in("role", ["admin", "organizador"]);
       if (!alive) return;
-      const isStaff = (roles ?? []).length > 0;
-      if (!isStaff) return setMode("unlocked");
+      const list = (roles ?? []).map((r) => r.role as string);
+      const isAdmin = list.includes("admin");
+      if (list.length === 0) return setMode("unlocked");
 
       let already = false;
       try {
@@ -76,6 +77,8 @@ export function MfaGate({
         setFactorId(totp.id);
         return setMode("totp");
       }
+      // Los organizadores no requieren código por correo: entran directo.
+      if (!isAdmin) return setMode("unlocked");
       if (already) return setMode("unlocked");
       setMode("email");
     })();
