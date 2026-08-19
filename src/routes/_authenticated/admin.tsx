@@ -274,17 +274,19 @@ function TransactionsTab({ isAdmin }: { isAdmin: boolean }) {
           </div>
 
           <AssignedBadge organizers={organizers.data ?? []} id={(t as { assigned_to?: string | null }).assigned_to} />
-          {isAdmin && (
-            <OrgPicker
+          {isAdmin && t.status !== "completed" && t.status !== "rejected" && (
+            <AssignAndSend
               organizers={organizers.data ?? []}
               value={assign[t.id] ?? (t as { assigned_to?: string | null }).assigned_to ?? ""}
               onChange={(v) => setAssign((prev) => ({ ...prev, [t.id]: v }))}
+              onSend={(orgId) => upd.mutate({ id: t.id, status: "processing", assignedTo: orgId })}
+              disabled={upd.isPending}
             />
           )}
           <div className="flex flex-wrap gap-1">
-            {(isAdmin ? (["pending", "processing", "completed", "rejected"] as const) : (["completed"] as const)).map((s) => (
+            {(isAdmin ? (["pending", "completed", "rejected"] as const) : (["completed"] as const)).map((s) => (
               <button key={s}
-                onClick={() => upd.mutate({ id: t.id, status: s, assignedTo: assign[t.id] ?? (t as { assigned_to?: string | null }).assigned_to ?? null })}
+                onClick={() => upd.mutate({ id: t.id, status: s })}
                 className={`rounded-full px-2 py-1 text-[10px] font-semibold ${t.status === s ? "bg-gradient-gold text-primary-foreground" : "border border-border bg-background text-muted-foreground"}`}>
                 {STATUS_ES[s]}
               </button>
@@ -768,9 +770,14 @@ function RecargasTab({ isAdmin = true }: { isAdmin?: boolean }) {
     },
   });
 
+  const organizers = useOrganizers(isAdmin);
+  const [assign, setAssign] = useState<Record<string, string>>({});
+
   const upd = useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: "pending" | "processing" | "completed" | "rejected" }) => {
-      const { error } = await supabase.from("recargas_requests").update({ status }).eq("id", id);
+    mutationFn: async ({ id, status, assignedTo }: { id: string; status: "pending" | "processing" | "completed" | "rejected"; assignedTo?: string | null }) => {
+      const patch: { status: typeof status; assigned_to?: string | null } = { status };
+      if (status === "processing") patch.assigned_to = assignedTo || null;
+      const { error } = await supabase.from("recargas_requests").update(patch).eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => { toast.success("Estado actualizado"); qc.invalidateQueries({ queryKey: ["admin-recargas"] }); },
@@ -817,8 +824,23 @@ function RecargasTab({ isAdmin = true }: { isAdmin?: boolean }) {
               <div className="text-sm font-bold text-gold">{formatMoney(Number(r.price_brl), "BRL")}</div>
             </div>
           </div>
+          <CopyList lines={[
+            ["Teléfono a recargar", r.phone],
+            ["Recarga", r.promo_title],
+            ["Monto pagado", formatMoney(Number(r.price_brl), "BRL")],
+          ]} />
+          <AssignedBadge organizers={organizers.data ?? []} id={(r as { assigned_to?: string | null }).assigned_to} />
+          {isAdmin && r.status !== "completed" && r.status !== "rejected" && (
+            <AssignAndSend
+              organizers={organizers.data ?? []}
+              value={assign[r.id] ?? (r as { assigned_to?: string | null }).assigned_to ?? ""}
+              onChange={(v) => setAssign((p) => ({ ...p, [r.id]: v }))}
+              onSend={(orgId) => upd.mutate({ id: r.id, status: "processing", assignedTo: orgId })}
+              disabled={upd.isPending}
+            />
+          )}
           <div className="flex flex-wrap gap-1">
-            {(isAdmin ? (["pending", "processing", "completed", "rejected"] as const) : (["completed"] as const)).map((s) => (
+            {(isAdmin ? (["pending", "completed", "rejected"] as const) : (["completed"] as const)).map((s) => (
               <button key={s} onClick={() => upd.mutate({ id: r.id, status: s })}
                 className={`rounded-full px-2 py-1 text-[10px] font-semibold ${r.status === s ? "bg-gradient-gold text-primary-foreground" : "border border-border bg-background text-muted-foreground"}`}>
                 {STATUS_ES[s]}
@@ -894,6 +916,14 @@ function ReportsTab() {
           ))}
           {days.length === 0 && <li className="p-4 text-center text-sm text-muted-foreground">Sin datos aún.</li>}
         </ul>
+      </div>
+
+      <div className="space-y-2">
+        <div className="flex items-center gap-2">
+          <UserCheck className="h-4 w-4 text-gold" />
+          <p className="text-xs font-extrabold uppercase text-muted-foreground">Trabajo de cada organizador por día</p>
+        </div>
+        <OrganizerReports />
       </div>
     </div>
   );
@@ -1354,10 +1384,13 @@ type StoreOrderRow = {
   total_brl: number | string;
   status: string;
   created_at: string;
+  assigned_to?: string | null;
 };
 
 function StoreOrdersTab({ isAdmin }: { isAdmin: boolean }) {
   const qc = useQueryClient();
+  const organizers = useOrganizers(isAdmin);
+  const [assign, setAssign] = useState<Record<string, string>>({});
   const q = useQuery<StoreOrderRow[]>({
     queryKey: ["store-orders"],
     queryFn: async () => {
@@ -1371,11 +1404,12 @@ function StoreOrdersTab({ isAdmin }: { isAdmin: boolean }) {
   });
 
   const setStatus = useMutation({
-    mutationFn: async (p: { id: string; status: string }) => {
-      const { error } = await supabase
-        .from("store_orders")
-        .update({ status: p.status as "pending" | "processing" | "completed" | "rejected" })
-        .eq("id", p.id);
+    mutationFn: async (p: { id: string; status: string; assignedTo?: string | null }) => {
+      const patch: { status: "pending" | "processing" | "completed" | "rejected"; assigned_to?: string | null } = {
+        status: p.status as "pending" | "processing" | "completed" | "rejected",
+      };
+      if (p.status === "processing") patch.assigned_to = p.assignedTo || null;
+      const { error } = await supabase.from("store_orders").update(patch).eq("id", p.id);
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["store-orders"] }); toast.success("Pedido actualizado"); },
@@ -1385,76 +1419,67 @@ function StoreOrdersTab({ isAdmin }: { isAdmin: boolean }) {
   const active = (q.data ?? []).filter((o) => o.status === "pending" || o.status === "processing");
   const done = (q.data ?? []).filter((o) => o.status === "completed" || o.status === "rejected");
 
-  function copy(text: string, label: string) {
-    void navigator.clipboard.writeText(text);
-    toast.success(`${label} copiado`);
-  }
-
-  const Card = ({ o, i }: { o: StoreOrderRow; i: number }) => (
-    <div
-      key={o.id}
-      style={{ animationDelay: `${i * 40}ms` }}
-      className="animate-rise space-y-2 rounded-xl border border-border bg-card p-3 shadow-card"
-    >
-      <div className="flex items-center justify-between">
-        <p className="font-display text-sm font-extrabold">Pedido #{o.order_no}</p>
-        <span className="rounded-md bg-secondary px-2 py-0.5 text-[10px] font-extrabold uppercase">
-          {STATUS_ES[o.status] ?? o.status}
-        </span>
-      </div>
-      <p className="text-base font-extrabold text-destructive">{o.recipient_name}</p>
-      <div className="space-y-1 rounded-lg bg-background p-2 text-[11px] font-extrabold">
-        {([
-          ["Nombre", o.recipient_name],
-          ["Teléfono", o.recipient_phone],
-          ["Carnet", o.recipient_id_card],
-          ["Dirección", o.recipient_address],
-          ["Total", formatMoney(Number(o.total_brl), "BRL")],
-        ] as [string, string][]).map(([k, v]) => (
-          <div key={k} className="flex items-center justify-between gap-2">
-            <span className="truncate"><span className="text-muted-foreground">{k}: </span>{v}</span>
-            <button onClick={() => copy(v, k)} className="shrink-0 rounded-md border border-gold/50 p-1 text-gold">
-              <Copy className="h-3 w-3" />
+  const Card = ({ o, i }: { o: StoreOrderRow; i: number }) => {
+    const productos = (o.items ?? [])
+      .map((it) => `${it.qty}× ${it.title} (${formatMoney(Number(it.price_brl) * it.qty, "BRL")})`)
+      .join("\n");
+    const lines: [string, string][] = [
+      ["Productos a entregar", productos],
+      ["Nombre", o.recipient_name],
+      ["Teléfono", o.recipient_phone],
+      ["Carnet", o.recipient_id_card],
+      ["Dirección", o.recipient_address],
+      ["Total pagado", formatMoney(Number(o.total_brl), "BRL")],
+    ];
+    return (
+      <div
+        style={{ animationDelay: `${i * 40}ms` }}
+        className="animate-rise space-y-2 rounded-xl border border-border bg-card p-3 shadow-card"
+      >
+        <div className="flex items-center justify-between">
+          <p className="font-display text-sm font-extrabold">Pedido #{o.order_no}</p>
+          <span className="rounded-md bg-secondary px-2 py-0.5 text-[10px] font-extrabold uppercase">
+            {STATUS_ES[o.status] ?? o.status}
+          </span>
+        </div>
+        <p className="text-[11px] font-bold text-muted-foreground">{new Date(o.created_at).toLocaleString("es")}</p>
+        <CopyList lines={lines} />
+        <AssignedBadge organizers={organizers.data ?? []} id={o.assigned_to} />
+        {isAdmin && o.status !== "completed" && o.status !== "rejected" && (
+          <AssignAndSend
+            organizers={organizers.data ?? []}
+            value={assign[o.id] ?? o.assigned_to ?? ""}
+            onChange={(v) => setAssign((p) => ({ ...p, [o.id]: v }))}
+            onSend={(orgId) => setStatus.mutate({ id: o.id, status: "processing", assignedTo: orgId })}
+            disabled={setStatus.isPending}
+          />
+        )}
+        <div className="flex gap-2">
+          {o.status !== "completed" && (
+            <button onClick={() => setStatus.mutate({ id: o.id, status: "completed" })}
+              className="flex-1 rounded-lg bg-gradient-emerald px-2 py-2 text-[11px] font-extrabold text-white shadow-glow">
+              <Check className="mr-1 inline h-3 w-3" />Listo
             </button>
-          </div>
-        ))}
+          )}
+          {isAdmin && o.status !== "rejected" && o.status !== "completed" && (
+            <button onClick={() => setStatus.mutate({ id: o.id, status: "rejected" })}
+              className="rounded-lg border border-destructive px-2 py-2 text-[11px] font-extrabold text-destructive">
+              Rechazar
+            </button>
+          )}
+        </div>
       </div>
-      <ul className="space-y-0.5 text-[11px] font-bold text-muted-foreground">
-        {(o.items ?? []).map((it, idx) => (
-          <li key={idx}>
-            {it.qty}× {it.title} — {formatMoney(Number(it.price_brl) * it.qty, "BRL")}
-            <span className="ml-1 rounded bg-secondary px-1 py-0.5 text-[10px] font-extrabold text-foreground/80">
-              {it.province ?? "Toda Cuba"}
-            </span>
-          </li>
-        ))}
-      </ul>
-      <div className="flex gap-2">
-        {isAdmin && o.status !== "processing" && o.status !== "completed" && (
-          <button onClick={() => setStatus.mutate({ id: o.id, status: "processing" })}
-            className="flex-1 rounded-lg bg-gradient-sky px-2 py-2 text-[11px] font-extrabold text-white shadow-glow">
-            Procesando
-          </button>
-        )}
-        {o.status !== "completed" && (
-          <button onClick={() => setStatus.mutate({ id: o.id, status: "completed" })}
-            className="flex-1 rounded-lg bg-gradient-emerald px-2 py-2 text-[11px] font-extrabold text-white shadow-glow">
-            <Check className="mr-1 inline h-3 w-3" />Listo
-          </button>
-        )}
-        {isAdmin && o.status !== "rejected" && o.status !== "completed" && (
-          <button onClick={() => setStatus.mutate({ id: o.id, status: "rejected" })}
-            className="rounded-lg border border-destructive px-2 py-2 text-[11px] font-extrabold text-destructive">
-            Rechazar
-          </button>
-        )}
-      </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <div className="space-y-3">
       {q.isLoading && <p className="text-sm font-bold text-muted-foreground">Cargando pedidos…</p>}
+      {q.isError && (
+        <p className="rounded-xl border border-destructive/50 bg-card p-3 text-sm font-bold text-destructive">
+          No se pudieron cargar los pedidos.
+        </p>
+      )}
       {!q.isLoading && active.length === 0 && (
         <p className="rounded-xl border border-border bg-card p-4 text-sm font-bold text-muted-foreground">
           No hay pedidos pendientes de VipShop.
@@ -1471,6 +1496,209 @@ function StoreOrdersTab({ isAdmin }: { isAdmin: boolean }) {
           </div>
         </details>
       )}
+    </div>
+  );
+}
+
+// ----------------- Utilidades compartidas: copiar / asignar -----------------
+/** Lista de datos con copiado individual y "Copiar todo". */
+function CopyList({ lines }: { lines: [string, string][] }) {
+  const shown = lines.filter(([, v]) => (v ?? "").toString().trim().length > 0);
+  if (shown.length === 0) return null;
+  function copy(text: string, label: string) {
+    void navigator.clipboard.writeText(text);
+    toast.success(`${label} copiado`);
+  }
+  return (
+    <div className="space-y-1 rounded-lg border border-gold/40 bg-background/60 p-2">
+      {shown.map(([label, value]) => (
+        <button key={label} onClick={() => copy(value, label)}
+          className="flex w-full items-start gap-2 text-left text-[12px] font-bold text-foreground hover:text-gold">
+          <Copy className="mt-0.5 h-3.5 w-3.5 shrink-0 text-gold" />
+          <span className="min-w-0 whitespace-pre-line break-words">
+            <span className="text-muted-foreground">{label}: </span>{value}
+          </span>
+        </button>
+      ))}
+      <button onClick={() => copy(shown.map(([l, v]) => `${l}: ${v}`).join("\n"), "Todo")}
+        className="w-full rounded-md bg-gradient-gold px-2 py-1 text-[11px] font-bold text-primary-foreground">
+        Copiar todo
+      </button>
+    </div>
+  );
+}
+
+/** Selector obligatorio de organizador + botón de envío (pasa a "Procesando"). */
+function AssignAndSend({
+  organizers, value, onChange, onSend, disabled,
+}: {
+  organizers: Organizer[];
+  value: string;
+  onChange: (v: string) => void;
+  onSend: (organizerId: string) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <div className="space-y-2 rounded-lg border border-primary/40 bg-background/60 p-2">
+      <OrgPicker organizers={organizers} value={value} onChange={onChange} />
+      <button
+        disabled={disabled}
+        onClick={() => {
+          if (!value) { toast.error("Elige el organizador que va a procesar"); return; }
+          onSend(value);
+        }}
+        className="w-full rounded-lg bg-gradient-sky px-2 py-2 text-[11px] font-extrabold text-white shadow-glow disabled:opacity-60">
+        Enviar a organizador (Procesando)
+      </button>
+      {organizers.length === 0 && (
+        <p className="text-[10px] font-bold text-muted-foreground">
+          No hay organizadores todavía: actívalos en la pestaña Usuarios.
+        </p>
+      )}
+    </div>
+  );
+}
+
+// ----------------- Historial diario (organizador / admin) -----------------
+type DailyRow = {
+  kind: "Remesa" | "Recarga" | "Pedido";
+  id: string;
+  when: string;
+  status: string;
+  who: string;
+  detail: string;
+  amount: number;
+  currency: string;
+  assigned_to: string | null;
+};
+
+function useDailyWork(enabled: boolean, onlyMine: string | null) {
+  return useQuery<DailyRow[]>({
+    queryKey: ["daily-work", onlyMine ?? "all"],
+    enabled,
+    queryFn: async () => {
+      const tx = supabase.from("transactions")
+        .select("id, created_at, status, recipient_name, method_category, total_brl, origin_currency, amount_dest, dest_currency, assigned_to")
+        .order("created_at", { ascending: false }).limit(300);
+      const rc = supabase.from("recargas_requests")
+        .select("id, created_at, status, phone, promo_title, price_brl, assigned_to")
+        .order("created_at", { ascending: false }).limit(300);
+      const so = supabase.from("store_orders")
+        .select("id, created_at, status, recipient_name, total_brl, assigned_to")
+        .order("created_at", { ascending: false }).limit(300);
+      const [a, b, c] = await Promise.all([tx, rc, so]);
+      if (a.error) throw a.error;
+      if (b.error) throw b.error;
+      if (c.error) throw c.error;
+      const rows: DailyRow[] = [
+        ...(a.data ?? []).map((t) => ({
+          kind: "Remesa" as const, id: t.id, when: t.created_at, status: t.status as string,
+          who: t.recipient_name,
+          detail: `${(t.method_category ?? "transferencia") === "efectivo" ? "Efectivo" : "Transferencia"} · ${formatMoney(Number(t.amount_dest), t.dest_currency || "CUP")}`,
+          amount: Number(t.total_brl), currency: (t.origin_currency as string) || "BRL",
+          assigned_to: (t.assigned_to as string | null) ?? null,
+        })),
+        ...(b.data ?? []).map((r) => ({
+          kind: "Recarga" as const, id: r.id, when: r.created_at, status: r.status as string,
+          who: r.phone, detail: r.promo_title, amount: Number(r.price_brl), currency: "BRL",
+          assigned_to: (r.assigned_to as string | null) ?? null,
+        })),
+        ...(c.data ?? []).map((o) => ({
+          kind: "Pedido" as const, id: o.id, when: o.created_at, status: o.status as string,
+          who: o.recipient_name, detail: "VipShop", amount: Number(o.total_brl), currency: "BRL",
+          assigned_to: (o.assigned_to as string | null) ?? null,
+        })),
+      ];
+      const filtered = onlyMine ? rows.filter((r) => r.assigned_to === onlyMine) : rows;
+      return filtered.sort((x, y) => (x.when < y.when ? 1 : -1));
+    },
+  });
+}
+
+function dayKey(iso: string) { return new Date(iso).toISOString().slice(0, 10); }
+function dayText(key: string) {
+  return new Date(key).toLocaleDateString("es", { weekday: "long", day: "numeric", month: "short" });
+}
+
+/** "Mi día": todo lo que un organizador (o el admin) procesó, agrupado por día. */
+function MyWorkTab({ userId }: { userId: string }) {
+  const q = useDailyWork(true, userId);
+  if (q.isLoading) return <p className="text-sm text-muted-foreground">Cargando…</p>;
+  const rows = (q.data ?? []).filter((r) => r.status === "completed" || r.status === "processing");
+  const byDay = new Map<string, DailyRow[]>();
+  rows.forEach((r) => {
+    const k = dayKey(r.when);
+    byDay.set(k, [...(byDay.get(k) ?? []), r]);
+  });
+  const days = [...byDay.entries()].sort((a, b) => b[0].localeCompare(a[0]));
+  if (days.length === 0) return <p className="text-sm text-muted-foreground">Todavía no tienes trabajo asignado.</p>;
+  return (
+    <div className="space-y-3">
+      {days.map(([day, list]) => <DaySummaryCard key={day} day={day} list={list} />)}
+    </div>
+  );
+}
+
+function DaySummaryCard({ day, list, title }: { day: string; list: DailyRow[]; title?: string }) {
+  const done = list.filter((r) => r.status === "completed");
+  const totalBRL = done.filter((r) => r.currency === "BRL").reduce((s, r) => s + r.amount, 0);
+  const counts = {
+    Remesa: done.filter((r) => r.kind === "Remesa").length,
+    Recarga: done.filter((r) => r.kind === "Recarga").length,
+    Pedido: done.filter((r) => r.kind === "Pedido").length,
+  };
+  const efectivo = done.filter((r) => r.kind === "Remesa" && r.detail.startsWith("Efectivo")).length;
+  return (
+    <section className="overflow-hidden rounded-xl border border-border bg-card">
+      <div className="border-b border-border p-3">
+        <p className="font-display text-sm font-extrabold capitalize">{title ? `${title} · ${dayText(day)}` : dayText(day)}</p>
+        <p className="text-[11px] font-bold text-muted-foreground">
+          {counts.Remesa} remesas ({efectivo} efectivo / {counts.Remesa - efectivo} transferencia) ·{" "}
+          {counts.Recarga} recargas · {counts.Pedido} pedidos
+        </p>
+        <p className="font-display text-base font-extrabold text-gold">{formatMoney(totalBRL, "BRL")} completado</p>
+      </div>
+      <ul className="divide-y divide-border text-[12px]">
+        {list.map((r) => (
+          <li key={`${r.kind}-${r.id}`} className="flex items-center justify-between gap-2 p-2">
+            <span className="min-w-0">
+              <span className="mr-1 rounded bg-secondary px-1 py-0.5 text-[10px] font-extrabold">{r.kind}</span>
+              <span className="font-bold">{r.who}</span>
+              <span className="block text-[10px] font-semibold text-muted-foreground">
+                {r.detail} · {STATUS_ES[r.status] ?? r.status} ·{" "}
+                {new Date(r.when).toLocaleTimeString("es", { hour: "2-digit", minute: "2-digit" })}
+              </span>
+            </span>
+            <span className="shrink-0 font-extrabold text-destructive">{formatMoney(r.amount, r.currency)}</span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+/** Reporte del admin: qué hizo cada organizador, por día. */
+function OrganizerReports() {
+  const organizers = useOrganizers(true);
+  const q = useDailyWork(true, null);
+  if (q.isLoading || organizers.isLoading) return <p className="text-sm text-muted-foreground">Cargando…</p>;
+  const rows = (q.data ?? []).filter((r) => r.assigned_to);
+  if (rows.length === 0) {
+    return <p className="text-sm text-muted-foreground">Aún no hay trabajo asignado a organizadores.</p>;
+  }
+  const groups = new Map<string, DailyRow[]>();
+  rows.forEach((r) => {
+    const k = `${r.assigned_to}|${dayKey(r.when)}`;
+    groups.set(k, [...(groups.get(k) ?? []), r]);
+  });
+  const entries = [...groups.entries()].sort((a, b) => (a[0].split("|")[1] < b[0].split("|")[1] ? 1 : -1));
+  return (
+    <div className="space-y-3">
+      {entries.map(([key, list]) => {
+        const [orgId, day] = key.split("|");
+        const o = (organizers.data ?? []).find((x) => x.id === orgId);
+        return <DaySummaryCard key={key} day={day} list={list} title={o ? orgLabel(o) : "Organizador"} />;
+      })}
     </div>
   );
 }
