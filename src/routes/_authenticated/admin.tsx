@@ -274,17 +274,19 @@ function TransactionsTab({ isAdmin }: { isAdmin: boolean }) {
           </div>
 
           <AssignedBadge organizers={organizers.data ?? []} id={(t as { assigned_to?: string | null }).assigned_to} />
-          {isAdmin && (
-            <OrgPicker
+          {isAdmin && t.status !== "completed" && t.status !== "rejected" && (
+            <AssignAndSend
               organizers={organizers.data ?? []}
               value={assign[t.id] ?? (t as { assigned_to?: string | null }).assigned_to ?? ""}
               onChange={(v) => setAssign((prev) => ({ ...prev, [t.id]: v }))}
+              onSend={(orgId) => upd.mutate({ id: t.id, status: "processing", assignedTo: orgId })}
+              disabled={upd.isPending}
             />
           )}
           <div className="flex flex-wrap gap-1">
-            {(isAdmin ? (["pending", "processing", "completed", "rejected"] as const) : (["completed"] as const)).map((s) => (
+            {(isAdmin ? (["pending", "completed", "rejected"] as const) : (["completed"] as const)).map((s) => (
               <button key={s}
-                onClick={() => upd.mutate({ id: t.id, status: s, assignedTo: assign[t.id] ?? (t as { assigned_to?: string | null }).assigned_to ?? null })}
+                onClick={() => upd.mutate({ id: t.id, status: s })}
                 className={`rounded-full px-2 py-1 text-[10px] font-semibold ${t.status === s ? "bg-gradient-gold text-primary-foreground" : "border border-border bg-background text-muted-foreground"}`}>
                 {STATUS_ES[s]}
               </button>
