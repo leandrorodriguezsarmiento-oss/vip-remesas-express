@@ -895,6 +895,14 @@ function ReportsTab() {
           {days.length === 0 && <li className="p-4 text-center text-sm text-muted-foreground">Sin datos aún.</li>}
         </ul>
       </div>
+
+      <div className="space-y-2">
+        <div className="flex items-center gap-2">
+          <UserCheck className="h-4 w-4 text-gold" />
+          <p className="text-xs font-extrabold uppercase text-muted-foreground">Trabajo de cada organizador por día</p>
+        </div>
+        <OrganizerReports />
+      </div>
     </div>
   );
 }
