@@ -768,9 +768,14 @@ function RecargasTab({ isAdmin = true }: { isAdmin?: boolean }) {
     },
   });
 
+  const organizers = useOrganizers(isAdmin);
+  const [assign, setAssign] = useState<Record<string, string>>({});
+
   const upd = useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: "pending" | "processing" | "completed" | "rejected" }) => {
-      const { error } = await supabase.from("recargas_requests").update({ status }).eq("id", id);
+    mutationFn: async ({ id, status, assignedTo }: { id: string; status: "pending" | "processing" | "completed" | "rejected"; assignedTo?: string | null }) => {
+      const patch: { status: typeof status; assigned_to?: string | null } = { status };
+      if (status === "processing") patch.assigned_to = assignedTo || null;
+      const { error } = await supabase.from("recargas_requests").update(patch).eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => { toast.success("Estado actualizado"); qc.invalidateQueries({ queryKey: ["admin-recargas"] }); },
