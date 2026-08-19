@@ -822,8 +822,23 @@ function RecargasTab({ isAdmin = true }: { isAdmin?: boolean }) {
               <div className="text-sm font-bold text-gold">{formatMoney(Number(r.price_brl), "BRL")}</div>
             </div>
           </div>
+          <CopyList lines={[
+            ["Teléfono a recargar", r.phone],
+            ["Recarga", r.promo_title],
+            ["Monto pagado", formatMoney(Number(r.price_brl), "BRL")],
+          ]} />
+          <AssignedBadge organizers={organizers.data ?? []} id={(r as { assigned_to?: string | null }).assigned_to} />
+          {isAdmin && r.status !== "completed" && r.status !== "rejected" && (
+            <AssignAndSend
+              organizers={organizers.data ?? []}
+              value={assign[r.id] ?? (r as { assigned_to?: string | null }).assigned_to ?? ""}
+              onChange={(v) => setAssign((p) => ({ ...p, [r.id]: v }))}
+              onSend={(orgId) => upd.mutate({ id: r.id, status: "processing", assignedTo: orgId })}
+              disabled={upd.isPending}
+            />
+          )}
           <div className="flex flex-wrap gap-1">
-            {(isAdmin ? (["pending", "processing", "completed", "rejected"] as const) : (["completed"] as const)).map((s) => (
+            {(isAdmin ? (["pending", "completed", "rejected"] as const) : (["completed"] as const)).map((s) => (
               <button key={s} onClick={() => upd.mutate({ id: r.id, status: s })}
                 className={`rounded-full px-2 py-1 text-[10px] font-semibold ${r.status === s ? "bg-gradient-gold text-primary-foreground" : "border border-border bg-background text-muted-foreground"}`}>
                 {STATUS_ES[s]}
