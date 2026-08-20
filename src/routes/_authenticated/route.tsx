@@ -68,10 +68,9 @@ function AuthedLayout() {
         "postgres_changes",
         { event: "*", schema: "public", table: "notifications", filter: `user_id=eq.${user.id}` },
         (payload) => {
-          queryClient.invalidateQueries({ queryKey: ["notifications", user.id] });
-          queryClient.invalidateQueries({ queryKey: ["transactions"] });
-          queryClient.invalidateQueries({ queryKey: ["transactions-all"] });
-          queryClient.invalidateQueries({ queryKey: ["recargas-mine"] });
+          // Cualquier aviso significa que algo cambió: refrescamos todo al instante
+          // para que usuarios y organizadores vean el estado nuevo sin recargar.
+          queryClient.invalidateQueries();
           if (payload.eventType === "INSERT") {
             const n = payload.new as { title?: string; body?: string };
             if (n?.title) {
