@@ -1,6 +1,6 @@
 import { createFileRoute, Outlet, Link, redirect, useNavigate, useLocation } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
-import { Home, Send, LogOut, Smartphone, Shield, Bell, Settings as SettingsIcon, Store } from "lucide-react";
+import { Home, Send, LogOut, Smartphone, Shield, Bell, Settings as SettingsIcon, Store, Clock as ClockIcon } from "lucide-react";
 import { BrandMark } from "@/components/BrandMark";
 import { SectionMenu } from "@/components/SectionMenu";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
@@ -68,10 +68,9 @@ function AuthedLayout() {
         "postgres_changes",
         { event: "*", schema: "public", table: "notifications", filter: `user_id=eq.${user.id}` },
         (payload) => {
-          queryClient.invalidateQueries({ queryKey: ["notifications", user.id] });
-          queryClient.invalidateQueries({ queryKey: ["transactions"] });
-          queryClient.invalidateQueries({ queryKey: ["transactions-all"] });
-          queryClient.invalidateQueries({ queryKey: ["recargas-mine"] });
+          // Cualquier aviso significa que algo cambió: refrescamos todo al instante
+          // para que usuarios y organizadores vean el estado nuevo sin recargar.
+          queryClient.invalidateQueries();
           if (payload.eventType === "INSERT") {
             const n = payload.new as { title?: string; body?: string };
             if (n?.title) {
@@ -134,6 +133,7 @@ function AuthedLayout() {
         { to: "/recargas", icon: Smartphone, label: "Recargas", grad: "bg-gradient-emerald" },
         { to: "/send", icon: Send, label: "Remesas", grad: "bg-gradient-rose" },
         { to: "/tienda", icon: Store, label: "VipShop", grad: "bg-gradient-amber" },
+        { to: "/history", icon: ClockIcon, label: "Historial", grad: "bg-gradient-violet" },
         { to: "/settings", icon: SettingsIcon, label: "Ajustes", grad: "bg-gradient-gold" },
       ] as const);
 

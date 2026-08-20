@@ -25,20 +25,21 @@ export const Route = createFileRoute("/_authenticated/admin")({
   component: AdminPanel,
 });
 
-type Tab = "tx" | "recargas" | "rates" | "promos" | "users" | "api" | "banners" | "payments" | "mp" | "reports" | "store" | "orders";
+type Tab = "tx" | "recargas" | "rates" | "promos" | "users" | "api" | "banners" | "payments" | "mp" | "reports" | "store" | "orders" | "myday";
 
 function AdminPanel() {
-  const { isAdmin } = Route.useRouteContext();
+  const { isAdmin, user } = Route.useRouteContext();
   const [tab, setTab] = useState<Tab>("tx");
 
   const tabs: [Tab, string][] = isAdmin
     ? [
         ["tx", "Remesas"], ["recargas", "Recargas"], ["orders", "Pedidos"], ["reports", "Reportes"],
+        ["myday", "Mi día"],
         ["rates", "Tasas"], ["promos", "Promos"], ["banners", "Banners"],
         ["store", "VipShop"],
         ["payments", "Cuentas de pago"], ["mp", "Mercado Pago"], ["users", "Usuarios"], ["api", "API"],
       ]
-    : [["tx", "Remesas"], ["recargas", "Recargas"], ["orders", "Pedidos"], ["store", "VipShop"]];
+    : [["tx", "Remesas"], ["recargas", "Recargas"], ["orders", "Pedidos"], ["myday", "Mi día"], ["store", "VipShop"]];
 
 
   return (
@@ -69,7 +70,9 @@ function AdminPanel() {
       {tab === "tx" && <TransactionsTab isAdmin={isAdmin} />}
       {tab === "orders" && <StoreOrdersTab isAdmin={isAdmin} />}
       {tab === "recargas" && <RecargasTab isAdmin={isAdmin} />}
+      {tab === "myday" && <MyWorkTab userId={user.id} />}
       {tab === "store" && <StoreTab />}
+
 
       {isAdmin && tab === "reports" && <ReportsTab />}
       {isAdmin && tab === "rates" && <RatesTab />}
@@ -109,14 +112,22 @@ function CopyBlock({ tx }: { tx: AdminTx }) {
   const monto = tx.amount_dest != null
     ? formatMoney(Number(tx.amount_dest), tx.dest_currency || "CUP")
     : "";
+  const tipo = efectivo ? "Efectivo (entrega en mano)" : "Transferencia a tarjeta";
   const lines = efectivo
     ? [
+        ["Tipo de remesa", tipo],
         ["Nombre", tx.recipient_name],
         ["Teléfono", tx.recipient_phone],
         ["Dirección", address],
         ["Monto a entregar", monto],
       ]
-    : [["Teléfono", tx.recipient_phone], ["Tarjeta", tx.recipient_card || ""], ["Monto a enviar", monto]];
+    : [
+        ["Tipo de remesa", tipo],
+        ["Nombre", tx.recipient_name],
+        ["Teléfono", tx.recipient_phone],
+        ["Tarjeta", tx.recipient_card || ""],
+        ["Monto a enviar", monto],
+      ];
   const shown = lines.filter(([, v]) => (v ?? "").trim().length > 0) as [string, string][];
   if (shown.length === 0) return null;
 
