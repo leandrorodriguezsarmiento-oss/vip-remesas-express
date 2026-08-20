@@ -70,7 +70,9 @@ function AdminPanel() {
       {tab === "tx" && <TransactionsTab isAdmin={isAdmin} />}
       {tab === "orders" && <StoreOrdersTab isAdmin={isAdmin} />}
       {tab === "recargas" && <RecargasTab isAdmin={isAdmin} />}
+      {tab === "myday" && <MyWorkTab userId={user.id} />}
       {tab === "store" && <StoreTab />}
+
 
       {isAdmin && tab === "reports" && <ReportsTab />}
       {isAdmin && tab === "rates" && <RatesTab />}
