@@ -25,20 +25,21 @@ export const Route = createFileRoute("/_authenticated/admin")({
   component: AdminPanel,
 });
 
-type Tab = "tx" | "recargas" | "rates" | "promos" | "users" | "api" | "banners" | "payments" | "mp" | "reports" | "store" | "orders";
+type Tab = "tx" | "recargas" | "rates" | "promos" | "users" | "api" | "banners" | "payments" | "mp" | "reports" | "store" | "orders" | "myday";
 
 function AdminPanel() {
-  const { isAdmin } = Route.useRouteContext();
+  const { isAdmin, user } = Route.useRouteContext();
   const [tab, setTab] = useState<Tab>("tx");
 
   const tabs: [Tab, string][] = isAdmin
     ? [
         ["tx", "Remesas"], ["recargas", "Recargas"], ["orders", "Pedidos"], ["reports", "Reportes"],
+        ["myday", "Mi día"],
         ["rates", "Tasas"], ["promos", "Promos"], ["banners", "Banners"],
         ["store", "VipShop"],
         ["payments", "Cuentas de pago"], ["mp", "Mercado Pago"], ["users", "Usuarios"], ["api", "API"],
       ]
-    : [["tx", "Remesas"], ["recargas", "Recargas"], ["orders", "Pedidos"], ["store", "VipShop"]];
+    : [["tx", "Remesas"], ["recargas", "Recargas"], ["orders", "Pedidos"], ["myday", "Mi día"], ["store", "VipShop"]];
 
 
   return (
