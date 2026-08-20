@@ -112,14 +112,22 @@ function CopyBlock({ tx }: { tx: AdminTx }) {
   const monto = tx.amount_dest != null
     ? formatMoney(Number(tx.amount_dest), tx.dest_currency || "CUP")
     : "";
+  const tipo = efectivo ? "Efectivo (entrega en mano)" : "Transferencia a tarjeta";
   const lines = efectivo
     ? [
+        ["Tipo de remesa", tipo],
         ["Nombre", tx.recipient_name],
         ["Teléfono", tx.recipient_phone],
         ["Dirección", address],
         ["Monto a entregar", monto],
       ]
-    : [["Teléfono", tx.recipient_phone], ["Tarjeta", tx.recipient_card || ""], ["Monto a enviar", monto]];
+    : [
+        ["Tipo de remesa", tipo],
+        ["Nombre", tx.recipient_name],
+        ["Teléfono", tx.recipient_phone],
+        ["Tarjeta", tx.recipient_card || ""],
+        ["Monto a enviar", monto],
+      ];
   const shown = lines.filter(([, v]) => (v ?? "").trim().length > 0) as [string, string][];
   if (shown.length === 0) return null;
 
