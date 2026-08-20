@@ -133,6 +133,7 @@ function AuthedLayout() {
         { to: "/recargas", icon: Smartphone, label: "Recargas", grad: "bg-gradient-emerald" },
         { to: "/send", icon: Send, label: "Remesas", grad: "bg-gradient-rose" },
         { to: "/tienda", icon: Store, label: "VipShop", grad: "bg-gradient-amber" },
+        { to: "/history", icon: ClockIcon, label: "Historial", grad: "bg-gradient-violet" },
         { to: "/settings", icon: SettingsIcon, label: "Ajustes", grad: "bg-gradient-gold" },
       ] as const);
 
