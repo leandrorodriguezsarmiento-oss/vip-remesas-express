@@ -1,6 +1,6 @@
 import { createFileRoute, Outlet, Link, redirect, useNavigate, useLocation } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
-import { Home, Send, LogOut, Smartphone, Shield, Bell, Settings as SettingsIcon, Store } from "lucide-react";
+import { Home, Send, LogOut, Smartphone, Shield, Bell, Settings as SettingsIcon, Store, Clock as ClockIcon } from "lucide-react";
 import { BrandMark } from "@/components/BrandMark";
 import { SectionMenu } from "@/components/SectionMenu";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
