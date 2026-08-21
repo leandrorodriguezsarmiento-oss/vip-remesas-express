@@ -701,17 +701,8 @@ function BannersTab() {
   const onFile = async (file: File) => {
     setUploading(true);
     try {
-      const ext = file.name.split(".").pop() || "jpg";
-      const path = `${Date.now()}.${ext}`;
-      const { error: upErr } = await supabase.storage.from("banners").upload(path, file, {
-        cacheControl: "3600", upsert: false, contentType: file.type,
-      });
-      if (upErr) throw upErr;
-      // Signed URL válido 10 años (bucket privado con lectura pública vía RLS)
-      const { data: signed, error: sErr } = await supabase.storage.from("banners")
-        .createSignedUrl(path, 60 * 60 * 24 * 365 * 10);
-      if (sErr || !signed) throw sErr ?? new Error("No se pudo firmar la imagen");
-      upsert.mutate({ image_url: signed.signedUrl, title, link_url: link });
+      const url = await uploadStoreImage(file, "banners");
+      upsert.mutate({ image_url: url, title, link_url: link });
       setTitle(""); setLink("");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "No se pudo subir la imagen");
@@ -719,6 +710,7 @@ function BannersTab() {
       setUploading(false);
     }
   };
+
 
   return (
     <div className="space-y-3">
