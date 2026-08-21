@@ -1700,6 +1700,8 @@ function DaySummaryCard({ day, list, title }: { day: string; list: DailyRow[]; t
           </li>
         ))}
       </ul>
+      )}
+
     </section>
   );
 }
