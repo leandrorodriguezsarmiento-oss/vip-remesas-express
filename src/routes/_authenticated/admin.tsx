@@ -9,7 +9,7 @@ import { deleteUserAsAdmin, listOrganizers, setOrganizerRole, setUserProvince } 
 import { sendTransactionStatusEmail } from "@/lib/emails.functions";
 
 import { toast } from "sonner";
-import { Shield, Loader2, Trash2, Plus, Check, RefreshCw, Smartphone, Zap, BarChart3, CreditCard, Copy, UserCheck } from "lucide-react";
+import { Shield, Loader2, Trash2, Plus, Check, RefreshCw, Smartphone, Zap, BarChart3, CreditCard, Copy, UserCheck, Folder, FolderOpen, ChevronDown } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   beforeLoad: async ({ context }) => {
@@ -701,17 +701,8 @@ function BannersTab() {
   const onFile = async (file: File) => {
     setUploading(true);
     try {
-      const ext = file.name.split(".").pop() || "jpg";
-      const path = `${Date.now()}.${ext}`;
-      const { error: upErr } = await supabase.storage.from("banners").upload(path, file, {
-        cacheControl: "3600", upsert: false, contentType: file.type,
-      });
-      if (upErr) throw upErr;
-      // Signed URL válido 10 años (bucket privado con lectura pública vía RLS)
-      const { data: signed, error: sErr } = await supabase.storage.from("banners")
-        .createSignedUrl(path, 60 * 60 * 24 * 365 * 10);
-      if (sErr || !signed) throw sErr ?? new Error("No se pudo firmar la imagen");
-      upsert.mutate({ image_url: signed.signedUrl, title, link_url: link });
+      const url = await uploadStoreImage(file, "banners");
+      upsert.mutate({ image_url: url, title, link_url: link });
       setTitle(""); setLink("");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "No se pudo subir la imagen");
@@ -719,6 +710,7 @@ function BannersTab() {
       setUploading(false);
     }
   };
+
 
   return (
     <div className="space-y-3">
@@ -1177,18 +1169,28 @@ type StoreRow = {
 };
 
 
-async function uploadStoreImage(file: File): Promise<string> {
-  const ext = file.name.split(".").pop() || "jpg";
-  const path = `products/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+/** Sube una imagen al bucket privado y devuelve una URL firmada de larga duración. */
+async function uploadStoreImage(file: File, folder = "products"): Promise<string> {
+  if (!file.type.startsWith("image/")) throw new Error("Solo se permiten imágenes (JPG, PNG o WEBP)");
+  if (file.size > 8 * 1024 * 1024) throw new Error("La imagen pesa más de 8 MB. Usa una más liviana.");
+  const rawExt = (file.name.split(".").pop() ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
+  const ext = rawExt || (file.type.split("/")[1] ?? "jpg");
+  const path = `${folder}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
   const { error } = await supabase.storage.from("banners").upload(path, file, {
-    cacheControl: "3600", upsert: false, contentType: file.type,
+    cacheControl: "31536000", upsert: false, contentType: file.type,
   });
-  if (error) throw error;
+  if (error) {
+    const msg = /row-level security|Unauthorized|403/i.test(error.message)
+      ? "Tu cuenta no tiene permiso para subir imágenes."
+      : error.message;
+    throw new Error(msg);
+  }
   const { data: signed, error: sErr } = await supabase.storage.from("banners")
     .createSignedUrl(path, 60 * 60 * 24 * 365 * 10);
   if (sErr || !signed) throw sErr ?? new Error("No se pudo firmar la imagen");
   return signed.signedUrl;
 }
+
 
 function StoreTab() {
   const qc = useQueryClient();
@@ -1651,6 +1653,8 @@ function MyWorkTab({ userId }: { userId: string }) {
 }
 
 function DaySummaryCard({ day, list, title }: { day: string; list: DailyRow[]; title?: string }) {
+  const isToday = day === new Date().toISOString().slice(0, 10);
+  const [open, setOpen] = useState(isToday);
   const done = list.filter((r) => r.status === "completed");
   const totalBRL = done.filter((r) => r.currency === "BRL").reduce((s, r) => s + r.amount, 0);
   const counts = {
@@ -1661,15 +1665,27 @@ function DaySummaryCard({ day, list, title }: { day: string; list: DailyRow[]; t
   const efectivo = done.filter((r) => r.kind === "Remesa" && r.detail.startsWith("Efectivo")).length;
   return (
     <section className="overflow-hidden rounded-xl border border-border bg-card">
-      <div className="border-b border-border p-3">
-        <p className="font-display text-sm font-extrabold capitalize">{title ? `${title} · ${dayText(day)}` : dayText(day)}</p>
-        <p className="text-[11px] font-bold text-muted-foreground">
-          {counts.Remesa} remesas ({efectivo} efectivo / {counts.Remesa - efectivo} transferencia) ·{" "}
-          {counts.Recarga} recargas · {counts.Pedido} pedidos
-        </p>
-        <p className="font-display text-base font-extrabold text-gold">{formatMoney(totalBRL, "BRL")} completado</p>
-      </div>
-      <ul className="divide-y divide-border text-[12px]">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        className="flex w-full items-center gap-3 border-b border-border p-3 text-left transition-colors hover:bg-secondary/50">
+        <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl ${open ? "bg-gradient-gold text-primary-foreground shadow-gold" : "bg-secondary text-gold"}`}>
+          {open ? <FolderOpen className="h-4 w-4" /> : <Folder className="h-4 w-4" />}
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block font-display text-sm font-extrabold capitalize">{title ? `${title} · ${dayText(day)}` : dayText(day)}</span>
+          <span className="block text-[11px] font-bold text-muted-foreground">
+            {counts.Remesa} remesas ({efectivo} efectivo / {counts.Remesa - efectivo} transferencia) ·{" "}
+            {counts.Recarga} recargas · {counts.Pedido} pedidos
+          </span>
+          <span className="block font-display text-base font-extrabold text-gold">{formatMoney(totalBRL, "BRL")} completado</span>
+        </span>
+        <ChevronDown className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && (
+      <ul className="animate-rise divide-y divide-border text-[12px]">
+
         {list.map((r) => (
           <li key={`${r.kind}-${r.id}`} className="flex items-center justify-between gap-2 p-2">
             <span className="min-w-0">
@@ -1684,6 +1700,8 @@ function DaySummaryCard({ day, list, title }: { day: string; list: DailyRow[]; t
           </li>
         ))}
       </ul>
+      )}
+
     </section>
   );
 }
