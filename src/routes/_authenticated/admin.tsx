@@ -1684,7 +1684,7 @@ function DaySummaryCard({ day, list, title }: { day: string; list: DailyRow[]; t
         <ChevronDown className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
       {open && (
-      <ul className="animate-vip-rise divide-y divide-border text-[12px]">
+      <ul className="animate-rise divide-y divide-border text-[12px]">
 
         {list.map((r) => (
           <li key={`${r.kind}-${r.id}`} className="flex items-center justify-between gap-2 p-2">
