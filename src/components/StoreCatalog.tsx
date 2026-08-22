@@ -204,6 +204,14 @@ export function StoreCatalog() {
     toast.success(`${p.title} agregado al carrito`);
   }
 
+  /** Agregar y pasar directo al pago (Pagar). */
+  function buyNow(p: StoreProduct) {
+    addToCart(p);
+    setOpen(null);
+    setCheckout(true);
+    setCartOpen(true);
+  }
+
   const setQty = (id: string, delta: number) =>
     setCart((prev) =>
       prev
