@@ -455,12 +455,20 @@ export function StoreCatalog() {
             <p className="mt-1 inline-flex items-center gap-1 rounded-md bg-secondary px-2 py-0.5 text-[11px] font-extrabold">
               <MapPin className="h-3 w-3 text-gold" /> {open.province ?? "Toda Cuba"}
             </p>
-            <button
-              onClick={() => { addToCart(open); setOpen(null); }}
-              className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-amber px-4 py-3 text-sm font-extrabold text-white shadow-glow transition-transform active:scale-95"
-            >
-              <ShoppingCart className="h-4 w-4" /> Agregar al carrito
-            </button>
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <button
+                onClick={() => { addToCart(open); setOpen(null); }}
+                className="flex items-center justify-center gap-2 rounded-xl bg-gradient-amber px-3 py-3 text-sm font-extrabold text-white shadow-glow transition-transform active:scale-95"
+              >
+                <ShoppingCart className="h-4 w-4" /> Carrito
+              </button>
+              <button
+                onClick={() => buyNow(open)}
+                className="flex items-center justify-center gap-2 rounded-xl bg-gradient-emerald px-3 py-3 text-sm font-extrabold text-white shadow-glow transition-transform active:scale-95"
+              >
+                <Copy className="h-4 w-4" /> Pagar
+              </button>
+            </div>
           </div>
         </div>
       )}
