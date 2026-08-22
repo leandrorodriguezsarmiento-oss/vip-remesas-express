@@ -286,18 +286,31 @@ export function StoreCatalog() {
 
       <div className="flex items-center justify-between gap-2">
         <VipShopLogo className="animate-rise" />
-        <button
-          onClick={() => setCartOpen(true)}
-          aria-label="Ver carrito"
-          className="relative grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-gradient-sky text-white shadow-glow transition-transform active:scale-95"
-        >
-          <ShoppingCart className="h-5 w-5" />
-          {count > 0 && (
-            <span className="animate-pop absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-destructive px-1 text-[10px] font-extrabold text-white">
-              {count}
-            </span>
-          )}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setCartOpen(true)}
+            aria-label="Ver carrito"
+            className="relative grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-gradient-sky text-white shadow-glow transition-transform active:scale-95"
+          >
+            <ShoppingCart className="h-5 w-5" />
+            {count > 0 && (
+              <span className="animate-pop absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-destructive px-1 text-[10px] font-extrabold text-white">
+                {count}
+              </span>
+            )}
+          </button>
+          <button
+            onClick={() => {
+              if (cart.length === 0) { toast.error("Tu carrito está vacío"); return; }
+              setCheckout(true);
+              setCartOpen(true);
+            }}
+            aria-label="Pagar"
+            className="flex h-11 shrink-0 items-center gap-1 rounded-xl bg-gradient-emerald px-3 text-xs font-extrabold text-white shadow-glow transition-transform active:scale-95"
+          >
+            <Copy className="h-4 w-4" /> Pagar
+          </button>
+        </div>
       </div>
 
       <p className="text-sm font-bold text-muted-foreground">
