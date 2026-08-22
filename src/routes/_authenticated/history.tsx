@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { formatMoney } from "@/lib/remittance";
 import { StatusBadge } from "@/components/StatusBadge";
-import { ArrowUpRight, Smartphone, FolderOpen, Folder } from "lucide-react";
+import { ArrowUpRight, Smartphone, FolderOpen, Folder, ShoppingBag } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/history")({
   component: History,
@@ -73,7 +73,7 @@ function DayFolder({
 }
 
 function History() {
-  const [tab, setTab] = useState<"remesas" | "recargas">("remesas");
+  const [tab, setTab] = useState<"remesas" | "recargas" | "pedidos">("remesas");
 
   const txs = useQuery({
     queryKey: ["transactions-all"],
@@ -99,15 +99,28 @@ function History() {
     },
   });
 
+  const pedidos = useQuery({
+    queryKey: ["store-orders-mine"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("store_orders")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+  });
+
   const txDays = groupByDay(txs.data ?? []);
   const rcDays = groupByDay(recargas.data ?? []);
+  const poDays = groupByDay(pedidos.data ?? []);
 
   return (
     <div className="space-y-4">
       <h1 className="font-display text-2xl font-bold">Historial</h1>
 
-      <div className="grid grid-cols-2 gap-1 rounded-xl bg-secondary p-1 text-sm font-medium">
-        {([["remesas", "Remesas"], ["recargas", "Recargas"]] as const).map(([id, label]) => (
+      <div className="grid grid-cols-3 gap-1 rounded-xl bg-secondary p-1 text-sm font-medium">
+        {([["remesas", "Remesas"], ["recargas", "Recargas"], ["pedidos", "Pedidos"]] as const).map(([id, label]) => (
           <button key={id} onClick={() => setTab(id)}
             className={`rounded-lg px-3 py-2 ${tab === id ? "bg-gradient-gold text-primary-foreground shadow-gold" : "text-muted-foreground"}`}>
             {label}
@@ -151,7 +164,7 @@ function History() {
             ))}
           </div>
         </>
-      ) : (
+      ) : tab === "recargas" ? (
         <>
           {recargas.isLoading && <p className="text-sm text-muted-foreground">Cargando…</p>}
           {recargas.data && recargas.data.length === 0 && (
@@ -180,6 +193,46 @@ function History() {
                     </div>
                   </div>
                 ))}
+              </DayFolder>
+            ))}
+          </div>
+        </>
+      ) : (
+        <>
+          {pedidos.isLoading && <p className="text-sm text-muted-foreground">Cargando…</p>}
+          {pedidos.data && pedidos.data.length === 0 && (
+            <div className="rounded-xl border border-dashed border-border bg-card/60 p-8 text-center text-sm text-muted-foreground">
+              Sin pedidos de VipShop todavía.
+            </div>
+          )}
+          <div className="space-y-3">
+            {poDays.map((day, di) => (
+              <DayFolder key={day.key} label={dayLabel(day.key)} count={day.rows.length} defaultOpen={di === 0}>
+                {day.rows.map(({ item: o, n }) => {
+                  const items = (o.items ?? []) as { title?: string; qty?: number }[];
+                  return (
+                    <div key={o.id} className="flex items-center gap-3 rounded-xl border border-border bg-card p-4">
+                      <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-secondary text-xs font-bold text-gold">
+                        {n}
+                      </span>
+                      <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-gradient-amber shadow-glow">
+                        <ShoppingBag className="h-4 w-4 text-white" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-sm font-bold text-destructive">
+                          Pedido #{o.order_no}
+                        </div>
+                        <div className="truncate text-xs font-semibold text-muted-foreground">
+                          {items.map((it) => `${it.qty ?? 1}× ${it.title ?? ""}`).join(", ") || o.recipient_name}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-sm font-bold text-destructive">{formatMoney(Number(o.total_brl), "BRL")}</div>
+                        <StatusBadge status={o.status} />
+                      </div>
+                    </div>
+                  );
+                })}
               </DayFolder>
             ))}
           </div>

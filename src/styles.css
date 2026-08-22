@@ -261,3 +261,13 @@
 @utility animate-glow-pulse { animation: vip-glow-pulse 2.2s ease-in-out infinite; }
 @utility animate-wiggle { animation: vip-wiggle 1.6s ease-in-out infinite; }
 @utility animate-zoom-bg { animation: vip-zoom-bg 6s ease-out both; }
+
+/* Aviso (toast) premium: entrada suave con borde dorado y brillo. */
+@keyframes vip-toast-in {
+  from { opacity: 0; transform: translateY(-14px) scale(0.96); }
+  to { opacity: 1; transform: none; }
+}
+.vip-toast {
+  animation: vip-toast-in 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+  border-left: 3px solid var(--gold) !important;
+}
