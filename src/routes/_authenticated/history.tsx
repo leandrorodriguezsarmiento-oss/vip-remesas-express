@@ -164,7 +164,7 @@ function History() {
             ))}
           </div>
         </>
-      ) : (
+      ) : tab === "recargas" ? (
         <>
           {recargas.isLoading && <p className="text-sm text-muted-foreground">Cargando…</p>}
           {recargas.data && recargas.data.length === 0 && (
@@ -193,6 +193,46 @@ function History() {
                     </div>
                   </div>
                 ))}
+              </DayFolder>
+            ))}
+          </div>
+        </>
+      ) : (
+        <>
+          {pedidos.isLoading && <p className="text-sm text-muted-foreground">Cargando…</p>}
+          {pedidos.data && pedidos.data.length === 0 && (
+            <div className="rounded-xl border border-dashed border-border bg-card/60 p-8 text-center text-sm text-muted-foreground">
+              Sin pedidos de VipShop todavía.
+            </div>
+          )}
+          <div className="space-y-3">
+            {poDays.map((day, di) => (
+              <DayFolder key={day.key} label={dayLabel(day.key)} count={day.rows.length} defaultOpen={di === 0}>
+                {day.rows.map(({ item: o, n }) => {
+                  const items = (o.items ?? []) as { title?: string; qty?: number }[];
+                  return (
+                    <div key={o.id} className="flex items-center gap-3 rounded-xl border border-border bg-card p-4">
+                      <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-secondary text-xs font-bold text-gold">
+                        {n}
+                      </span>
+                      <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-gradient-amber shadow-glow">
+                        <ShoppingBag className="h-4 w-4 text-white" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-sm font-bold text-destructive">
+                          Pedido #{o.order_no}
+                        </div>
+                        <div className="truncate text-xs font-semibold text-muted-foreground">
+                          {items.map((it) => `${it.qty ?? 1}× ${it.title ?? ""}`).join(", ") || o.recipient_name}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-sm font-bold text-destructive">{formatMoney(Number(o.total_brl), "BRL")}</div>
+                        <StatusBadge status={o.status} />
+                      </div>
+                    </div>
+                  );
+                })}
               </DayFolder>
             ))}
           </div>
