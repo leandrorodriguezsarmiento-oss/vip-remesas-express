@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { formatMoney } from "@/lib/remittance";
 import { StatusBadge } from "@/components/StatusBadge";
-import { ArrowUpRight, Smartphone, FolderOpen, Folder } from "lucide-react";
+import { ArrowUpRight, Smartphone, FolderOpen, Folder, ShoppingBag } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/history")({
   component: History,
