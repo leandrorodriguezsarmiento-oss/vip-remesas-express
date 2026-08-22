@@ -199,26 +199,42 @@ function AuthedLayout() {
 
       {showNotif && (
         <div className="mx-auto mt-2 max-w-md px-5">
-          <div className="rounded-xl border border-gold/40 bg-card p-3 shadow-card">
+          <div className="animate-rise rounded-2xl border border-gold/40 bg-card/95 p-3 shadow-glow backdrop-blur">
             <div className="mb-2 flex items-center justify-between">
-              <p className="text-xs font-bold uppercase text-muted-foreground">Notificaciones</p>
-              <button onClick={() => { void clearNotifications(); setShowNotif(false); }} className="text-xs font-bold text-gold">
+              <p className="flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-wide text-muted-foreground">
+                <span className="grid h-6 w-6 place-items-center rounded-lg bg-gradient-gold text-primary-foreground shadow-gold">
+                  <Bell className="h-3.5 w-3.5" />
+                </span>
+                Notificaciones
+              </p>
+              <button onClick={() => { void clearNotifications(); setShowNotif(false); }}
+                className="rounded-lg bg-secondary px-2 py-1 text-[11px] font-extrabold text-gold transition-transform active:scale-95">
                 Cerrar y borrar
               </button>
             </div>
             {notifs.data && notifs.data.length === 0 && (
-              <p className="text-xs font-semibold text-muted-foreground">Sin notificaciones.</p>
+              <p className="rounded-xl border border-dashed border-border p-4 text-center text-xs font-bold text-muted-foreground">
+                Sin notificaciones nuevas.
+              </p>
             )}
             <ul className="space-y-2">
-              {notifs.data?.map((n) => (
-                <li key={n.id} className="rounded-lg border border-border bg-background/60 p-2">
-                  <div className="text-sm font-extrabold text-foreground">{n.title}</div>
-                  {n.body && <div className="text-xs font-bold text-foreground/80">{n.body}</div>}
-                  <div className="text-[10px] font-semibold text-muted-foreground">{new Date(n.created_at).toLocaleString("es")}</div>
+              {notifs.data?.map((n, i) => (
+                <li key={n.id} style={{ animationDelay: `${i * 40}ms` }}
+                  className="animate-rise flex items-start gap-2.5 rounded-xl border border-border bg-background/70 p-2.5">
+                  <span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-gradient-sky text-white shadow-glow">
+                    <Bell className="h-4 w-4" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-extrabold leading-tight text-foreground">{n.title}</div>
+                    {n.body && <div className="mt-0.5 text-xs font-bold text-foreground/75">{n.body}</div>}
+                    <div className="mt-1 text-[10px] font-bold uppercase text-muted-foreground">
+                      {new Date(n.created_at).toLocaleString("es", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
+                    </div>
+                  </div>
+                  {!n.read && <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-destructive" />}
                 </li>
               ))}
             </ul>
-
           </div>
         </div>
       )}
