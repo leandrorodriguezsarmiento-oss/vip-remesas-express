@@ -73,7 +73,7 @@ function DayFolder({
 }
 
 function History() {
-  const [tab, setTab] = useState<"remesas" | "recargas">("remesas");
+  const [tab, setTab] = useState<"remesas" | "recargas" | "pedidos">("remesas");
 
   const txs = useQuery({
     queryKey: ["transactions-all"],
@@ -99,15 +99,28 @@ function History() {
     },
   });
 
+  const pedidos = useQuery({
+    queryKey: ["store-orders-mine"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("store_orders")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+  });
+
   const txDays = groupByDay(txs.data ?? []);
   const rcDays = groupByDay(recargas.data ?? []);
+  const poDays = groupByDay(pedidos.data ?? []);
 
   return (
     <div className="space-y-4">
       <h1 className="font-display text-2xl font-bold">Historial</h1>
 
-      <div className="grid grid-cols-2 gap-1 rounded-xl bg-secondary p-1 text-sm font-medium">
-        {([["remesas", "Remesas"], ["recargas", "Recargas"]] as const).map(([id, label]) => (
+      <div className="grid grid-cols-3 gap-1 rounded-xl bg-secondary p-1 text-sm font-medium">
+        {([["remesas", "Remesas"], ["recargas", "Recargas"], ["pedidos", "Pedidos"]] as const).map(([id, label]) => (
           <button key={id} onClick={() => setTab(id)}
             className={`rounded-lg px-3 py-2 ${tab === id ? "bg-gradient-gold text-primary-foreground shadow-gold" : "text-muted-foreground"}`}>
             {label}
