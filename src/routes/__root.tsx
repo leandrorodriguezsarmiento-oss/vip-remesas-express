@@ -154,7 +154,24 @@ function RootComponent() {
       <SplashScreen>
         <Outlet />
       </SplashScreen>
-      <Toaster theme="dark" position="top-center" richColors />
+      <Toaster
+        theme="dark"
+        position="top-center"
+        richColors
+        closeButton
+        duration={4000}
+        offset={12}
+        toastOptions={{
+          classNames: {
+            toast:
+              "vip-toast group rounded-2xl border border-gold/40 bg-card/95 backdrop-blur shadow-glow",
+            title: "text-sm font-extrabold text-foreground",
+            description: "text-xs font-bold text-foreground/75",
+            icon: "text-gold",
+            closeButton: "border-gold/40 bg-card text-foreground",
+          },
+        }}
+      />
     </QueryClientProvider>
   );
 }
