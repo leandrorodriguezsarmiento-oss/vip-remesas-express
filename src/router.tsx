@@ -10,7 +10,9 @@ export const getRouter = () => {
         staleTime: 30 * 1000,
         gcTime: 5 * 60 * 1000,
         retry: 1,
-        refetchOnWindowFocus: false,
+        // Al volver a la app (o desbloquear el teléfono) se refresca solo.
+        refetchOnWindowFocus: true,
+        refetchOnReconnect: true,
       },
     },
   });
