@@ -212,6 +212,8 @@ function TransactionsTab({ isAdmin }: { isAdmin: boolean }) {
   const [view, setView] = useState<"active" | "done">("active");
   const q = useQuery({
     queryKey: ["admin-tx"],
+    refetchInterval: 10000,
+    refetchIntervalInBackground: true,
     queryFn: async () => {
       const { data, error } = await supabase.from("transactions")
         .select("*").order("created_at", { ascending: false }).limit(100);
@@ -761,6 +763,8 @@ function RecargasTab({ isAdmin = true }: { isAdmin?: boolean }) {
   const [view, setView] = useState<"active" | "done">("active");
   const q = useQuery({
     queryKey: ["admin-recargas"],
+    refetchInterval: 10000,
+    refetchIntervalInBackground: true,
     queryFn: async () => {
       const { data, error } = await supabase.from("recargas_requests")
         .select("*").order("created_at", { ascending: false }).limit(100);
@@ -1409,6 +1413,8 @@ function StoreOrdersTab({ isAdmin }: { isAdmin: boolean }) {
   const [assign, setAssign] = useState<Record<string, string>>({});
   const q = useQuery<StoreOrderRow[]>({
     queryKey: ["store-orders"],
+    refetchInterval: 10000,
+    refetchIntervalInBackground: true,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("store_orders")
