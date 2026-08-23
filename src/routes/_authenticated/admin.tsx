@@ -7,6 +7,7 @@ import { formatMoney } from "@/lib/remittance";
 import { CUBA_PROVINCES } from "@/lib/provinces";
 import { deleteUserAsAdmin, listOrganizers, setOrganizerRole, setUserProvince } from "@/lib/admin.functions";
 import { sendTransactionStatusEmail } from "@/lib/emails.functions";
+import { useLiveAdmin } from "@/hooks/use-live-admin";
 
 import { toast } from "sonner";
 import { Shield, Loader2, Trash2, Plus, Check, RefreshCw, Smartphone, Zap, BarChart3, CreditCard, Copy, UserCheck, Folder, FolderOpen, ChevronDown } from "lucide-react";
@@ -30,6 +31,8 @@ type Tab = "tx" | "recargas" | "rates" | "promos" | "users" | "api" | "banners" 
 function AdminPanel() {
   const { isAdmin, user } = Route.useRouteContext();
   const [tab, setTab] = useState<Tab>("tx");
+  // Sincronización inmediata: lo que hace el usuario aparece aquí al momento.
+  useLiveAdmin();
 
   const tabs: [Tab, string][] = isAdmin
     ? [
@@ -209,6 +212,8 @@ function TransactionsTab({ isAdmin }: { isAdmin: boolean }) {
   const [view, setView] = useState<"active" | "done">("active");
   const q = useQuery({
     queryKey: ["admin-tx"],
+    refetchInterval: 10000,
+    refetchIntervalInBackground: true,
     queryFn: async () => {
       const { data, error } = await supabase.from("transactions")
         .select("*").order("created_at", { ascending: false }).limit(100);
@@ -758,6 +763,8 @@ function RecargasTab({ isAdmin = true }: { isAdmin?: boolean }) {
   const [view, setView] = useState<"active" | "done">("active");
   const q = useQuery({
     queryKey: ["admin-recargas"],
+    refetchInterval: 10000,
+    refetchIntervalInBackground: true,
     queryFn: async () => {
       const { data, error } = await supabase.from("recargas_requests")
         .select("*").order("created_at", { ascending: false }).limit(100);
@@ -1406,6 +1413,8 @@ function StoreOrdersTab({ isAdmin }: { isAdmin: boolean }) {
   const [assign, setAssign] = useState<Record<string, string>>({});
   const q = useQuery<StoreOrderRow[]>({
     queryKey: ["store-orders"],
+    refetchInterval: 10000,
+    refetchIntervalInBackground: true,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("store_orders")

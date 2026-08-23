@@ -24,6 +24,10 @@ self.addEventListener("push", (event) => {
     data: { url: data.url || "/history" },
     tag: data.tag || "vip-remesas",
     renotify: true,
+    // Suena y vibra según el volumen del sistema, aun con la pantalla apagada.
+    silent: false,
+    vibrate: [200, 100, 200, 100, 300],
+    requireInteraction: false,
   };
   event.waitUntil(self.registration.showNotification(title, options));
 });
