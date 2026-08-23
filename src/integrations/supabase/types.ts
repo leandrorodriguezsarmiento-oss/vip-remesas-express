@@ -604,6 +604,7 @@ export type Database = {
           order_no: number
           origin_country: string
           origin_currency: string
+          paid_at: string | null
           payment_method: string
           pix_code: string | null
           recipient_card: string | null
@@ -630,6 +631,7 @@ export type Database = {
           order_no?: number
           origin_country?: string
           origin_currency?: string
+          paid_at?: string | null
           payment_method: string
           pix_code?: string | null
           recipient_card?: string | null
@@ -656,6 +658,7 @@ export type Database = {
           order_no?: number
           origin_country?: string
           origin_currency?: string
+          paid_at?: string | null
           payment_method?: string
           pix_code?: string | null
           recipient_card?: string | null
