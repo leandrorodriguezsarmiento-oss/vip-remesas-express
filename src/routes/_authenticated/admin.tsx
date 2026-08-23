@@ -30,6 +30,8 @@ type Tab = "tx" | "recargas" | "rates" | "promos" | "users" | "api" | "banners" 
 function AdminPanel() {
   const { isAdmin, user } = Route.useRouteContext();
   const [tab, setTab] = useState<Tab>("tx");
+  // Sincronización inmediata: lo que hace el usuario aparece aquí al momento.
+  useLiveAdmin();
 
   const tabs: [Tab, string][] = isAdmin
     ? [
