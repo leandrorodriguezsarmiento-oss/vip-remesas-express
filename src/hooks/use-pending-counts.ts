@@ -12,7 +12,7 @@ export function usePendingCounts() {
     queryKey: ["pending-counts"],
     refetchInterval: 10000,
     queryFn: async () => {
-      const pend = ["pending", "processing"];
+      const pend = ["pending", "processing"] as const;
       const [tx, recargas, orders] = await Promise.all([
         supabase
           .from("transactions")
