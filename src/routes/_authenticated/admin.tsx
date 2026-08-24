@@ -66,13 +66,41 @@ function AdminPanel() {
         </div>
       </div>
 
-      <div className="flex gap-1 overflow-x-auto rounded-xl bg-secondary p-1 text-[10px] font-medium">
-        {tabs.map(([id, label]) => (
+      {/* Alertas 1 · 2 · 3: qué hay que hacer ahora mismo */}
+      <div className="grid grid-cols-3 gap-2">
+        {([
+          ["tx", "Remesas", pend.data?.tx ?? 0, "bg-gradient-rose"],
+          ["recargas", "Recargas", pend.data?.recargas ?? 0, "bg-gradient-emerald"],
+          ["orders", "Pedidos", pend.data?.orders ?? 0, "bg-gradient-amber"],
+        ] as [Tab, string, number, string][]).map(([id, label, n, grad], i) => (
           <button key={id} onClick={() => setTab(id)}
-            className={`shrink-0 rounded-lg px-3 py-2 ${tab === id ? "bg-gradient-gold text-primary-foreground shadow-gold" : "text-muted-foreground"}`}>
-            {label}
+            style={{ animationDelay: `${i * 70}ms` }}
+            className={`animate-rise relative overflow-hidden rounded-2xl border p-3 text-left transition-transform active:scale-95 ${n > 0 ? "border-gold/50 bg-card shadow-glow" : "border-border bg-card/70"}`}>
+            <span className={`mb-2 grid h-8 w-8 place-items-center rounded-xl text-white ${grad} ${n > 0 ? "animate-glow-pulse" : ""}`}>
+              <span className="text-xs font-extrabold">{i + 1}</span>
+            </span>
+            <div className="font-display text-2xl font-extrabold leading-none text-foreground">{n}</div>
+            <div className="mt-0.5 text-[10px] font-extrabold uppercase tracking-wide text-muted-foreground">{label}</div>
+            <div className="text-[9px] font-bold text-muted-foreground">{n > 0 ? "por procesar" : "todo al día"}</div>
           </button>
         ))}
+      </div>
+
+      <div className="flex gap-1 overflow-x-auto rounded-xl bg-secondary p-1 text-[10px] font-medium">
+        {tabs.map(([id, label]) => {
+          const n = badgeFor(id) ?? 0;
+          return (
+            <button key={id} onClick={() => setTab(id)}
+              className={`relative shrink-0 rounded-lg px-3 py-2 ${tab === id ? "bg-gradient-gold text-primary-foreground shadow-gold" : "text-muted-foreground"}`}>
+              {label}
+              {n > 0 && (
+                <span className="absolute -right-0.5 -top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-destructive px-1 text-[9px] font-extrabold text-destructive-foreground">
+                  {n}
+                </span>
+              )}
+            </button>
+          );
+        })}
       </div>
 
       {tab === "tx" && <TransactionsTab isAdmin={isAdmin} />}
