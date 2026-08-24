@@ -34,15 +34,19 @@ function AdminPanel() {
   // Sincronización inmediata: lo que hace el usuario aparece aquí al momento.
   useLiveAdmin();
 
+  // El admin supervisa todo (no necesita "Mi día"); los organizadores sí lo tienen.
   const tabs: [Tab, string][] = isAdmin
     ? [
         ["tx", "Remesas"], ["recargas", "Recargas"], ["orders", "Pedidos"], ["reports", "Reportes"],
-        ["myday", "Mi día"],
         ["rates", "Tasas"], ["promos", "Promos"], ["banners", "Banners"],
         ["store", "VipShop"],
         ["payments", "Cuentas de pago"], ["mp", "Mercado Pago"], ["users", "Usuarios"], ["api", "API"],
       ]
     : [["tx", "Remesas"], ["recargas", "Recargas"], ["orders", "Pedidos"], ["myday", "Mi día"], ["store", "VipShop"]];
+
+  const pend = usePendingCounts();
+  const badgeFor = (id: Tab) =>
+    id === "tx" ? pend.data?.tx : id === "recargas" ? pend.data?.recargas : id === "orders" ? pend.data?.orders : 0;
 
 
   return (
