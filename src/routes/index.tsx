@@ -6,6 +6,10 @@ import { BrandMark } from "@/components/BrandMark";
 import { FlagIcon } from "@/components/FlagIcon";
 import { BannerCarousel } from "@/components/BannerCarousel";
 import { ORIGINS, findRate, formatMoney, type OriginCode, type DestCurrency, type RateRow } from "@/lib/remittance";
+import featMinutos from "@/assets/feat-minutos.jpg";
+import featSeguro from "@/assets/feat-seguro.jpg";
+import featOrigenes from "@/assets/feat-origenes.jpg";
+import featTasa from "@/assets/feat-tasa.jpg";
 
 export const Route = createFileRoute("/")({
   ssr: false,
@@ -176,15 +180,30 @@ function Landing() {
 
         <div className="mt-12 grid grid-cols-2 gap-3">
           {[
-            { icon: Zap, title: "En minutos", desc: "Acredita rápido" },
-            { icon: Shield, title: "100% seguro", desc: "Cifrado y auth" },
-            { icon: Globe2, title: "4 orígenes", desc: "BR · MX · EU · US" },
-            { icon: Sparkles, title: "Tasa VIP", desc: "Mejor cambio" },
-          ].map(({ icon: Icon, title, desc }) => (
-            <div key={title} className="rounded-xl border border-border bg-card p-4 shadow-card">
-              <Icon className="mb-2 h-5 w-5 text-gold" />
-              <div className="text-sm font-bold">{title}</div>
-              <div className="text-xs font-medium text-muted-foreground">{desc}</div>
+            { icon: Zap, title: "En minutos", desc: "Acredita rápido", img: featMinutos, grad: "bg-gradient-sky" },
+            { icon: Shield, title: "100% seguro", desc: "Cifrado y auth", img: featSeguro, grad: "bg-gradient-emerald" },
+            { icon: Globe2, title: "4 orígenes", desc: "BR · MX · EU · US", img: featOrigenes, grad: "bg-gradient-violet" },
+            { icon: Sparkles, title: "Tasa VIP", desc: "Mejor cambio", img: featTasa, grad: "bg-gradient-gold" },
+          ].map(({ icon: Icon, title, desc, img, grad }, i) => (
+            <div
+              key={title}
+              style={{ animationDelay: `${i * 90}ms` }}
+              className="animate-rise group relative overflow-hidden rounded-2xl border border-gold/30 bg-card p-4 shadow-card transition-transform hover:-translate-y-1 hover:shadow-glow"
+            >
+              <img
+                src={img}
+                alt=""
+                aria-hidden
+                loading="lazy"
+                width={512}
+                height={512}
+                className="pointer-events-none absolute -bottom-4 -right-4 h-24 w-24 object-contain opacity-25 transition-transform duration-500 group-hover:scale-110 group-hover:opacity-40 animate-float"
+              />
+              <span className={`mb-2 grid h-9 w-9 place-items-center rounded-xl text-white shadow-glow ${grad}`}>
+                <Icon className="h-4.5 w-4.5" />
+              </span>
+              <div className="relative text-sm font-extrabold">{title}</div>
+              <div className="relative text-xs font-semibold text-muted-foreground">{desc}</div>
             </div>
           ))}
         </div>
