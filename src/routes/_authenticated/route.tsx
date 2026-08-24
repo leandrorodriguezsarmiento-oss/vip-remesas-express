@@ -10,6 +10,7 @@ import { playNotificationSound } from "@/lib/notify-sound";
 import { preloadAppImages } from "@/lib/preload-images";
 import bgFlags from "@/assets/bg-flags.jpg";
 import { MfaGate } from "@/components/MfaGate";
+import { usePushAutoEnroll } from "@/hooks/use-push-autoenroll";
 
 
 
@@ -136,6 +137,9 @@ function AuthedLayout() {
 
   // Descarga anticipada de imágenes para que la app se sienta rápida.
   useEffect(() => { preloadAppImages(); }, []);
+
+  // Alta automática de notificaciones push (sonido y vibración con el móvil bloqueado).
+  usePushAutoEnroll(user.id);
 
   // El perfil admin no envía remesas: sólo gestiona. El historial vive en Ajustes.
   const nav = admin
