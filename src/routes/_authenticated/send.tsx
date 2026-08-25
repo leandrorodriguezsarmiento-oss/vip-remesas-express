@@ -5,7 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import {
   ORIGINS, METHOD_CATEGORIES, CURRENCY_LABEL, formatMoney,
-  findRate, calcQuote, checkPixPayment,
+  findRate, calcQuote,
   getOrigin, type OriginCode, type MethodCategory, type DestCurrency, type RateRow,
 } from "@/lib/remittance";
 import { createTransaction, markTransactionPaid } from "@/lib/orders.functions";
