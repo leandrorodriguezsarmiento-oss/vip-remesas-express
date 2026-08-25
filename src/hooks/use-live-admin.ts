@@ -9,8 +9,9 @@ import { playNotificationSound } from "@/lib/notify-sound";
  * Las remesas sólo avisan cuando el pago está confirmado (paid_at); las recargas
  * y pedidos avisan al crearse, porque se pagan antes de enviarse.
  */
-export function useLiveAdmin() {
+export function useLiveAdmin(userId?: string) {
   const qc = useQueryClient();
+
 
   useEffect(() => {
     const refresh = () => {
