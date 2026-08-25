@@ -87,9 +87,12 @@ export const Route = createFileRoute("/api/public/mercadopago/webhook")({
         };
         const newStatus = map[payment.status ?? ""] ?? "pending";
 
+        // Un pago aprobado/autorizado confirma el cobro: registramos paid_at
+        // para que el panel admin reciba el aviso con sonido.
+        const paidNow = ["approved", "authorized", "in_process"].includes(payment.status ?? "");
         const { error } = await supabaseAdmin
           .from("transactions")
-          .update({ status: newStatus })
+          .update({ status: newStatus, ...(paidNow ? { paid_at: new Date().toISOString() } : {}) })
           .eq("tracking_id", trackingId);
         if (error) return new Response(error.message, { status: 500 });
 

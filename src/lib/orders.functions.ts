@@ -127,3 +127,36 @@ export const createRechargeRequest = createServerFn({ method: "POST" })
     if (error) throw error;
     return { ok: true, id: inserted.id as string, priceBrl: Number(promo.price_brl) };
   });
+
+/**
+ * El usuario declara que ya transfirió. Marcamos el momento del pago
+ * (`paid_at`) verificando que la remesa sea suya; recién entonces el
+ * disparador avisa al panel admin. Es idempotente.
+ */
+export const markTransactionPaid = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data) => z.object({ trackingId: z.string().trim().min(1).max(60) }).parse(data))
+  .handler(async ({ data, context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: tx, error } = await supabaseAdmin
+      .from("transactions")
+      .select("id,user_id,status,paid_at")
+      .eq("tracking_id", data.trackingId)
+      .eq("user_id", context.userId)
+      .maybeSingle();
+    if (error) throw error;
+    if (!tx) throw new Error("Remesa no encontrada");
+    if (tx.paid_at) return { ok: true, status: tx.status, already: true };
+
+    const { data: updated, error: updErr } = await supabaseAdmin
+      .from("transactions")
+      .update({ paid_at: new Date().toISOString(), status: "processing" })
+      .eq("id", tx.id)
+      .eq("user_id", context.userId)
+      .is("paid_at", null)
+      .select("status")
+      .maybeSingle();
+    if (updErr) throw updErr;
+    return { ok: true, status: updated?.status ?? tx.status, already: !updated };
+  });

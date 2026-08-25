@@ -5,10 +5,10 @@ import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import {
   ORIGINS, METHOD_CATEGORIES, CURRENCY_LABEL, formatMoney,
-  findRate, calcQuote, checkPixPayment,
+  findRate, calcQuote,
   getOrigin, type OriginCode, type MethodCategory, type DestCurrency, type RateRow,
 } from "@/lib/remittance";
-import { createTransaction } from "@/lib/orders.functions";
+import { createTransaction, markTransactionPaid } from "@/lib/orders.functions";
 import { createMercadoPagoPreference } from "@/lib/payments.functions";
 import { PixQrCode } from "@/components/PixQrCode";
 import { FlagIcon } from "@/components/FlagIcon";
@@ -54,6 +54,7 @@ function SendFlow() {
   const [loading, setLoading] = useState(false);
   const createTx = useServerFn(createTransaction);
   const createMpPreference = useServerFn(createMercadoPagoPreference);
+  const markPaid = useServerFn(markTransactionPaid);
 
 
   const [origin, setOrigin] = useState<OriginCode | null>(null);
@@ -181,15 +182,10 @@ function SendFlow() {
     if (!tracking) return;
     setLoading(true);
     try {
-      // 🔌 SLOT INTEGRACIÓN: aquí normalmente el webhook del proveedor PIX
-      // marca el pago; usamos mock para demostración.
-      const res = await checkPixPayment(tracking);
-      if (!res.paid) throw new Error("Aún no vemos el pago");
-      await supabase.from("transactions")
-        .update({ status: "processing" })
-        .eq("tracking_id", tracking);
+      // El servidor registra el momento del pago y avisa al panel admin.
+      await markPaid({ data: { trackingId: tracking } });
       await queryClient.invalidateQueries({ queryKey: ["transactions-recent"] });
-      toast.success("Pago recibido. Procesando tu remesa.");
+      toast.success("Pago informado. Procesando tu remesa.");
       setStep(7);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Error");
@@ -197,6 +193,7 @@ function SendFlow() {
       setLoading(false);
     }
   }
+
 
   return (
     <div className="space-y-5">

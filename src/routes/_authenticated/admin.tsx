@@ -248,8 +248,10 @@ function TransactionsTab({ isAdmin }: { isAdmin: boolean }) {
     refetchInterval: 10000,
     refetchIntervalInBackground: true,
     queryFn: async () => {
+      // Sólo remesas con pago informado: nada llega al panel antes de pagarse.
       const { data, error } = await supabase.from("transactions")
-        .select("*").order("created_at", { ascending: false }).limit(100);
+        .select("*").not("paid_at", "is", null)
+        .order("created_at", { ascending: false }).limit(100);
       if (error) throw error;
       return data;
     },
