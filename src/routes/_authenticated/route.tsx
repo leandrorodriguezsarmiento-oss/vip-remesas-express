@@ -6,7 +6,7 @@ import { SectionMenu } from "@/components/SectionMenu";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { playNotificationSound } from "@/lib/notify-sound";
+import { playNotificationSound, unlockNotificationSound, vibrateNotification } from "@/lib/notify-sound";
 import { preloadAppImages } from "@/lib/preload-images";
 import bgFlags from "@/assets/bg-flags.jpg";
 import { MfaGate } from "@/components/MfaGate";
