@@ -6,7 +6,7 @@ import { SectionMenu } from "@/components/SectionMenu";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { playNotificationSound } from "@/lib/notify-sound";
+import { playNotificationSound, unlockNotificationSound } from "@/lib/notify-sound";
 import { preloadAppImages } from "@/lib/preload-images";
 import bgFlags from "@/assets/bg-flags.jpg";
 import { MfaGate } from "@/components/MfaGate";
@@ -136,7 +136,7 @@ function AuthedLayout() {
   const admin = isAdmin.data === true;
 
   // Descarga anticipada de imágenes para que la app se sienta rápida.
-  useEffect(() => { preloadAppImages(); }, []);
+  useEffect(() => { preloadAppImages(); unlockNotificationSound(); }, []);
 
   // Alta automática de notificaciones push (sonido y vibración con el móvil bloqueado).
   usePushAutoEnroll(user.id);

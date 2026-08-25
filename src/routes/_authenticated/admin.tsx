@@ -33,7 +33,7 @@ function AdminPanel() {
   const { isAdmin, user } = Route.useRouteContext();
   const [tab, setTab] = useState<Tab>("tx");
   // Sincronización inmediata: lo que hace el usuario aparece aquí al momento.
-  useLiveAdmin();
+  useLiveAdmin(user.id);
 
   // El admin supervisa todo (no necesita "Mi día"); los organizadores sí lo tienen.
   const tabs: [Tab, string][] = isAdmin
