@@ -136,7 +136,7 @@ function AuthedLayout() {
   const admin = isAdmin.data === true;
 
   // Descarga anticipada de imágenes para que la app se sienta rápida.
-  useEffect(() => { preloadAppImages(); }, []);
+  useEffect(() => { preloadAppImages(); unlockNotificationSound(); }, []);
 
   // Alta automática de notificaciones push (sonido y vibración con el móvil bloqueado).
   usePushAutoEnroll(user.id);
