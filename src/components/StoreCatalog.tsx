@@ -393,7 +393,7 @@ export function StoreCatalog() {
             <button onClick={() => setOpen(p)} className="block w-full text-left">
               <div className="aspect-square w-full bg-secondary">
                 {p.images[0] ? (
-                  <img src={p.images[0]} alt={p.title} loading="lazy" decoding="async" width={512} height={512} className="h-full w-full object-cover" />
+                  <img src={p.images[0]} alt={p.title} loading="lazy" decoding="async" width={512} height={512} className="h-full w-full object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
                 ) : (
                   <div className="grid h-full w-full place-items-center">
                     <ShoppingBag className="h-8 w-8 text-muted-foreground" />
@@ -443,7 +443,7 @@ export function StoreCatalog() {
             </div>
             <div className="flex gap-2 overflow-x-auto">
               {open.images.map((src) => (
-                <img key={src} src={src} alt={open.title} loading="lazy" decoding="async" width={320} height={320} className="h-40 w-40 shrink-0 rounded-xl object-cover" />
+                <img key={src} src={src} alt={open.title} loading="lazy" decoding="async" width={320} height={320} className="h-40 w-40 shrink-0 rounded-xl object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
               ))}
             </div>
             {open.description && (

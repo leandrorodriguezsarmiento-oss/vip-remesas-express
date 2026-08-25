@@ -77,6 +77,7 @@ export function BannerCarousel() {
         width={1200}
         height={525}
         className="h-full w-full object-cover transition-opacity duration-500"
+        onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
       />
       {current.title && (
         <div className="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/65 to-transparent p-3">
@@ -117,6 +118,7 @@ export function BannerHero({ children }: { children: ReactNode }) {
           width={1200}
           height={525}
           className="absolute inset-0 h-full w-full object-cover transition-opacity duration-700"
+          onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
         />
       ) : null}
       <div className={`absolute inset-0 ${current ? (showText ? "bg-linear-to-tr from-black/75 via-black/45 to-black/20" : "bg-black/10") : "bg-gradient-sky"}`} />
