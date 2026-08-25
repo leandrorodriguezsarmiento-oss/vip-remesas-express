@@ -8,7 +8,7 @@ import {
   findRate, calcQuote, checkPixPayment,
   getOrigin, type OriginCode, type MethodCategory, type DestCurrency, type RateRow,
 } from "@/lib/remittance";
-import { createTransaction } from "@/lib/orders.functions";
+import { createTransaction, markTransactionPaid } from "@/lib/orders.functions";
 import { createMercadoPagoPreference } from "@/lib/payments.functions";
 import { PixQrCode } from "@/components/PixQrCode";
 import { FlagIcon } from "@/components/FlagIcon";
@@ -54,6 +54,7 @@ function SendFlow() {
   const [loading, setLoading] = useState(false);
   const createTx = useServerFn(createTransaction);
   const createMpPreference = useServerFn(createMercadoPagoPreference);
+  const markPaid = useServerFn(markTransactionPaid);
 
 
   const [origin, setOrigin] = useState<OriginCode | null>(null);
