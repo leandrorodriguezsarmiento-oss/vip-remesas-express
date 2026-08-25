@@ -29,6 +29,22 @@ export function useLiveAdmin(userId?: string) {
       toast(label, { description: "Pendiente de procesar en el panel.", duration: 4000 });
     };
 
+    // ¿Me acaban de asignar este trabajo? (admin -> organizador)
+    const assignedToMe = (payload: { old: unknown; new: unknown }, label: string) => {
+      const oldRow = payload.old as { status?: string } | null;
+      const newRow = payload.new as { status?: string; assigned_to?: string | null } | null;
+      if (
+        userId &&
+        newRow?.status === "processing" &&
+        oldRow?.status !== "processing" &&
+        newRow?.assigned_to === userId
+      ) {
+        alert(label);
+        return true;
+      }
+      return false;
+    };
+
     const channel = supabase.channel("admin-live");
 
     // Remesas: avisar sólo al confirmarse el pago.
@@ -36,22 +52,27 @@ export function useLiveAdmin(userId?: string) {
     channel.on("postgres_changes", { event: "UPDATE", schema: "public", table: "transactions" }, (payload) => {
       const oldRow = payload.old as { paid_at?: string | null } | null;
       const newRow = payload.new as { paid_at?: string | null } | null;
+      if (assignedToMe(payload, "Remesa asignada a ti")) return;
       if (!oldRow?.paid_at && newRow?.paid_at) alert("Remesa pagada");
       else refresh();
     });
 
     // Recargas y pedidos: se pagan antes, así que avisan al crearse.
     ([
-      { table: "recargas_requests", label: "Nueva recarga" },
-      { table: "store_orders", label: "Nuevo pedido VipShop" },
-    ] as const).forEach(({ table, label }) => {
+      { table: "recargas_requests", label: "Nueva recarga", assigned: "Recarga asignada a ti" },
+      { table: "store_orders", label: "Nuevo pedido VipShop", assigned: "Pedido asignado a ti" },
+    ] as const).forEach(({ table, label, assigned }) => {
       channel.on("postgres_changes", { event: "INSERT", schema: "public", table }, () => alert(label));
-      channel.on("postgres_changes", { event: "UPDATE", schema: "public", table }, refresh);
+      channel.on("postgres_changes", { event: "UPDATE", schema: "public", table }, (payload) => {
+        if (assignedToMe(payload, assigned)) return;
+        refresh();
+      });
     });
 
     channel.subscribe();
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [qc]);
+  }, [qc, userId]);
 }
+
