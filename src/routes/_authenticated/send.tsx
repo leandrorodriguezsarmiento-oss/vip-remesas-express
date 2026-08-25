@@ -181,15 +181,10 @@ function SendFlow() {
     if (!tracking) return;
     setLoading(true);
     try {
-      // 🔌 SLOT INTEGRACIÓN: aquí normalmente el webhook del proveedor PIX
-      // marca el pago; usamos mock para demostración.
-      const res = await checkPixPayment(tracking);
-      if (!res.paid) throw new Error("Aún no vemos el pago");
-      await supabase.from("transactions")
-        .update({ status: "processing" })
-        .eq("tracking_id", tracking);
+      // El servidor registra el momento del pago y avisa al panel admin.
+      await markPaid({ data: { trackingId: tracking } });
       await queryClient.invalidateQueries({ queryKey: ["transactions-recent"] });
-      toast.success("Pago recibido. Procesando tu remesa.");
+      toast.success("Pago informado. Procesando tu remesa.");
       setStep(7);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Error");
@@ -197,6 +192,7 @@ function SendFlow() {
       setLoading(false);
     }
   }
+
 
   return (
     <div className="space-y-5">
