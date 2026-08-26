@@ -499,7 +499,7 @@ export function StoreCatalog() {
                 className="animate-rise mb-2 flex items-center gap-3 rounded-xl border border-border bg-background p-2"
               >
                 {l.image ? (
-                  <img src={l.image} alt={l.title} loading="lazy" decoding="async" width={56} height={56} className="h-14 w-14 rounded-lg object-cover" />
+                  <img src={l.image} alt={l.title} loading="lazy" decoding="async" width={56} height={56} className="h-14 w-14 rounded-lg object-cover"  onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
                 ) : (
                   <span className="grid h-14 w-14 place-items-center rounded-lg bg-secondary">
                     <ShoppingBag className="h-5 w-5 text-muted-foreground" />

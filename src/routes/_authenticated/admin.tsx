@@ -768,7 +768,7 @@ function BannersTab() {
 
       {q.data?.map((b) => (
         <div key={b.id} className="rounded-xl border border-border bg-card p-3 space-y-2">
-          <img src={b.image_url} alt={b.title ?? ""} loading="lazy" decoding="async" width={640} height={280} className="aspect-[16/7] w-full rounded-lg object-cover" />
+          <img src={b.image_url} alt={b.title ?? ""} loading="lazy" decoding="async" width={640} height={280} className="aspect-[16/7] w-full rounded-lg object-cover"  onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
           <div className="grid grid-cols-2 gap-2">
             <MiniInput label="Título" value={b.title ?? ""} onChange={(v) => upsert.mutate({ id: b.id, image_url: b.image_url, title: v, link_url: b.link_url ?? "", active: b.active, sort_order: b.sort_order })} />
             <MiniInput label="Orden" value={String(b.sort_order)} onChange={(v) => upsert.mutate({ id: b.id, image_url: b.image_url, title: b.title ?? "", link_url: b.link_url ?? "", active: b.active, sort_order: Number(v) || 0 })} />
@@ -1347,7 +1347,7 @@ function StoreTab() {
         {images.length > 0 && (
           <div className="flex gap-2 overflow-x-auto">
             {images.map((src) => (
-              <img key={src} src={src} alt="" loading="lazy" decoding="async" width={64} height={64} className="h-16 w-16 shrink-0 rounded-lg object-cover" />
+              <img key={src} src={src} alt="" loading="lazy" decoding="async" width={64} height={64} className="h-16 w-16 shrink-0 rounded-lg object-cover"  onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
             ))}
           </div>
         )}
@@ -1366,7 +1366,7 @@ function StoreTab() {
         <div key={p.id} className="rounded-xl border border-border bg-card p-3 space-y-2">
           <div className="flex gap-2 overflow-x-auto">
             {(p.images ?? []).map((src) => (
-              <img key={src} src={src} alt="" loading="lazy" decoding="async" width={64} height={64} className="h-16 w-16 shrink-0 rounded-lg object-cover" />
+              <img key={src} src={src} alt="" loading="lazy" decoding="async" width={64} height={64} className="h-16 w-16 shrink-0 rounded-lg object-cover"  onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
             ))}
           </div>
           <MiniInput label="Nombre" value={p.title} onChange={(v) => update.mutate({ id: p.id, title: v })} />
