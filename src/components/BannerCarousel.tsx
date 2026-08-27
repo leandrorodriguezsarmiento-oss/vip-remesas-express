@@ -89,7 +89,7 @@ export function BannerCarousel() {
   );
 
   return current.link_url ? (
-    <a href={current.link_url} target="_blank" rel="noreferrer" className="block">
+    <a href={current.link_url} target="_blank" rel="noopener noreferrer" className="block">
       {inner}
     </a>
   ) : (

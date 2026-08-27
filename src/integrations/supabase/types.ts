@@ -10,10 +10,31 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.5"
+    PostgrestVersion: "14.17"
   }
   public: {
     Tables: {
+      auth_rate_limits: {
+        Row: {
+          blocked_until: string | null
+          count: number
+          key: string
+          window_start: string
+        }
+        Insert: {
+          blocked_until?: string | null
+          count?: number
+          key: string
+          window_start?: string
+        }
+        Update: {
+          blocked_until?: string | null
+          count?: number
+          key?: string
+          window_start?: string
+        }
+        Relationships: []
+      }
       banners: {
         Row: {
           active: boolean
@@ -730,6 +751,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      consume_rate_limit: {
+        Args: {
+          _block_seconds: number
+          _key: string
+          _limit: number
+          _window_seconds: number
+        }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -737,6 +767,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      reset_rate_limit: { Args: { _key: string }; Returns: undefined }
     }
     Enums: {
       app_role: "admin" | "user" | "organizador"
