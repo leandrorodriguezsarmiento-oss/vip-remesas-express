@@ -1,5 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { buildPushHTTPRequest } from "@pushforge/builder";
+import { timingSafeEqual } from "crypto";
+
+function safeEqual(a: string, b: string): boolean {
+  const x = Buffer.from(a);
+  const y = Buffer.from(b);
+  return x.length === y.length && timingSafeEqual(x, y);
+}
 
 export const Route = createFileRoute("/api/public/push/dispatch")({
   server: {
@@ -8,9 +15,10 @@ export const Route = createFileRoute("/api/public/push/dispatch")({
         // Verify caller: the DB trigger sends the Supabase anon key as `apikey`.
         const apiKey = request.headers.get("apikey");
         const expectedAnon = process.env.SUPABASE_PUBLISHABLE_KEY;
-        if (!expectedAnon || apiKey !== expectedAnon) {
+        if (!expectedAnon || !apiKey || !safeEqual(apiKey, expectedAnon)) {
           return new Response("Unauthorized", { status: 401 });
         }
+
 
         const privateJwkRaw = process.env.VAPID_PRIVATE_JWK;
         const adminContact = process.env.VAPID_SUBJECT || "mailto:admin@example.com";
