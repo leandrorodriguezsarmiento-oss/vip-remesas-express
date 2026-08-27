@@ -27,28 +27,31 @@ export const Route = createFileRoute("/api/public/mercadopago/webhook")({
           return new Response("Bad JSON", { status: 400 });
         }
 
-        // Firma opcional pero recomendada
+        // Firma obligatoria cuando el secreto está configurado: si falta el
+        // header o no coincide, se rechaza (no se puede saltar omitiéndolo).
         const secret = process.env.MERCADOPAGO_WEBHOOK_SECRET;
         const signatureHeader = request.headers.get("x-signature");
         const requestId = request.headers.get("x-request-id");
-        if (secret && signatureHeader) {
-          // Formato: "ts=xxx,v1=hash"
+        if (secret) {
+          if (!signatureHeader || !requestId) {
+            return new Response("Missing signature", { status: 401 });
+          }
           const parts = Object.fromEntries(
             signatureHeader.split(",").map((p) => p.trim().split("=") as [string, string]),
           );
           const ts = parts.ts;
           const v1 = parts.v1;
+          if (!ts || !v1) return new Response("Invalid signature", { status: 401 });
           const dataId = payload.data?.id ?? "";
-          if (ts && v1 && requestId) {
-            const manifest = `id:${dataId};request-id:${requestId};ts:${ts};`;
-            const expected = createHmac("sha256", secret).update(manifest).digest("hex");
-            const a = Buffer.from(v1);
-            const b = Buffer.from(expected);
-            if (a.length !== b.length || !timingSafeEqual(a, b)) {
-              return new Response("Invalid signature", { status: 401 });
-            }
+          const manifest = `id:${dataId};request-id:${requestId};ts:${ts};`;
+          const expected = createHmac("sha256", secret).update(manifest).digest("hex");
+          const a = Buffer.from(v1);
+          const b = Buffer.from(expected);
+          if (a.length !== b.length || !timingSafeEqual(a, b)) {
+            return new Response("Invalid signature", { status: 401 });
           }
         }
+
 
         // Solo procesamos eventos de pagos
         const paymentId = payload.data?.id;
