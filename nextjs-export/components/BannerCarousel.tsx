@@ -29,5 +29,5 @@ export function BannerCarousel() {
       {b.title && <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent p-3"><p className="text-sm font-semibold text-white">{b.title}</p></div>}
     </div>
   );
-  return b.link_url ? <a href={b.link_url} target="_blank" rel="noreferrer" className="block">{inner}</a> : inner;
+  return b.link_url ? <a href={b.link_url} target="_blank" rel="noopener noreferrer" className="block">{inner}</a> : inner;
 }
