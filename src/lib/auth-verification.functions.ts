@@ -148,6 +148,24 @@ export const verifyVerificationCode = createServerFn({ method: "POST" })
       .parse(data)
   )
   .handler(async ({ data }) => {
+    const { consumeRateLimit, resetRateLimit } = await import("./rate-limit.server");
+    const email = data.email.toLowerCase();
+    const emailKey = `otp:verify:email:${email}`;
+    // Máx. 6 intentos fallidos por correo (bloqueo 15 min) y 40 por IP.
+    const okEmail = await consumeRateLimit({
+      key: emailKey,
+      limit: 6,
+      windowSeconds: 900,
+      blockSeconds: 900,
+    });
+    const okIp = await consumeRateLimit({
+      key: `otp:verify:ip:${requestIp()}`,
+      limit: 40,
+      windowSeconds: 900,
+      blockSeconds: 900,
+    });
+    if (!okEmail || !okIp) throw new Error(TOO_MANY);
+
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const { data: rows, error: selectError } = (await (supabaseAdmin as any)
@@ -159,8 +177,8 @@ export const verifyVerificationCode = createServerFn({ method: "POST" })
       .gt("expires_at", new Date().toISOString())
       .order("created_at", { ascending: false })
       .limit(1)) as { data: VerificationCodeRow[] | null; error: any };
-    if (selectError) throw selectError;
-    if (!rows || rows.length === 0) throw new Error("Código inválido o expirado");
+    if (selectError) throw new Error(GENERIC_CODE_ERROR);
+    if (!rows || rows.length === 0) throw new Error(GENERIC_CODE_ERROR);
 
     const row = rows[0];
 
@@ -168,11 +186,15 @@ export const verifyVerificationCode = createServerFn({ method: "POST" })
       (supabaseAdmin as any).from("verification_codes").update({ verified: true }).eq("id", row.id),
       supabaseAdmin.auth.admin.updateUserById(row.user_id, { email_confirm: true }),
     ]);
-    if (updateError) throw updateError;
-    if (confirmError) throw confirmError;
+    if (updateError) throw new Error(GENERIC_CODE_ERROR);
+    if (confirmError) throw new Error(GENERIC_CODE_ERROR);
+
+    // Acierto: limpiamos el contador de fallos de ese correo.
+    await resetRateLimit(emailKey);
 
     return { success: true };
   });
+
 
 export const setInitialPassword = createServerFn({ method: "POST" })
   .inputValidator((data) =>
