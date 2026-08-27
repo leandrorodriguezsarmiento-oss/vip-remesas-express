@@ -1,7 +1,25 @@
 import { createServerFn } from "@tanstack/react-start";
+import { getRequest } from "@tanstack/react-start/server";
 import { z } from "zod";
 
 const CODE_TTL_MINUTES = 10;
+const GENERIC_CODE_ERROR = "Código inválido o expirado";
+const TOO_MANY = "Demasiados intentos. Espera unos minutos e inténtalo de nuevo.";
+
+function requestIp(): string {
+  try {
+    const h = getRequest().headers;
+    return (
+      h.get("cf-connecting-ip") ??
+      h.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+      h.get("x-real-ip") ??
+      "unknown"
+    );
+  } catch {
+    return "unknown";
+  }
+}
+
 
 type VerificationCodeRow = {
   id: string;
