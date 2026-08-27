@@ -63,9 +63,27 @@ export const sendVerificationCode = createServerFn({ method: "POST" })
       .parse(data)
   )
   .handler(async ({ data }) => {
+    const { consumeRateLimit } = await import("./rate-limit.server");
+    const email = data.email.toLowerCase();
+    // Máx. 5 códigos por correo cada 15 min y 15 por IP cada 15 min.
+    const okEmail = await consumeRateLimit({
+      key: `otp:send:email:${email}`,
+      limit: 5,
+      windowSeconds: 900,
+      blockSeconds: 900,
+    });
+    const okIp = await consumeRateLimit({
+      key: `otp:send:ip:${requestIp()}`,
+      limit: 15,
+      windowSeconds: 900,
+      blockSeconds: 900,
+    });
+    if (!okEmail || !okIp) throw new Error(TOO_MANY);
+
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const existingUser = await findUserByEmail(supabaseAdmin, data.email);
+
 
     let userId: string;
     if (existingUser) {
