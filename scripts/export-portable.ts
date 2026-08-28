@@ -5,7 +5,7 @@
  *
  * Uso:  bun run export:portable
  */
-import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, readdirSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 
 const ROOT = resolve(import.meta.dirname, "..");
@@ -50,14 +50,10 @@ function patch(rel: string, edits: Array<[from: string | RegExp, to: string]>) {
 // 1. Copia limpia del código
 rmSync(OUT, { recursive: true, force: true });
 mkdirSync(OUT, { recursive: true });
-cpSync(ROOT, OUT, {
-  recursive: true,
-  filter: (src) => {
-    const rel = src.slice(ROOT.length + 1);
-    if (!rel) return true;
-    return !SKIP.has(rel.split("/")[0]!);
-  },
-});
+for (const entry of readdirSync(ROOT)) {
+  if (SKIP.has(entry)) continue;
+  cpSync(join(ROOT, entry), join(OUT, entry), { recursive: true });
+}
 
 // 2. Fuera todo lo específico de la plataforma Lovable
 for (const rel of [
