@@ -168,7 +168,13 @@ function SendFlow() {
     try {
       // El monto se recalcula en el servidor desde la fila de `transactions`.
       const res = await createMpPreference({ data: { transactionId: txId } });
-      window.location.href = res.checkoutUrl;
+      // Solo permitimos abrir dominios oficiales de Mercado Pago por HTTPS.
+      const url = new URL(res.checkoutUrl);
+      const okHost =
+        url.protocol === "https:" &&
+        /(^|\.)mercadopago\.com(\.[a-z]{2})?$|(^|\.)mercadolibre\.com(\.[a-z]{2})?$/.test(url.hostname);
+      if (!okHost) throw new Error("Enlace de pago no válido");
+      window.location.href = url.toString();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "No se pudo abrir Mercado Pago");
       setMpLoading(false);
