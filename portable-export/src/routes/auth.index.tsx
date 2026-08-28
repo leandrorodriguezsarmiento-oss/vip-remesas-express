@@ -337,7 +337,7 @@ function SubmitButton({ children, loading }: { children: React.ReactNode; loadin
   );
 }
 
-/** Recuperación de contraseña por correo (enlace seguro de Lovable Cloud). */
+/** Recuperación de contraseña por correo (enlace seguro por correo). */
 function ForgotPassword({ onBack }: { onBack: () => void }) {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);

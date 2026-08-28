@@ -68,7 +68,18 @@ for (const rel of [
   "src/routeTree.gen.ts", // lo regenera el plugin de rutas al arrancar
   "AGENTS.md",
   "bunfig.toml",
+  "tsconfig.tsbuildinfo",
+  "package-lock.json",
+  "MIGRACION-VPS.md",
 ]) drop(rel);
+
+// Mensajes de error genéricos (sin marca de plataforma)
+for (const rel of [
+  "src/integrations/supabase/client.ts",
+  "src/integrations/supabase/client.server.ts",
+  "src/integrations/supabase/auth-middleware.ts",
+]) patch(rel, [[/Connect Supabase in Lovable Cloud\./g, "Revisa tu archivo .env."]]);
+patch("src/routes/auth.index.tsx", [[/\(enlace seguro de Lovable Cloud\)/, "(enlace seguro por correo)"]]);
 
 // 3. package.json sin paquetes @lovable.dev
 const pkg = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8"));
