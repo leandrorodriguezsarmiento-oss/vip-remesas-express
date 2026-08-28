@@ -103,7 +103,6 @@ write(
   "vite.config.ts",
   `import { defineConfig } from "vite";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
-import viteReact from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import tsConfigPaths from "vite-tsconfig-paths";
 
@@ -112,14 +111,9 @@ export default defineConfig({
   plugins: [
     tsConfigPaths(),
     tailwindcss(),
-    tanstackStart({
-      customViteReactPlugin: true,
-      // Salida Node autohospedable (VPS + pm2/systemd detrás de Nginx).
-      // Cambia a "vercel" / "cloudflare-module" si despliegas allí.
-      target: "node-server",
-      server: { entry: "server" },
-    }),
-    viteReact(),
+    // Salida Node autohospedable (VPS + pm2/systemd detrás de Nginx).
+    // Para otros destinos define NITRO_PRESET (vercel, netlify, cloudflare-module...).
+    tanstackStart({ server: { entry: "server" } }),
   ],
 });
 `,
@@ -165,7 +159,7 @@ patch("src/routes/auth.index.tsx", [
 
 // 8. Sin URLs de lovable.app en el código de servidor
 for (const rel of ["src/lib/emailjs.server.ts", "src/lib/payments.functions.ts", "src/lib/recharge-payments.functions.ts"]) {
-  patch(rel, [[/"https:\/\/vip-remesas-express\.lovable\.app"/g, 'process.env["PUBLIC_SITE_URL"] || "http://localhost:3000"']]);
+  patch(rel, [[/"https:\/\/vip-remesas-express\.lovable\.app"/g, '(process.env["PUBLIC_SITE_URL"] || "http://localhost:3000")']]);
 }
 
 // 9. Plantilla de variables de entorno y guía de despliegue

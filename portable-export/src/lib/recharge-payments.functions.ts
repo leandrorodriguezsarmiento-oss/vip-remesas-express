@@ -27,7 +27,7 @@ export const createRechargePreference = createServerFn({ method: "POST" })
     if (r.status !== "pending") throw new Error("Esta recarga ya está en proceso");
 
     const origin =
-      process.env["PUBLIC_SITE_URL"] || process.env["PUBLIC_SITE_URL"] || "http://localhost:3000";
+      process.env["PUBLIC_SITE_URL"] || (process.env["PUBLIC_SITE_URL"] || "http://localhost:3000");
 
     const res = await fetch("https://api.mercadopago.com/checkout/preferences", {
       method: "POST",

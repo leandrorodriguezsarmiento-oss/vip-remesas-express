@@ -37,7 +37,7 @@ export const createMercadoPagoPreference = createServerFn({ method: "POST" })
     const origin =
       process.env.PUBLIC_SITE_URL ||
       process.env.VITE_PUBLIC_SITE_URL ||
-      process.env["PUBLIC_SITE_URL"] || "http://localhost:3000";
+      (process.env["PUBLIC_SITE_URL"] || "http://localhost:3000");
 
     const body = {
       external_reference: tx.tracking_id,

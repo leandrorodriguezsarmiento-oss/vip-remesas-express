@@ -30,7 +30,7 @@ export async function sendEmailJs(params: EmailJsParams): Promise<{ sent: boolea
     // servidor la API acepta la llamada como aplicación autorizada.
     headers: {
       "Content-Type": "application/json",
-      origin: process.env["EMAILJS_ORIGIN"] ?? process.env["PUBLIC_SITE_URL"] || "http://localhost:3000",
+      origin: process.env["EMAILJS_ORIGIN"] ?? (process.env["PUBLIC_SITE_URL"] || "http://localhost:3000"),
     },
     body: JSON.stringify({
       service_id: serviceId,
