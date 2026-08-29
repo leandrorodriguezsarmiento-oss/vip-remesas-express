@@ -40,8 +40,8 @@ AS $$
 DECLARE
   r record;
   v_id uuid;
-  v_anon_key text := 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVvZ2x4d3RyaXRjc3JnbHdpbWVqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM1MzY1NjgsImV4cCI6MjA5OTExMjU2OH0._rVbxQ9JDgB5FFMVxaGgSKFTi-ozyzrlOvsEgHvJ-3o';
-  v_url text := 'https://project--f318d839-9858-4e78-a02b-1da8134720f0.lovable.app/api/public/push/dispatch';
+  v_anon_key text := 'REEMPLAZA_CON_TU_ANON_KEY';
+  v_url text := 'https://tudominio.com/api/public/push/dispatch';
 BEGIN
   FOR r IN SELECT user_id FROM public.user_roles WHERE role = 'admin' LOOP
     INSERT INTO public.notifications (user_id, title, body)
@@ -71,8 +71,8 @@ AS $$
 DECLARE
   r record;
   v_id uuid;
-  v_anon_key text := 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVvZ2x4d3RyaXRjc3JnbHdpbWVqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM1MzY1NjgsImV4cCI6MjA5OTExMjU2OH0._rVbxQ9JDgB5FFMVxaGgSKFTi-ozyzrlOvsEgHvJ-3o';
-  v_url text := 'https://project--f318d839-9858-4e78-a02b-1da8134720f0.lovable.app/api/public/push/dispatch';
+  v_anon_key text := 'REEMPLAZA_CON_TU_ANON_KEY';
+  v_url text := 'https://tudominio.com/api/public/push/dispatch';
 BEGIN
   FOR r IN SELECT user_id FROM public.user_roles WHERE role = 'admin' LOOP
     INSERT INTO public.notifications (user_id, title, body)
@@ -104,8 +104,8 @@ DECLARE
   v_id uuid;
   v_title text;
   v_body text;
-  v_anon_key text := 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVvZ2x4d3RyaXRjc3JnbHdpbWVqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM1MzY1NjgsImV4cCI6MjA5OTExMjU2OH0._rVbxQ9JDgB5FFMVxaGgSKFTi-ozyzrlOvsEgHvJ-3o';
-  v_url text := 'https://project--f318d839-9858-4e78-a02b-1da8134720f0.lovable.app/api/public/push/dispatch';
+  v_anon_key text := 'REEMPLAZA_CON_TU_ANON_KEY';
+  v_url text := 'https://tudominio.com/api/public/push/dispatch';
 BEGIN
   IF NEW.status = 'processing' AND OLD.status IS DISTINCT FROM NEW.status THEN
     IF TG_TABLE_NAME = 'transactions' THEN
