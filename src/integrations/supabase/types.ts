@@ -68,6 +68,121 @@ export type Database = {
         }
         Relationships: []
       }
+      food_items: {
+        Row: {
+          available: boolean
+          category: string
+          created_at: string
+          description: string | null
+          id: string
+          image_url: string | null
+          price_brl: number
+          restaurant_id: string
+          sort_order: number
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          available?: boolean
+          category?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          price_brl: number
+          restaurant_id: string
+          sort_order?: number
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          available?: boolean
+          category?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          price_brl?: number
+          restaurant_id?: string
+          sort_order?: number
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "food_items_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      food_orders: {
+        Row: {
+          br_state: string
+          city: string
+          created_at: string
+          customer_address: string
+          customer_name: string
+          customer_phone: string
+          id: string
+          items: Json
+          notes: string | null
+          order_no: number
+          restaurant_id: string
+          restaurant_name: string
+          status: Database["public"]["Enums"]["recarga_status"]
+          total_brl: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          br_state: string
+          city: string
+          created_at?: string
+          customer_address: string
+          customer_name: string
+          customer_phone: string
+          id?: string
+          items?: Json
+          notes?: string | null
+          order_no?: number
+          restaurant_id: string
+          restaurant_name: string
+          status?: Database["public"]["Enums"]["recarga_status"]
+          total_brl: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          br_state?: string
+          city?: string
+          created_at?: string
+          customer_address?: string
+          customer_name?: string
+          customer_phone?: string
+          id?: string
+          items?: Json
+          notes?: string | null
+          order_no?: number
+          restaurant_id?: string
+          restaurant_name?: string
+          status?: Database["public"]["Enums"]["recarga_status"]
+          total_brl?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "food_orders_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       login_aliases: {
         Row: {
           alias: string
@@ -515,6 +630,60 @@ export type Database = {
         }
         Relationships: []
       }
+      restaurants: {
+        Row: {
+          active: boolean
+          approved: boolean
+          br_state: string
+          city: string
+          created_at: string
+          delivery_notes: string | null
+          description: string | null
+          id: string
+          image_url: string | null
+          name: string
+          neighborhood: string | null
+          owner_id: string
+          phone: string | null
+          updated_at: string
+          whatsapp: string | null
+        }
+        Insert: {
+          active?: boolean
+          approved?: boolean
+          br_state: string
+          city: string
+          created_at?: string
+          delivery_notes?: string | null
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          name: string
+          neighborhood?: string | null
+          owner_id: string
+          phone?: string | null
+          updated_at?: string
+          whatsapp?: string | null
+        }
+        Update: {
+          active?: boolean
+          approved?: boolean
+          br_state?: string
+          city?: string
+          created_at?: string
+          delivery_notes?: string | null
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          name?: string
+          neighborhood?: string | null
+          owner_id?: string
+          phone?: string | null
+          updated_at?: string
+          whatsapp?: string | null
+        }
+        Relationships: []
+      }
       store_orders: {
         Row: {
           assigned_to: string | null
@@ -770,7 +939,7 @@ export type Database = {
       reset_rate_limit: { Args: { _key: string }; Returns: undefined }
     }
     Enums: {
-      app_role: "admin" | "user" | "organizador"
+      app_role: "admin" | "user" | "organizador" | "restaurante"
       recarga_status: "pending" | "processing" | "completed" | "rejected"
       tx_status: "pending" | "processing" | "completed" | "rejected"
     }
@@ -900,7 +1069,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "user", "organizador"],
+      app_role: ["admin", "user", "organizador", "restaurante"],
       recarga_status: ["pending", "processing", "completed", "rejected"],
       tx_status: ["pending", "processing", "completed", "rejected"],
     },
