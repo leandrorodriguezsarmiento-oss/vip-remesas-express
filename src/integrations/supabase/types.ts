@@ -68,6 +68,42 @@ export type Database = {
         }
         Relationships: []
       }
+      flights: {
+        Row: {
+          active: boolean
+          created_at: string
+          destination: string
+          id: string
+          notes: string | null
+          origin_city: string
+          price_usd: number
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          destination?: string
+          id?: string
+          notes?: string | null
+          origin_city: string
+          price_usd?: number
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          destination?: string
+          id?: string
+          notes?: string | null
+          origin_city?: string
+          price_usd?: number
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       food_items: {
         Row: {
           available: boolean
