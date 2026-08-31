@@ -100,7 +100,7 @@ function AuthedLayout() {
 
   // Realtime global: cualquier cambio hecho por admin u organizadores se refleja al instante.
   useEffect(() => {
-    const tables = ["transactions", "recargas_requests", "store_orders", "store_products", "promos", "rates"] as const;
+    const tables = ["transactions", "recargas_requests", "store_orders", "store_products", "promos", "rates", "flights"] as const;
     const channel = supabase.channel(`vip-live:${user.id}`);
     tables.forEach((table) => {
       channel.on("postgres_changes", { event: "*", schema: "public", table }, () => {
