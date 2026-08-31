@@ -1,6 +1,6 @@
 import { createFileRoute, Outlet, Link, redirect, useNavigate, useLocation } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
-import { Home, Send, LogOut, Smartphone, Shield, Bell, Settings as SettingsIcon, Store, Clock as ClockIcon } from "lucide-react";
+import { Home, Send, LogOut, Smartphone, Shield, Bell, Settings as SettingsIcon, Store, Clock as ClockIcon, Plane } from "lucide-react";
 import { BrandMark } from "@/components/BrandMark";
 import { SectionMenu } from "@/components/SectionMenu";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
@@ -152,6 +152,7 @@ function AuthedLayout() {
         { to: "/recargas", icon: Smartphone, label: "Recargas", grad: "bg-gradient-emerald" },
         { to: "/send", icon: Send, label: "Remesas", grad: "bg-gradient-rose" },
         { to: "/tienda", icon: Store, label: "VipShop", grad: "bg-gradient-amber" },
+        { to: "/pasajes", icon: Plane, label: "Pasajes", grad: "bg-gradient-sky" },
         { to: "/history", icon: ClockIcon, label: "Historial", grad: "bg-gradient-violet" },
         { to: "/settings", icon: SettingsIcon, label: "Ajustes", grad: "bg-gradient-gold" },
       ] as const);
