@@ -1804,7 +1804,11 @@ function FlightsTab() {
   };
   const update = useMutation({
     mutationFn: async (v: { id: string } & Partial<Omit<FlightRow, "id">>) => {
-      const { id, ...patch } = v;
+      const { id, ...raw } = v;
+      const patch = {
+        ...raw,
+        price_usd: raw.price_usd === undefined ? undefined : Number(raw.price_usd) || 0,
+      };
       const { error } = await supabase.from("flights").update(patch).eq("id", id);
       if (error) throw error;
     },
