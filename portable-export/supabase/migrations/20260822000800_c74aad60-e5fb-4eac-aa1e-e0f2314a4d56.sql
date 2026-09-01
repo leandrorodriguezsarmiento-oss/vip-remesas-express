@@ -27,7 +27,7 @@ DECLARE
   v_id uuid;
   v_title text;
   v_body text;
-  v_anon_key text := 'REEMPLAZA_CON_TU_ANON_KEY';
+  v_anon_key text := 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVvZ2x4d3RyaXRjc3JnbHdpbWVqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM1MzY1NjgsImV4cCI6MjA5OTExMjU2OH0._rVbxQ9JDgB5FFMVxaGgSKFTi-ozyzrlOvsEgHvJ-3o';
   v_url text := 'https://tudominio.com/api/public/push/dispatch';
 BEGIN
   IF NEW.active IS NOT TRUE THEN RETURN NEW; END IF;

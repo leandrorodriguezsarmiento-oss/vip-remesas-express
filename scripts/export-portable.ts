@@ -243,4 +243,211 @@ Copia \`assetlinks.json\` a \`public/.well-known/\`.
 `,
 );
 
+// 10. .gitignore listo para GitHub
+write(
+  ".gitignore",
+  `node_modules
+dist
+dist-ssr
+.output
+.nitro
+.tanstack
+.vite
+*.log
+*.local
+
+# Secretos: nunca subir
+.env
+.env.*
+!.env.example
+
+# Móvil (se generan con Capacitor)
+android/
+ios/
+*.keystore
+*.jks
+google-services.json
+GoogleService-Info.plist
+
+.DS_Store
+.idea
+.vscode/*
+!.vscode/extensions.json
+`,
+);
+
+// 11. GitHub: CI en cada push + despliegue al VPS al publicar en main
+write(
+  ".github/workflows/ci.yml",
+  `name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - name: Typecheck
+        run: bunx tsc --noEmit
+      - name: Build
+        run: bun run build
+        env:
+          VITE_SUPABASE_URL: \${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: \${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+          VITE_SUPABASE_PROJECT_ID: \${{ secrets.VITE_SUPABASE_PROJECT_ID }}
+`,
+);
+
+write(
+  ".github/workflows/deploy.yml",
+  `name: Deploy VPS
+
+# Actualizar la web en producción: haz push a main (o lánzalo a mano).
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Desplegar por SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: \${{ secrets.VPS_HOST }}
+          username: \${{ secrets.VPS_USER }}
+          key: \${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set -e
+            cd \${{ secrets.VPS_PATH }}
+            git pull --ff-only
+            bun install --frozen-lockfile
+            bun run build
+            pm2 restart vip-remesas || pm2 start "bun run start" --name vip-remesas
+`,
+);
+
+// 11b. Migraciones sin URLs de la plataforma: usa tu propio dominio
+{
+  const dir = join(OUT, "supabase/migrations");
+  for (const file of readdirSync(dir)) {
+    if (!file.endsWith(".sql")) continue;
+    const path = join(dir, file);
+    const src = readFileSync(path, "utf8");
+    const next = src.replace(
+      /https:\/\/[a-z0-9.\-]*lovable\.app/g,
+      "https://tudominio.com",
+    );
+    if (next !== src) writeFileSync(path, next);
+  }
+}
+patch("README-DESPLIEGUE.md", [
+  [
+    /Este código no depende de Lovable: ni paquetes, ni proxys, ni dominios\./,
+    "Código 100% propio: sin paquetes, proxys ni dominios de terceros.",
+  ],
+]);
+
+// 12. Apps Android e iPhone con Capacitor (envoltorio nativo del sitio)
+pkg.dependencies["@capacitor/core"] = "^7.0.0";
+pkg.dependencies["@capacitor/android"] = "^7.0.0";
+pkg.dependencies["@capacitor/ios"] = "^7.0.0";
+pkg.devDependencies["@capacitor/cli"] = "^7.0.0";
+pkg.scripts["mobile:add"] = "cap add android && cap add ios";
+pkg.scripts["mobile:sync"] = "cap sync";
+pkg.scripts["mobile:android"] = "cap open android";
+pkg.scripts["mobile:ios"] = "cap open ios";
+write("package.json", JSON.stringify(pkg, null, 2) + "\n");
+
+write(
+  "capacitor.config.ts",
+  `import type { CapacitorConfig } from "@capacitor/cli";
+
+/**
+ * Las apps de Android e iPhone son un envoltorio nativo del sitio publicado:
+ * al actualizar la web, las apps se actualizan solas (sin volver a subir el APK).
+ * Cambia \`server.url\` por tu dominio real con HTTPS.
+ */
+const config: CapacitorConfig = {
+  appId: "com.vipremesas.app",
+  appName: "VIP Remesas",
+  webDir: "public",
+  server: {
+    url: process.env["PUBLIC_SITE_URL"] || "https://tudominio.com",
+    cleartext: false,
+    androidScheme: "https",
+  },
+  android: { allowMixedContent: false },
+  ios: { contentInset: "always" },
+};
+
+export default config;
+`,
+);
+
+write(
+  "MOVIL.md",
+  `# Apps Android e iPhone
+
+La app móvil envuelve el sitio publicado con Capacitor. Ventaja: cuando
+actualizas la web (push a \`main\`), **las apps ya instaladas se actualizan solas**.
+Solo vuelves a subir la app a las tiendas si cambias el icono, el nombre o los permisos.
+
+## 1. Preparar
+\`\`\`bash
+bun install
+export PUBLIC_SITE_URL=https://tudominio.com
+bun run mobile:add     # crea las carpetas android/ e ios/
+bun run mobile:sync
+\`\`\`
+
+## 2. Android (Play Store)
+\`\`\`bash
+bun run mobile:android   # abre Android Studio
+\`\`\`
+- Build > Generate Signed App Bundle (.aab) con tu keystore (guárdalo fuera de Git).
+- Sube el .aab a Play Console. Cada nueva versión: sube \`versionCode\` en \`android/app/build.gradle\`.
+- Alternativa sin Capacitor: TWA con \`@bubblewrap/cli\` (ver README-DESPLIEGUE.md).
+
+## 3. iPhone (App Store)
+\`\`\`bash
+bun run mobile:ios       # abre Xcode (requiere Mac)
+\`\`\`
+- Cuenta de Apple Developer, luego Product > Archive > Distribute App.
+- Sube \`CFBundleVersion\` en cada actualización.
+
+## 4. Notificaciones push en las apps
+El sitio ya usa Web Push. En Android funciona dentro del envoltorio; en iOS,
+si quieres push nativo, añade \`@capacitor/push-notifications\` + Firebase/APNs.
+`,
+);
+
+patch("README-DESPLIEGUE.md", [
+  [
+    /## 6\. Play Store \(TWA\)/,
+    `## 6. GitHub y actualizaciones
+- Sube esta carpeta a tu repositorio y crea la rama \`main\`.
+- Secrets del repo: \`VITE_SUPABASE_URL\`, \`VITE_SUPABASE_PUBLISHABLE_KEY\`,
+  \`VITE_SUPABASE_PROJECT_ID\`, \`VPS_HOST\`, \`VPS_USER\`, \`VPS_SSH_KEY\`, \`VPS_PATH\`.
+- Cada push a \`main\` compila (\`ci.yml\`) y despliega al VPS (\`deploy.yml\`).
+- Apps Android/iPhone: ver \`MOVIL.md\`.
+
+## 7. Play Store (TWA)`,
+  ],
+]);
+
 console.log("Exportación lista en portable-export/ (sin dependencias de Lovable)");
