@@ -3,15 +3,8 @@
 Este código no depende de Lovable: ni paquetes, ni proxys, ni dominios.
 
 ## 1. Base de datos
-Crea un proyecto de Postgres/Supabase propio (o autohospedado).
-
-**ANTES de ejecutar las migraciones**, ajusta dos cosas con buscar/reemplazar
-en la carpeta `supabase/migrations/`:
-1. `https://tudominio.com` → tu dominio real (lo usan los triggers de notificaciones push).
-2. `REEMPLAZA_CON_TU_ANON_KEY` → la *anon key* de tu proyecto nuevo
-   (la misma de `SUPABASE_PUBLISHABLE_KEY`; la usan los triggers para llamar al despachador de push).
-
-Luego ejecuta en orden los archivos de `supabase/migrations/`.
+Crea un proyecto de Postgres/Supabase propio (o autohospedado) y ejecuta en orden
+los archivos de `supabase/migrations/`.
 
 ## 2. Variables
 Copia `.env.example` a `.env` y rellena los valores. Nunca pongas claves
@@ -36,7 +29,14 @@ bun run start   # sirve .output/server/index.mjs
 - Webhooks: Mercado Pago → `/api/public/mercadopago/webhook`; recargas → `/api/public/recargas/webhook`.
 - Actualiza las URLs de los triggers de push en la base a `https://tudominio.com/api/public/push/dispatch`.
 
-## 6. Play Store (TWA)
+## 6. GitHub y actualizaciones
+- Sube esta carpeta a tu repositorio y crea la rama `main`.
+- Secrets del repo: `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`,
+  `VITE_SUPABASE_PROJECT_ID`, `VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY`, `VPS_PATH`.
+- Cada push a `main` compila (`ci.yml`) y despliega al VPS (`deploy.yml`).
+- Apps Android/iPhone: ver `MOVIL.md`.
+
+## 7. Play Store (TWA)
 ```bash
 npm i -g @bubblewrap/cli
 bubblewrap init --manifest=https://tudominio.com/manifest.webmanifest

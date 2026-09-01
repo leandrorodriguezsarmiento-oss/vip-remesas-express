@@ -27,7 +27,7 @@ export const Route = createFileRoute("/_authenticated/admin")({
   component: AdminPanel,
 });
 
-type Tab = "tx" | "recargas" | "rates" | "promos" | "users" | "api" | "banners" | "payments" | "mp" | "reports" | "store" | "orders" | "myday";
+type Tab = "tx" | "recargas" | "rates" | "promos" | "users" | "api" | "banners" | "payments" | "mp" | "reports" | "store" | "orders" | "myday" | "flights";
 
 function AdminPanel() {
   const { isAdmin, user } = Route.useRouteContext();
@@ -39,7 +39,7 @@ function AdminPanel() {
   const tabs: [Tab, string][] = isAdmin
     ? [
         ["tx", "Remesas"], ["recargas", "Recargas"], ["orders", "Pedidos"], ["reports", "Reportes"],
-        ["rates", "Tasas"], ["promos", "Promos"], ["banners", "Banners"],
+        ["rates", "Tasas"], ["promos", "Promos"], ["banners", "Banners"], ["flights", "Pasajes"],
         ["store", "VipShop"],
         ["payments", "Cuentas de pago"], ["mp", "Mercado Pago"], ["users", "Usuarios"], ["api", "API"],
       ]
@@ -114,6 +114,7 @@ function AdminPanel() {
       {isAdmin && tab === "rates" && <RatesTab />}
       {isAdmin && tab === "promos" && <PromosTab />}
       {isAdmin && tab === "banners" && <BannersTab />}
+      {isAdmin && tab === "flights" && <FlightsTab />}
       {isAdmin && tab === "payments" && <PaymentMethodsTab />}
       {isAdmin && tab === "mp" && <MercadoPagoTab />}
       {isAdmin && tab === "users" && <UsersTab />}
@@ -1772,6 +1773,117 @@ function OrganizerReports() {
         const o = (organizers.data ?? []).find((x) => x.id === orgId);
         return <DaySummaryCard key={key} day={day} list={list} title={o ? orgLabel(o) : "Organizador"} />;
       })}
+    </div>
+  );
+}
+
+// ----------------- VipPasajes -----------------
+type FlightRow = {
+  id: string;
+  origin_city: string;
+  destination: string;
+  price_usd: number | string;
+  notes: string | null;
+  active: boolean;
+  sort_order: number;
+};
+
+function FlightsTab() {
+  const qc = useQueryClient();
+  const q = useQuery({
+    queryKey: ["admin-flights"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("flights").select("*").order("sort_order");
+      if (error) throw error;
+      return data as unknown as FlightRow[];
+    },
+  });
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: ["admin-flights"] });
+    qc.invalidateQueries({ queryKey: ["flights"] });
+  };
+  const update = useMutation({
+    mutationFn: async (v: { id: string } & Partial<Omit<FlightRow, "id">>) => {
+      const { id, ...raw } = v;
+      const patch = {
+        ...raw,
+        price_usd: raw.price_usd === undefined ? undefined : Number(raw.price_usd) || 0,
+      };
+      const { error } = await supabase.from("flights").update(patch).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => { toast.success("Pasaje actualizado"); invalidate(); },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Error"),
+  });
+  const add = useMutation({
+    mutationFn: async (f: { origin_city: string; destination: string; price_usd: number; notes: string | null }) => {
+      const { error } = await supabase.from("flights").insert({ ...f, sort_order: (q.data?.length ?? 0) + 1 });
+      if (error) throw error;
+    },
+    onSuccess: () => { toast.success("Pasaje creado"); invalidate(); },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Error"),
+  });
+  const del = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("flights").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => { toast.success("Pasaje eliminado"); invalidate(); },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Error"),
+  });
+
+  const [no, setNo] = useState("");
+  const [nd, setNd] = useState("Georgetown, Guyana");
+  const [npr, setNpr] = useState("");
+  const [nn, setNn] = useState("");
+
+  return (
+    <div className="space-y-3">
+      <div className="rounded-xl border border-gold/40 bg-card p-3 space-y-2">
+        <p className="text-xs font-semibold uppercase text-muted-foreground">Nueva ruta de pasaje</p>
+        <div className="grid grid-cols-2 gap-2">
+          <MiniInput label="Origen (ej. La Habana)" value={no} onChange={setNo} />
+          <MiniInput label="Destino" value={nd} onChange={setNd} />
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <MiniInput label="Precio USD (0 = consultar)" value={npr} onChange={setNpr} />
+          <MiniInput label="Notas (ej. Salidas viernes)" value={nn} onChange={setNn} />
+        </div>
+        <button
+          onClick={() => {
+            if (!no || !nd) return toast.error("Origen y destino requeridos");
+            add.mutate({ origin_city: no, destination: nd, price_usd: Number(npr.replace(",", ".")) || 0, notes: nn || null });
+            setNo(""); setNpr(""); setNn("");
+          }}
+          className="flex w-full items-center justify-center gap-1 rounded-lg bg-gradient-gold px-3 py-1.5 text-xs font-semibold text-primary-foreground shadow-gold">
+          <Plus className="h-3 w-3" /> Añadir ruta
+        </button>
+      </div>
+
+      {q.data?.map((f) => (
+        <div key={f.id} className="space-y-2 rounded-xl border border-border bg-card p-3">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-bold">🇨🇺 {f.origin_city} → 🇬🇾 {f.destination}</p>
+            <div className="flex items-center gap-2">
+              <button onClick={() => update.mutate({ id: f.id, active: !f.active })}
+                className={`rounded-full px-2 py-0.5 text-[10px] font-extrabold ${f.active ? "bg-success/20 text-success" : "bg-muted text-muted-foreground"}`}>
+                {f.active ? "Activo" : "Inactivo"}
+              </button>
+              <button onClick={() => del.mutate(f.id)} className="rounded-md p-1 text-destructive hover:bg-destructive/10">
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <MiniInput label="Precio USD (0 = consultar)" value={String(f.price_usd)}
+              onChange={(v) => update.mutate({ id: f.id, price_usd: Number(v.replace(",", ".")) || 0 })} />
+            <MiniInput label="Orden" value={String(f.sort_order)}
+              onChange={(v) => update.mutate({ id: f.id, sort_order: Number(v) || 0 })} />
+          </div>
+          <MiniInput label="Notas" value={f.notes ?? ""}
+            onChange={(v) => update.mutate({ id: f.id, notes: v || null })} />
+        </div>
+      ))}
     </div>
   );
 }

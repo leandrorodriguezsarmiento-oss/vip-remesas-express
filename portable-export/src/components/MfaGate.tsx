@@ -48,42 +48,55 @@ export function MfaGate({
 
   useEffect(() => {
     let alive = true;
+    // Red de seguridad: si las consultas no responden en 8s, no dejar la
+    // pantalla congelada en "Verificando seguridad…".
+    const watchdog = setTimeout(() => {
+      if (alive) setMode((m) => (m === "checking" ? "email" : m));
+    }, 8000);
     (async () => {
-      const { data: roles } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", userId)
-        .in("role", ["admin", "organizador"]);
-      if (!alive) return;
-      const list = (roles ?? []).map((r) => r.role as string);
-      const isAdmin = list.includes("admin");
-      if (list.length === 0) return setMode("unlocked");
-
-      let already = false;
       try {
-        already = sessionStorage.getItem(storageKey) === "1";
-      } catch {
-        already = false;
-      }
+        const { data: roles } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", userId)
+          .in("role", ["admin", "organizador"]);
+        if (!alive) return;
+        const list = (roles ?? []).map((r) => r.role as string);
+        const isAdmin = list.includes("admin");
+        if (list.length === 0) return setMode("unlocked");
 
-      const { data: factors } = await supabase.auth.mfa.listFactors();
-      const totp = (factors?.totp ?? []).find((f) => f.status === "verified");
-      const aal = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-      if (!alive) return;
+        let already = false;
+        try {
+          already = sessionStorage.getItem(storageKey) === "1";
+        } catch {
+          already = false;
+        }
 
-      if (totp) {
-        // Con TOTP activo la sesión debe llegar a AAL2 de verdad.
-        if (aal.data?.currentLevel === "aal2") return unlock();
-        setFactorId(totp.id);
-        return setMode("totp");
+        const { data: factors } = await supabase.auth.mfa.listFactors();
+        const totp = (factors?.totp ?? []).find((f) => f.status === "verified");
+        const aal = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+        if (!alive) return;
+
+        if (totp) {
+          // Con TOTP activo la sesión debe llegar a AAL2 de verdad.
+          if (aal.data?.currentLevel === "aal2") return unlock();
+          setFactorId(totp.id);
+          return setMode("totp");
+        }
+        // Los organizadores no requieren código por correo: entran directo.
+        if (!isAdmin) return setMode("unlocked");
+        if (already) return setMode("unlocked");
+        setMode("email");
+      } catch (e) {
+        // Falla de red u otro error: ofrecer el camino de código por correo
+        // en vez de quedarse cargando para siempre.
+        console.error("[mfa-gate]", e);
+        if (alive) setMode("email");
       }
-      // Los organizadores no requieren código por correo: entran directo.
-      if (!isAdmin) return setMode("unlocked");
-      if (already) return setMode("unlocked");
-      setMode("email");
     })();
     return () => {
       alive = false;
+      clearTimeout(watchdog);
     };
   }, [userId, storageKey, unlock]);
 
