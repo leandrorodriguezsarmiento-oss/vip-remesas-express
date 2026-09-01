@@ -341,6 +341,27 @@ jobs:
 `,
 );
 
+// 11b. Migraciones sin URLs de la plataforma: usa tu propio dominio
+{
+  const dir = join(OUT, "supabase/migrations");
+  for (const file of readdirSync(dir)) {
+    if (!file.endsWith(".sql")) continue;
+    const path = join(dir, file);
+    const src = readFileSync(path, "utf8");
+    const next = src.replace(
+      /https:\/\/[a-z0-9.\-]*lovable\.app/g,
+      "https://tudominio.com",
+    );
+    if (next !== src) writeFileSync(path, next);
+  }
+}
+patch("README-DESPLIEGUE.md", [
+  [
+    /Este código no depende de Lovable: ni paquetes, ni proxys, ni dominios\./,
+    "Código 100% propio: sin paquetes, proxys ni dominios de terceros.",
+  ],
+]);
+
 // 12. Apps Android e iPhone con Capacitor (envoltorio nativo del sitio)
 pkg.dependencies["@capacitor/core"] = "^7.0.0";
 pkg.dependencies["@capacitor/android"] = "^7.0.0";
