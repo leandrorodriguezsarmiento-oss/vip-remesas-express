@@ -65,7 +65,8 @@ for (const rel of [
   "src/lib/oauth-consent.ts",
   "src/integrations/lovable",
   "src/lib/lovable-error-reporting.ts",
-  "src/routeTree.gen.ts", // lo regenera el plugin de rutas al arrancar
+  // NOTA: src/routeTree.gen.ts SÍ se incluye: el CI hace typecheck antes del
+  // build y sin este archivo generado el typecheck fallaría en un clon limpio.
   "AGENTS.md",
   "bunfig.toml",
   "tsconfig.tsbuildinfo",
