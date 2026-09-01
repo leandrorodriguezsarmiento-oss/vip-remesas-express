@@ -1,6 +1,6 @@
 # VIP Remesas — despliegue independiente
 
-Este código no depende de Lovable: ni paquetes, ni proxys, ni dominios.
+Código 100% propio: sin paquetes, proxys ni dominios de terceros.
 
 ## 1. Base de datos
 Crea un proyecto de Postgres/Supabase propio (o autohospedado) y ejecuta en orden

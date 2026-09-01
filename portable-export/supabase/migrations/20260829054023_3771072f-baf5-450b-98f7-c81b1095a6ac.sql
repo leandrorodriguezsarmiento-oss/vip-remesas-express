@@ -170,7 +170,7 @@ DECLARE
   v_owner uuid;
   v_id uuid;
   v_anon_key text := 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVvZ2x4d3RyaXRjc3JnbHdpbWVqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM1MzY1NjgsImV4cCI6MjA5OTExMjU2OH0._rVbxQ9JDgB5FFMVxaGgSKFTi-ozyzrlOvsEgHvJ-3o';
-  v_url text := 'https://project--f318d839-9858-4e78-a02b-1da8134720f0.lovable.app/api/public/push/dispatch';
+  v_url text := 'https://tudominio.com/api/public/push/dispatch';
 BEGIN
   SELECT owner_id INTO v_owner FROM public.restaurants WHERE id = NEW.restaurant_id;
   IF v_owner IS NOT NULL THEN
@@ -204,7 +204,7 @@ DECLARE
   v_body text;
   v_id uuid;
   v_anon_key text := 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVvZ2x4d3RyaXRjc3JnbHdpbWVqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM1MzY1NjgsImV4cCI6MjA5OTExMjU2OH0._rVbxQ9JDgB5FFMVxaGgSKFTi-ozyzrlOvsEgHvJ-3o';
-  v_url text := 'https://project--f318d839-9858-4e78-a02b-1da8134720f0.lovable.app/api/public/push/dispatch';
+  v_url text := 'https://tudominio.com/api/public/push/dispatch';
 BEGIN
   IF NEW.status IS DISTINCT FROM OLD.status THEN
     IF NEW.status = 'processing' THEN
