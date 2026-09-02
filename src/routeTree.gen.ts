@@ -20,6 +20,7 @@ import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedSendRouteImport } from './routes/_authenticated/send'
 import { Route as AuthenticatedRecargasRouteImport } from './routes/_authenticated/recargas'
 import { Route as AuthenticatedPasajesRouteImport } from './routes/_authenticated/pasajes'
+import { Route as AuthenticatedMigrantesRouteImport } from './routes/_authenticated/migrantes'
 import { Route as AuthenticatedHistoryRouteImport } from './routes/_authenticated/history'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
@@ -84,6 +85,11 @@ const AuthenticatedRecargasRoute = AuthenticatedRecargasRouteImport.update({
 const AuthenticatedPasajesRoute = AuthenticatedPasajesRouteImport.update({
   id: '/pasajes',
   path: '/pasajes',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedMigrantesRoute = AuthenticatedMigrantesRouteImport.update({
+  id: '/migrantes',
+  path: '/migrantes',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedHistoryRoute = AuthenticatedHistoryRouteImport.update({
@@ -158,6 +164,7 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AuthenticatedAdminRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/history': typeof AuthenticatedHistoryRoute
+  '/migrantes': typeof AuthenticatedMigrantesRoute
   '/pasajes': typeof AuthenticatedPasajesRoute
   '/recargas': typeof AuthenticatedRecargasRoute
   '/send': typeof AuthenticatedSendRoute
@@ -180,6 +187,7 @@ export interface FileRoutesByTo {
   '/admin': typeof AuthenticatedAdminRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/history': typeof AuthenticatedHistoryRoute
+  '/migrantes': typeof AuthenticatedMigrantesRoute
   '/pasajes': typeof AuthenticatedPasajesRoute
   '/recargas': typeof AuthenticatedRecargasRoute
   '/send': typeof AuthenticatedSendRoute
@@ -205,6 +213,7 @@ export interface FileRoutesById {
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/history': typeof AuthenticatedHistoryRoute
+  '/_authenticated/migrantes': typeof AuthenticatedMigrantesRoute
   '/_authenticated/pasajes': typeof AuthenticatedPasajesRoute
   '/_authenticated/recargas': typeof AuthenticatedRecargasRoute
   '/_authenticated/send': typeof AuthenticatedSendRoute
@@ -230,6 +239,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/dashboard'
     | '/history'
+    | '/migrantes'
     | '/pasajes'
     | '/recargas'
     | '/send'
@@ -252,6 +262,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/dashboard'
     | '/history'
+    | '/migrantes'
     | '/pasajes'
     | '/recargas'
     | '/send'
@@ -276,6 +287,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin'
     | '/_authenticated/dashboard'
     | '/_authenticated/history'
+    | '/_authenticated/migrantes'
     | '/_authenticated/pasajes'
     | '/_authenticated/recargas'
     | '/_authenticated/send'
@@ -384,6 +396,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPasajesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/migrantes': {
+      id: '/_authenticated/migrantes'
+      path: '/migrantes'
+      fullPath: '/migrantes'
+      preLoaderRoute: typeof AuthenticatedMigrantesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/history': {
       id: '/_authenticated/history'
       path: '/history'
@@ -468,6 +487,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminRoute: typeof AuthenticatedAdminRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedHistoryRoute: typeof AuthenticatedHistoryRoute
+  AuthenticatedMigrantesRoute: typeof AuthenticatedMigrantesRoute
   AuthenticatedPasajesRoute: typeof AuthenticatedPasajesRoute
   AuthenticatedRecargasRoute: typeof AuthenticatedRecargasRoute
   AuthenticatedSendRoute: typeof AuthenticatedSendRoute
@@ -480,6 +500,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminRoute: AuthenticatedAdminRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedHistoryRoute: AuthenticatedHistoryRoute,
+  AuthenticatedMigrantesRoute: AuthenticatedMigrantesRoute,
   AuthenticatedPasajesRoute: AuthenticatedPasajesRoute,
   AuthenticatedRecargasRoute: AuthenticatedRecargasRoute,
   AuthenticatedSendRoute: AuthenticatedSendRoute,

@@ -302,6 +302,54 @@ export type Database = {
           },
         ]
       }
+      migrant_resources: {
+        Row: {
+          active: boolean
+          address: string | null
+          city: string | null
+          created_at: string
+          description: string | null
+          id: string
+          kind: string
+          phone: string | null
+          sort_order: number
+          state_code: string | null
+          title: string
+          updated_at: string
+          url: string | null
+        }
+        Insert: {
+          active?: boolean
+          address?: string | null
+          city?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          kind?: string
+          phone?: string | null
+          sort_order?: number
+          state_code?: string | null
+          title: string
+          updated_at?: string
+          url?: string | null
+        }
+        Update: {
+          active?: boolean
+          address?: string | null
+          city?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          kind?: string
+          phone?: string | null
+          sort_order?: number
+          state_code?: string | null
+          title?: string
+          updated_at?: string
+          url?: string | null
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           body: string | null
