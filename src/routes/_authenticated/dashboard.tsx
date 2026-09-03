@@ -5,7 +5,7 @@ import {
   ORIGINS, type OriginCode, type DestCurrency,
   type RateRow, findRate,
 } from "@/lib/remittance";
-import { Send, Smartphone, TrendingUp, Store, Sparkles, Banknote } from "lucide-react";
+import { Send, Smartphone, TrendingUp, Store, Sparkles, Banknote, Compass } from "lucide-react";
 import { BannerHero } from "@/components/BannerCarousel";
 import { FlagIcon } from "@/components/FlagIcon";
 
@@ -104,6 +104,20 @@ function Dashboard() {
           </div>
           <div className="relative grid h-10 w-10 place-items-center rounded-full bg-white/25">
             <Store className="h-5 w-5 animate-float" />
+          </div>
+        </Link>
+        <Link
+          to="/migrantes"
+          style={{ animationDelay: "120ms" }}
+          className="animate-rise relative col-span-2 flex items-center justify-between overflow-hidden rounded-2xl bg-gradient-violet p-4 text-white shadow-glow transition-transform active:scale-[0.98]"
+        >
+          <span className="pointer-events-none absolute inset-y-0 -left-1/3 w-1/3 animate-shine bg-white/40 blur-md" />
+          <div className="relative">
+            <p className="font-display text-base font-extrabold">VipMigrante · Gratis</p>
+            <p className="text-[11px] font-bold text-white/90">Trámites en Brasil, contactos útiles y creador de currículo</p>
+          </div>
+          <div className="relative grid h-10 w-10 place-items-center rounded-full bg-white/25">
+            <Compass className="h-5 w-5 animate-float" />
           </div>
         </Link>
       </div>
