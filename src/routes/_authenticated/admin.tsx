@@ -27,7 +27,7 @@ export const Route = createFileRoute("/_authenticated/admin")({
   component: AdminPanel,
 });
 
-type Tab = "tx" | "recargas" | "rates" | "promos" | "users" | "api" | "banners" | "payments" | "mp" | "reports" | "store" | "orders" | "myday" | "flights";
+type Tab = "tx" | "recargas" | "rates" | "promos" | "users" | "api" | "banners" | "payments" | "mp" | "reports" | "store" | "orders" | "myday" | "flights" | "migrantes";
 
 function AdminPanel() {
   const { isAdmin, user } = Route.useRouteContext();
@@ -39,7 +39,7 @@ function AdminPanel() {
   const tabs: [Tab, string][] = isAdmin
     ? [
         ["tx", "Remesas"], ["recargas", "Recargas"], ["orders", "Pedidos"], ["reports", "Reportes"],
-        ["rates", "Tasas"], ["promos", "Promos"], ["banners", "Banners"], ["flights", "Pasajes"],
+        ["rates", "Tasas"], ["promos", "Promos"], ["banners", "Banners"], ["flights", "Pasajes"], ["migrantes", "Migrantes"],
         ["store", "VipShop"],
         ["payments", "Cuentas de pago"], ["mp", "Mercado Pago"], ["users", "Usuarios"], ["api", "API"],
       ]
@@ -115,6 +115,7 @@ function AdminPanel() {
       {isAdmin && tab === "promos" && <PromosTab />}
       {isAdmin && tab === "banners" && <BannersTab />}
       {isAdmin && tab === "flights" && <FlightsTab />}
+      {isAdmin && tab === "migrantes" && <MigrantResourcesTab />}
       {isAdmin && tab === "payments" && <PaymentMethodsTab />}
       {isAdmin && tab === "mp" && <MercadoPagoTab />}
       {isAdmin && tab === "users" && <UsersTab />}
@@ -1882,6 +1883,156 @@ function FlightsTab() {
           </div>
           <MiniInput label="Notas" value={f.notes ?? ""}
             onChange={(v) => update.mutate({ id: f.id, notes: v || null })} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ----------------- VipMigrante (recursos gratis) -----------------
+type MigrantRow = {
+  id: string;
+  kind: "lugar" | "contacto" | "app";
+  title: string;
+  description: string | null;
+  address: string | null;
+  phone: string | null;
+  url: string | null;
+  state_code: string | null;
+  city: string | null;
+  sort_order: number;
+  active: boolean;
+};
+
+const KIND_LABEL: Record<MigrantRow["kind"], string> = {
+  lugar: "Lugar / trámite",
+  contacto: "Contacto útil",
+  app: "App necesaria",
+};
+
+function MigrantResourcesTab() {
+  const qc = useQueryClient();
+  const q = useQuery({
+    queryKey: ["admin-migrant-resources"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("migrant_resources").select("*").order("sort_order");
+      if (error) throw error;
+      return data as unknown as MigrantRow[];
+    },
+  });
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: ["admin-migrant-resources"] });
+    qc.invalidateQueries({ queryKey: ["migrant-resources"] });
+  };
+  const update = useMutation({
+    mutationFn: async (v: { id: string } & Partial<Omit<MigrantRow, "id">>) => {
+      const { id, ...patch } = v;
+      const { error } = await supabase.from("migrant_resources").update(patch).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => { toast.success("Recurso actualizado"); invalidate(); },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Error"),
+  });
+  const add = useMutation({
+    mutationFn: async (r: { kind: MigrantRow["kind"]; title: string; description: string | null; address: string | null; phone: string | null; url: string | null; state_code: string | null; city: string | null }) => {
+      const { error } = await supabase.from("migrant_resources").insert({ ...r, sort_order: (q.data?.length ?? 0) + 1 });
+      if (error) throw error;
+    },
+    onSuccess: () => { toast.success("Recurso creado"); invalidate(); },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Error"),
+  });
+  const del = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("migrant_resources").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => { toast.success("Recurso eliminado"); invalidate(); },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Error"),
+  });
+
+  const [kind, setKind] = useState<MigrantRow["kind"]>("lugar");
+  const [title, setTitle] = useState("");
+  const [desc, setDesc] = useState("");
+  const [addr, setAddr] = useState("");
+  const [phone, setPhone] = useState("");
+  const [url, setUrl] = useState("");
+  const [state, setState] = useState("");
+  const [city, setCity] = useState("");
+
+  return (
+    <div className="space-y-3">
+      <div className="rounded-xl border border-gold/40 bg-card p-3 space-y-2">
+        <p className="text-xs font-semibold uppercase text-muted-foreground">Nuevo recurso gratis para migrantes</p>
+        <div className="grid grid-cols-2 gap-2">
+          <label className="space-y-1">
+            <span className="text-[10px] font-semibold uppercase text-muted-foreground">Tipo</span>
+            <select value={kind} onChange={(e) => setKind(e.target.value as MigrantRow["kind"])}
+              className="w-full rounded-lg border border-border bg-background px-2 py-1.5 text-xs">
+              <option value="lugar">Lugar / trámite</option>
+              <option value="contacto">Contacto útil</option>
+              <option value="app">App necesaria</option>
+            </select>
+          </label>
+          <MiniInput label="Título" value={title} onChange={setTitle} />
+        </div>
+        <MiniInput label="Descripción" value={desc} onChange={setDesc} />
+        <div className="grid grid-cols-2 gap-2">
+          <MiniInput label="Dirección" value={addr} onChange={setAddr} />
+          <MiniInput label="Teléfono" value={phone} onChange={setPhone} />
+        </div>
+        <MiniInput label="Enlace (web o app)" value={url} onChange={setUrl} />
+        <div className="grid grid-cols-2 gap-2">
+          <MiniInput label="Estado (ej. RR, SP) vacío = todo Brasil" value={state} onChange={setState} />
+          <MiniInput label="Ciudad" value={city} onChange={setCity} />
+        </div>
+        <button
+          onClick={() => {
+            if (!title) return toast.error("Título requerido");
+            add.mutate({
+              kind, title,
+              description: desc || null, address: addr || null, phone: phone || null,
+              url: url || null, state_code: state.trim().toUpperCase() || null, city: city || null,
+            });
+            setTitle(""); setDesc(""); setAddr(""); setPhone(""); setUrl(""); setState(""); setCity("");
+          }}
+          className="flex w-full items-center justify-center gap-1 rounded-lg bg-gradient-gold px-3 py-1.5 text-xs font-semibold text-primary-foreground shadow-gold">
+          <Plus className="h-3 w-3" /> Añadir recurso
+        </button>
+      </div>
+
+      {q.data?.map((r) => (
+        <div key={r.id} className="space-y-2 rounded-xl border border-border bg-card p-3">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-bold">
+              {r.kind === "lugar" ? "📍" : r.kind === "contacto" ? "📞" : "📱"} {r.title}
+              <span className="ml-2 rounded-full bg-secondary px-2 py-0.5 text-[9px] font-extrabold uppercase text-muted-foreground">
+                {KIND_LABEL[r.kind]}{r.state_code ? ` · ${r.state_code}` : ""}
+              </span>
+            </p>
+            <div className="flex items-center gap-2">
+              <button onClick={() => update.mutate({ id: r.id, active: !r.active })}
+                className={`rounded-full px-2 py-0.5 text-[10px] font-extrabold ${r.active ? "bg-success/20 text-success" : "bg-muted text-muted-foreground"}`}>
+                {r.active ? "Activo" : "Inactivo"}
+              </button>
+              <button onClick={() => del.mutate(r.id)} className="rounded-md p-1 text-destructive hover:bg-destructive/10">
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+          <MiniInput label="Descripción" value={r.description ?? ""}
+            onChange={(v) => update.mutate({ id: r.id, description: v || null })} />
+          <div className="grid grid-cols-2 gap-2">
+            <MiniInput label="Dirección" value={r.address ?? ""}
+              onChange={(v) => update.mutate({ id: r.id, address: v || null })} />
+            <MiniInput label="Teléfono" value={r.phone ?? ""}
+              onChange={(v) => update.mutate({ id: r.id, phone: v || null })} />
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <MiniInput label="Enlace" value={r.url ?? ""}
+              onChange={(v) => update.mutate({ id: r.id, url: v || null })} />
+            <MiniInput label="Orden" value={String(r.sort_order)}
+              onChange={(v) => update.mutate({ id: r.id, sort_order: Number(v) || 0 })} />
+          </div>
         </div>
       ))}
     </div>
