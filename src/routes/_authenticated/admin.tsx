@@ -27,7 +27,7 @@ export const Route = createFileRoute("/_authenticated/admin")({
   component: AdminPanel,
 });
 
-type Tab = "tx" | "recargas" | "rates" | "promos" | "users" | "api" | "banners" | "payments" | "mp" | "reports" | "store" | "orders" | "myday" | "flights";
+type Tab = "tx" | "recargas" | "rates" | "promos" | "users" | "api" | "banners" | "payments" | "mp" | "reports" | "store" | "orders" | "myday" | "flights" | "migrantes";
 
 function AdminPanel() {
   const { isAdmin, user } = Route.useRouteContext();
@@ -39,7 +39,7 @@ function AdminPanel() {
   const tabs: [Tab, string][] = isAdmin
     ? [
         ["tx", "Remesas"], ["recargas", "Recargas"], ["orders", "Pedidos"], ["reports", "Reportes"],
-        ["rates", "Tasas"], ["promos", "Promos"], ["banners", "Banners"], ["flights", "Pasajes"],
+        ["rates", "Tasas"], ["promos", "Promos"], ["banners", "Banners"], ["flights", "Pasajes"], ["migrantes", "Migrantes"],
         ["store", "VipShop"],
         ["payments", "Cuentas de pago"], ["mp", "Mercado Pago"], ["users", "Usuarios"], ["api", "API"],
       ]
@@ -115,6 +115,7 @@ function AdminPanel() {
       {isAdmin && tab === "promos" && <PromosTab />}
       {isAdmin && tab === "banners" && <BannersTab />}
       {isAdmin && tab === "flights" && <FlightsTab />}
+      {isAdmin && tab === "migrantes" && <MigrantResourcesTab />}
       {isAdmin && tab === "payments" && <PaymentMethodsTab />}
       {isAdmin && tab === "mp" && <MercadoPagoTab />}
       {isAdmin && tab === "users" && <UsersTab />}
