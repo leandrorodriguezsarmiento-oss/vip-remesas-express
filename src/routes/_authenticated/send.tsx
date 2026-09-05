@@ -108,6 +108,8 @@ function SendFlow() {
 
   /** Número de VIP Remesas que recibe las órdenes de MX / EE.UU. / Europa. */
   const WHATSAPP_NUMBER = "5595981006775";
+  /** Llave PIX (UUID) de VIP Remesas para pagos manuales. */
+  const PIX_KEY = "d1512e93-e329-4f6c-b2d3-769384b8f99a";
 
   function openWhatsApp(trackingId: string) {
     if (!origin || !originOpt || !method || !currency || !quote || !rate) return;
@@ -458,6 +460,19 @@ function SendFlow() {
                 className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-background px-4 py-2 text-sm font-medium hover:border-gold">
                 <Copy className="h-4 w-4" /> Copiar código PIX
               </button>
+
+              <div className="mt-4 border-t border-border pt-4">
+                <p className="text-xs font-semibold">O usa la llave PIX directamente</p>
+                <p className="mt-1 break-all font-mono text-[11px] leading-relaxed text-muted-foreground">{PIX_KEY}</p>
+                <div className="mt-3">
+                  <PixQrCode value={PIX_KEY} fileName={`pix-llave-${tracking}.png`} />
+                </div>
+                <button
+                  onClick={() => { navigator.clipboard.writeText(PIX_KEY); toast.success("Llave PIX copiada"); }}
+                  className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-background px-4 py-2 text-sm font-medium hover:border-gold">
+                  <Copy className="h-4 w-4" /> Copiar llave PIX
+                </button>
+              </div>
             </div>
           )}
 
@@ -470,11 +485,16 @@ function SendFlow() {
           )}
 
 
-          <button onClick={confirmPaid} disabled={loading}
+          <button onClick={() => { confirmPaid(); if (origin === "BR" && tracking) openWhatsApp(tracking); }} disabled={loading}
             className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-gold px-4 py-3.5 text-sm font-semibold text-primary-foreground shadow-gold disabled:opacity-70">
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
             Ya pagué, verificar
           </button>
+          {origin === "BR" && tracking && (
+            <p className="text-center text-xs text-muted-foreground">
+              Al verificar se abrirá WhatsApp para enviarnos el comprobante de pago.
+            </p>
+          )}
         </div>
       )}
 
