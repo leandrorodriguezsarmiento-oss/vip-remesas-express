@@ -471,32 +471,6 @@ function SendFlow() {
             </div>
           )}
 
-          {origin !== "BR" && (
-            <div className="space-y-2">
-              {paymentMethods.isLoading && <p className="text-sm text-muted-foreground">Cargando datos…</p>}
-              {paymentMethods.data && paymentMethods.data.length === 0 && (
-                <div className="rounded-xl border border-dashed border-border bg-card/60 p-4 text-sm text-muted-foreground">
-                  Aún no hay métodos de pago configurados para este origen. El admin debe añadirlos.
-                </div>
-              )}
-              {paymentMethods.data?.map((pm) => (
-                <div key={pm.id} className="rounded-xl border border-border bg-card p-4">
-                  <div className="flex items-center justify-between">
-                    <p className="font-semibold text-gold">{pm.label}</p>
-                    <button
-                      onClick={() => { navigator.clipboard.writeText(pm.instructions); toast.success("Datos copiados"); }}
-                      className="rounded-md p-1 hover:bg-accent">
-                      <Copy className="h-4 w-4" />
-                    </button>
-                  </div>
-                  <pre className="mt-2 whitespace-pre-wrap break-words font-mono text-[11px] leading-relaxed text-muted-foreground">
-{pm.instructions}
-                  </pre>
-                </div>
-              ))}
-            </div>
-          )}
-
           {origin !== "BR" && tracking && (
             <button
               onClick={() => openWhatsApp(tracking)}
