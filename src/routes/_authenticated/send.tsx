@@ -154,6 +154,9 @@ function SendFlow() {
       setPixCode(res.pixCode);
       setTxId(res.transactionId);
       setStep(6);
+      if (origin !== "BR") openWhatsApp(res.trackingId);
+
+
 
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Error al crear la orden");
