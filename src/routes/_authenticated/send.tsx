@@ -88,16 +88,6 @@ function SendFlow() {
     },
   });
 
-  const paymentMethods = useQuery({
-    queryKey: ["payment-methods", origin],
-    enabled: !!origin,
-    queryFn: async () => {
-      const { data, error } = await supabase.from("payment_methods")
-        .select("*").eq("active", true).eq("origin_country", origin!).order("sort_order");
-      if (error) throw error;
-      return data;
-    },
-  });
 
 
   const rate = useMemo(
