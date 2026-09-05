@@ -116,7 +116,35 @@ function SendFlow() {
     return METHOD_CATEGORIES.find((m) => m.id === method)!.currencies;
   }, [method]);
 
+  /** Número de VIP Remesas que recibe las órdenes de MX / EE.UU. / Europa. */
+  const WHATSAPP_NUMBER = "5595981006775";
+
+  function openWhatsApp(trackingId: string) {
+    if (!origin || !originOpt || !method || !currency || !quote || !rate) return;
+    const lines = [
+      "*Nueva orden VIP Remesas*",
+      `Código: ${trackingId}`,
+      `Cliente: ${user.email ?? user.id}`,
+      "",
+      `Origen: ${originOpt.name} (${originOpt.currency})`,
+      `Método: ${method === "transferencia" ? "Transferencia" : "Efectivo"}`,
+      `Moneda destino: ${currency}`,
+      `Envía: ${formatMoney(amountNum, originOpt.currency)}`,
+      `Tasa: 1 ${originOpt.currency} = ${rate.rate} ${currency}`,
+      `Recibe: ${formatMoney(quote.amountDest, currency)}`,
+      "",
+      `Destinatario: ${recipient.name}`,
+      `Teléfono: ${recipient.phone}`,
+      recipient.card ? `Tarjeta / Cuenta: ${recipient.card}` : null,
+      recipient.address ? `Dirección de entrega: ${recipient.address}` : null,
+      recipient.notes ? `Notas: ${recipient.notes}` : null,
+    ].filter(Boolean);
+    const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(lines.join("\n"))}`;
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
+
   async function createOrder() {
+
     if (!origin || !method || !currency || !rate || !quote || !originOpt) return;
     setLoading(true);
     try {
@@ -154,6 +182,9 @@ function SendFlow() {
       setPixCode(res.pixCode);
       setTxId(res.transactionId);
       setStep(6);
+      if (origin !== "BR") openWhatsApp(res.trackingId);
+
+
 
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Error al crear la orden");
@@ -385,8 +416,9 @@ function SendFlow() {
           <button onClick={createOrder} disabled={loading}
             className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-gold px-4 py-4 text-base font-semibold text-primary-foreground shadow-gold transition-transform active:scale-95 animate-glow-pulse disabled:opacity-70 disabled:animate-none">
             {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}
-            Crear orden y pagar con PIX
+            {origin === "BR" ? "Crear orden y pagar con PIX" : "Crear orden y enviar por WhatsApp"}
           </button>
+
         </Step>
       )}
 
@@ -464,6 +496,15 @@ function SendFlow() {
               ))}
             </div>
           )}
+
+          {origin !== "BR" && tracking && (
+            <button
+              onClick={() => openWhatsApp(tracking)}
+              className="flex w-full items-center justify-center gap-2 rounded-xl border border-primary bg-primary px-4 py-3.5 text-sm font-semibold text-primary-foreground">
+              <Sparkles className="h-4 w-4" /> Enviar datos por WhatsApp
+            </button>
+          )}
+
 
           <button onClick={confirmPaid} disabled={loading}
             className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-gold px-4 py-3.5 text-sm font-semibold text-primary-foreground shadow-gold disabled:opacity-70">
