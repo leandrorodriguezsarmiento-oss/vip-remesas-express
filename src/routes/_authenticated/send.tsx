@@ -447,16 +447,12 @@ function SendFlow() {
 
 
 
-          {origin === "BR" && pixCode && (
+          {origin === "BR" && (
             <div className="rounded-xl border border-border bg-card p-4">
-              <p className="text-xs text-muted-foreground">Escanea el QR con tu app del banco</p>
-              <div className="mt-3">
-                <PixQrCode value={pixCode} fileName={`pix-${tracking}.png`} />
-              </div>
-              <p className="mt-4 text-xs text-muted-foreground">PIX copia y pega (monto incluido)</p>
-              <p className="mt-1 break-all font-mono text-[11px] leading-relaxed">{pixCode}</p>
+              <p className="text-xs text-muted-foreground">PIX copia y pega (monto incluido)</p>
+              <p className="mt-1 break-all font-mono text-[11px] leading-relaxed">{STATIC_PIX_CODE}</p>
               <button
-                onClick={() => { navigator.clipboard.writeText(pixCode); toast.success("Código copiado"); }}
+                onClick={() => { navigator.clipboard.writeText(STATIC_PIX_CODE); toast.success("Código copiado"); }}
                 className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-background px-4 py-2 text-sm font-medium hover:border-gold">
                 <Copy className="h-4 w-4" /> Copiar código PIX
               </button>
