@@ -427,12 +427,12 @@ function SendFlow() {
         <div className="space-y-4">
           <div>
             <h1 className="font-display text-2xl font-bold">
-              {origin === "BR" ? "Paga con PIX" : "Datos para transferir"}
+              {origin === "BR" ? "Paga con PIX" : "Envía tu orden"}
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">
               {origin === "BR"
                 ? "Copia el código y pégalo en tu app de banco — el monto ya viene incluido."
-                : "Transfiere el total exacto usando estos datos. Pon tu código de seguimiento como concepto."}
+                : "Revisa los datos y envía la orden por WhatsApp para coordinar el pago y la entrega."}
             </p>
           </div>
           <div className="rounded-2xl border border-gold/40 bg-gradient-gold p-5 text-center shadow-gold">
