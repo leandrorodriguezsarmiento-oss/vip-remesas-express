@@ -108,6 +108,8 @@ function SendFlow() {
 
   /** Número de VIP Remesas que recibe las órdenes de MX / EE.UU. / Europa. */
   const WHATSAPP_NUMBER = "5595981006775";
+  /** Llave PIX (UUID) de VIP Remesas para pagos manuales. */
+  const PIX_KEY = "d1512e93-e329-4f6c-b2d3-769384b8f99a";
 
   function openWhatsApp(trackingId: string) {
     if (!origin || !originOpt || !method || !currency || !quote || !rate) return;
