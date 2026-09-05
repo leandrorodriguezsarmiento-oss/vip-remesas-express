@@ -88,16 +88,6 @@ function SendFlow() {
     },
   });
 
-  const paymentMethods = useQuery({
-    queryKey: ["payment-methods", origin],
-    enabled: !!origin,
-    queryFn: async () => {
-      const { data, error } = await supabase.from("payment_methods")
-        .select("*").eq("active", true).eq("origin_country", origin!).order("sort_order");
-      if (error) throw error;
-      return data;
-    },
-  });
 
 
   const rate = useMemo(
@@ -427,12 +417,12 @@ function SendFlow() {
         <div className="space-y-4">
           <div>
             <h1 className="font-display text-2xl font-bold">
-              {origin === "BR" ? "Paga con PIX" : "Datos para transferir"}
+              {origin === "BR" ? "Paga con PIX" : "Envía tu orden"}
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">
               {origin === "BR"
                 ? "Copia el código y pégalo en tu app de banco — el monto ya viene incluido."
-                : "Transfiere el total exacto usando estos datos. Pon tu código de seguimiento como concepto."}
+                : "Revisa los datos y envía la orden por WhatsApp para coordinar el pago y la entrega."}
             </p>
           </div>
           <div className="rounded-2xl border border-gold/40 bg-gradient-gold p-5 text-center shadow-gold">
@@ -468,32 +458,6 @@ function SendFlow() {
                 className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-background px-4 py-2 text-sm font-medium hover:border-gold">
                 <Copy className="h-4 w-4" /> Copiar código PIX
               </button>
-            </div>
-          )}
-
-          {origin !== "BR" && (
-            <div className="space-y-2">
-              {paymentMethods.isLoading && <p className="text-sm text-muted-foreground">Cargando datos…</p>}
-              {paymentMethods.data && paymentMethods.data.length === 0 && (
-                <div className="rounded-xl border border-dashed border-border bg-card/60 p-4 text-sm text-muted-foreground">
-                  Aún no hay métodos de pago configurados para este origen. El admin debe añadirlos.
-                </div>
-              )}
-              {paymentMethods.data?.map((pm) => (
-                <div key={pm.id} className="rounded-xl border border-border bg-card p-4">
-                  <div className="flex items-center justify-between">
-                    <p className="font-semibold text-gold">{pm.label}</p>
-                    <button
-                      onClick={() => { navigator.clipboard.writeText(pm.instructions); toast.success("Datos copiados"); }}
-                      className="rounded-md p-1 hover:bg-accent">
-                      <Copy className="h-4 w-4" />
-                    </button>
-                  </div>
-                  <pre className="mt-2 whitespace-pre-wrap break-words font-mono text-[11px] leading-relaxed text-muted-foreground">
-{pm.instructions}
-                  </pre>
-                </div>
-              ))}
             </div>
           )}
 
