@@ -116,7 +116,35 @@ function SendFlow() {
     return METHOD_CATEGORIES.find((m) => m.id === method)!.currencies;
   }, [method]);
 
+  /** Número de VIP Remesas que recibe las órdenes de MX / EE.UU. / Europa. */
+  const WHATSAPP_NUMBER = "5595981006775";
+
+  function openWhatsApp(trackingId: string) {
+    if (!origin || !originOpt || !method || !currency || !quote || !rate) return;
+    const lines = [
+      "*Nueva orden VIP Remesas*",
+      `Código: ${trackingId}`,
+      `Cliente: ${user.email ?? user.id}`,
+      "",
+      `Origen: ${originOpt.name} (${originOpt.currency})`,
+      `Método: ${method === "transferencia" ? "Transferencia" : "Efectivo"}`,
+      `Moneda destino: ${currency}`,
+      `Envía: ${formatMoney(amountNum, originOpt.currency)}`,
+      `Tasa: 1 ${originOpt.currency} = ${rate.rate} ${currency}`,
+      `Recibe: ${formatMoney(quote.amountDest, currency)}`,
+      "",
+      `Destinatario: ${recipient.name}`,
+      `Teléfono: ${recipient.phone}`,
+      recipient.card ? `Tarjeta / Cuenta: ${recipient.card}` : null,
+      recipient.address ? `Dirección de entrega: ${recipient.address}` : null,
+      recipient.notes ? `Notas: ${recipient.notes}` : null,
+    ].filter(Boolean);
+    const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(lines.join("\n"))}`;
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
+
   async function createOrder() {
+
     if (!origin || !method || !currency || !rate || !quote || !originOpt) return;
     setLoading(true);
     try {
