@@ -110,6 +110,8 @@ function SendFlow() {
   const WHATSAPP_NUMBER = "5595981006775";
   /** Llave PIX (UUID) de VIP Remesas para pagos manuales. */
   const PIX_KEY = "d1512e93-e329-4f6c-b2d3-769384b8f99a";
+  /** PIX copia y pega estático (monto incluido). */
+  const STATIC_PIX_CODE = "00020126360014br.gov.bcb.pix0114+55959810067755204000053039865406100.005802BR5908ARANCH996009Sao Paulo610901227-20062240520daqr3344531843807368663044890";
 
   function openWhatsApp(trackingId: string) {
     if (!origin || !originOpt || !method || !currency || !quote || !rate) return;
