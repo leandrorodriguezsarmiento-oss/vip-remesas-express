@@ -385,8 +385,9 @@ function SendFlow() {
           <button onClick={createOrder} disabled={loading}
             className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-gold px-4 py-4 text-base font-semibold text-primary-foreground shadow-gold transition-transform active:scale-95 animate-glow-pulse disabled:opacity-70 disabled:animate-none">
             {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}
-            Crear orden y pagar con PIX
+            {origin === "BR" ? "Crear orden y pagar con PIX" : "Crear orden y enviar por WhatsApp"}
           </button>
+
         </Step>
       )}
 
