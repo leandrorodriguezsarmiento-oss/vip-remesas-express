@@ -497,6 +497,15 @@ function SendFlow() {
             </div>
           )}
 
+          {origin !== "BR" && tracking && (
+            <button
+              onClick={() => openWhatsApp(tracking)}
+              className="flex w-full items-center justify-center gap-2 rounded-xl border border-primary bg-primary px-4 py-3.5 text-sm font-semibold text-primary-foreground">
+              <Sparkles className="h-4 w-4" /> Enviar datos por WhatsApp
+            </button>
+          )}
+
+
           <button onClick={confirmPaid} disabled={loading}
             className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-gold px-4 py-3.5 text-sm font-semibold text-primary-foreground shadow-gold disabled:opacity-70">
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
