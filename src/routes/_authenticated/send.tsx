@@ -111,23 +111,6 @@ function SendFlow() {
   /** Llave PIX (UUID) de VIP Remesas para pagos manuales. */
   const PIX_KEY = "d1512e93-e329-4f6c-b2d3-769384b8f99a";
 
-  /** Construye un PIX "copia e cola" (BR Code/EMV) válido con la llave UUID y el monto. */
-  function buildPixBrCode(key: string, amount: number): string {
-    const f = (id: string, v: string) => `${id}${v.length.toString().padStart(2, "0")}${v}`;
-    const gui = f("00", "br.gov.bcb.pix") + f("01", key);
-    let p = f("00", "01") + f("26", gui) + f("52", "0000") + f("53", "986");
-    if (amount > 0) p += f("54", amount.toFixed(2));
-    p += f("58", "BR") + f("59", "VIP REMESAS") + f("60", "BOA VISTA") + f("62", f("05", "VIPREMESAS")) + "6304";
-    let crc = 0xffff;
-    for (let i = 0; i < p.length; i++) {
-      crc ^= p.charCodeAt(i) << 8;
-      for (let j = 0; j < 8; j++) crc = (crc & 0x8000) ? ((crc << 1) ^ 0x1021) & 0xffff : (crc << 1) & 0xffff;
-    }
-    return p + crc.toString(16).toUpperCase().padStart(4, "0");
-  }
-
-  const pixBrCode = useMemo(() => buildPixBrCode(PIX_KEY, amountNum), [amountNum]);
-
   function openWhatsApp(trackingId: string) {
     if (!origin || !originOpt || !method || !currency || !quote || !rate) return;
     const lines = [
@@ -466,26 +449,16 @@ function SendFlow() {
 
           {origin === "BR" && (
             <div className="rounded-xl border border-border bg-card p-4">
-              <p className="text-xs text-muted-foreground">PIX copia y pega (monto incluido)</p>
-              <p className="mt-1 break-all font-mono text-[11px] leading-relaxed">{pixBrCode}</p>
+              <p className="text-xs font-semibold">Llave PIX</p>
+              <p className="mt-1 break-all font-mono text-[11px] leading-relaxed text-muted-foreground">{PIX_KEY}</p>
               <div className="mt-3">
-                <PixQrCode value={pixBrCode} fileName={`pix-${tracking ?? "pago"}.png`} />
+                <PixQrCode value={PIX_KEY} fileName={`pix-llave-${tracking ?? "pago"}.png`} />
               </div>
-              <button
-                onClick={() => { navigator.clipboard.writeText(pixBrCode); toast.success("Código copiado"); }}
-                className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-background px-4 py-2 text-sm font-medium hover:border-gold">
-                <Copy className="h-4 w-4" /> Copiar código PIX
-              </button>
-
-              <div className="mt-4 border-t border-border pt-4">
-                <p className="text-xs font-semibold">O usa la llave PIX directamente</p>
-                <p className="mt-1 break-all font-mono text-[11px] leading-relaxed text-muted-foreground">{PIX_KEY}</p>
                 <button
                   onClick={() => { navigator.clipboard.writeText(PIX_KEY); toast.success("Llave PIX copiada"); }}
                   className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-background px-4 py-2 text-sm font-medium hover:border-gold">
                   <Copy className="h-4 w-4" /> Copiar llave PIX
                 </button>
-              </div>
             </div>
           )}
 
