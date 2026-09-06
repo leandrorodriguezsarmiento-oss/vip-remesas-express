@@ -482,7 +482,7 @@ function SendFlow() {
               <p className="text-xs font-semibold">Llave PIX</p>
               <p className="mt-1 break-all font-mono text-[11px] leading-relaxed text-muted-foreground">{PIX_KEY}</p>
               <div className="mt-3">
-                <PixQrCode value={PIX_KEY} fileName={`pix-llave-${tracking ?? "pago"}.png`} />
+                <PixQrCode value={pixStaticCode} fileName={`pix-qr-${tracking ?? "pago"}.png`} />
               </div>
                 <button
                   onClick={() => { navigator.clipboard.writeText(PIX_KEY); toast.success("Llave PIX copiada"); }}
