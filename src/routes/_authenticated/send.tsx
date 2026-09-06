@@ -110,8 +110,23 @@ function SendFlow() {
   const WHATSAPP_NUMBER = "5595981006775";
   /** Llave PIX (UUID) de VIP Remesas para pagos manuales. */
   const PIX_KEY = "d1512e93-e329-4f6c-b2d3-769384b8f99a";
-  /** PIX copia y pega estático (monto incluido). */
-  const STATIC_PIX_CODE = "00020126360014br.gov.bcb.pix0114+55959810067755204000053039865406100.005802BR5908ARANCH996009Sao Paulo610901227-20062240520daqr3344531843807368663044890";
+
+  /** Construye un PIX "copia e cola" (BR Code/EMV) válido con la llave UUID y el monto. */
+  function buildPixBrCode(key: string, amount: number): string {
+    const f = (id: string, v: string) => `${id}${v.length.toString().padStart(2, "0")}${v}`;
+    const gui = f("00", "br.gov.bcb.pix") + f("01", key);
+    let p = f("00", "01") + f("26", gui) + f("52", "0000") + f("53", "986");
+    if (amount > 0) p += f("54", amount.toFixed(2));
+    p += f("58", "BR") + f("59", "VIP REMESAS") + f("60", "BOA VISTA") + f("62", f("05", "VIPREMESAS")) + "6304";
+    let crc = 0xffff;
+    for (let i = 0; i < p.length; i++) {
+      crc ^= p.charCodeAt(i) << 8;
+      for (let j = 0; j < 8; j++) crc = (crc & 0x8000) ? ((crc << 1) ^ 0x1021) & 0xffff : (crc << 1) & 0xffff;
+    }
+    return p + crc.toString(16).toUpperCase().padStart(4, "0");
+  }
+
+  const pixBrCode = useMemo(() => buildPixBrCode(PIX_KEY, amountNum), [amountNum]);
 
   function openWhatsApp(trackingId: string) {
     if (!origin || !originOpt || !method || !currency || !quote || !rate) return;
