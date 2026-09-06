@@ -466,20 +466,11 @@ function SendFlow() {
 
           {origin === "BR" && (
             <div className="rounded-xl border border-border bg-card p-4">
-              <p className="text-xs text-muted-foreground">PIX copia y pega (monto incluido)</p>
-              <p className="mt-1 break-all font-mono text-[11px] leading-relaxed">{pixBrCode}</p>
+              <p className="text-xs font-semibold">Llave PIX</p>
+              <p className="mt-1 break-all font-mono text-[11px] leading-relaxed text-muted-foreground">{PIX_KEY}</p>
               <div className="mt-3">
-                <PixQrCode value={pixBrCode} fileName={`pix-${tracking ?? "pago"}.png`} />
+                <PixQrCode value={PIX_KEY} fileName={`pix-llave-${tracking ?? "pago"}.png`} />
               </div>
-              <button
-                onClick={() => { navigator.clipboard.writeText(pixBrCode); toast.success("Código copiado"); }}
-                className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-background px-4 py-2 text-sm font-medium hover:border-gold">
-                <Copy className="h-4 w-4" /> Copiar código PIX
-              </button>
-
-              <div className="mt-4 border-t border-border pt-4">
-                <p className="text-xs font-semibold">O usa la llave PIX directamente</p>
-                <p className="mt-1 break-all font-mono text-[11px] leading-relaxed text-muted-foreground">{PIX_KEY}</p>
                 <button
                   onClick={() => { navigator.clipboard.writeText(PIX_KEY); toast.success("Llave PIX copiada"); }}
                   className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-background px-4 py-2 text-sm font-medium hover:border-gold">
