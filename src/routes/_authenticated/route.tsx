@@ -11,6 +11,7 @@ import { preloadAppImages } from "@/lib/preload-images";
 import bgFlags from "@/assets/bg-flags.jpg";
 import { MfaGate } from "@/components/MfaGate";
 import { usePushAutoEnroll } from "@/hooks/use-push-autoenroll";
+import { PushPermissionPrompt } from "@/components/PushPermissionPrompt";
 
 
 
@@ -159,9 +160,13 @@ function AuthedLayout() {
       ] as const);
 
 
+  // En pantallas pequeñas (iPhone) la barra inferior sólo muestra los accesos
+  // principales; el resto vive en el menú lateral.
+  const bottomNav = nav.slice(0, 5);
+
   return (
     <MfaGate userId={user.id} email={user.email}>
-    <div className="relative min-h-screen bg-gradient-vip pb-24">
+    <div className="relative min-h-screen bg-gradient-vip pb-[calc(6.5rem+env(safe-area-inset-bottom))]">
       {/* Fondo opaco con las banderas de Brasil y Cuba */}
       <div
         aria-hidden
@@ -169,7 +174,7 @@ function AuthedLayout() {
         style={{ backgroundImage: `url(${bgFlags})` }}
       />
       <div className="relative z-10">
-      <header className="mx-auto flex max-w-md items-center justify-between px-5 pt-6">
+      <header className="mx-auto flex max-w-md items-center justify-between px-5 pt-[calc(1.25rem+env(safe-area-inset-top))]">
         <div className="flex items-center gap-2">
           <SectionMenu items={nav} />
           <Link to={admin ? "/admin" : "/dashboard"} className="flex items-center gap-2">
@@ -202,6 +207,8 @@ function AuthedLayout() {
           </button>
         </div>
       </header>
+
+      <PushPermissionPrompt userId={user.id} />
 
       {showNotif && (
         <div className="mx-auto mt-2 max-w-md px-5">
@@ -249,20 +256,23 @@ function AuthedLayout() {
         <Outlet />
       </main>
 
-      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-card/95 backdrop-blur">
+      <nav
+        className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-card/95 backdrop-blur"
+        style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+      >
         <div
-          className="mx-auto grid max-w-md"
-          style={{ gridTemplateColumns: `repeat(${nav.length}, minmax(0, 1fr))` }}
+          className="mx-auto grid max-w-md px-1"
+          style={{ gridTemplateColumns: `repeat(${bottomNav.length}, minmax(0, 1fr))` }}
         >
-          {nav.map(({ to, icon: Icon, label, grad }) => {
+          {bottomNav.map(({ to, icon: Icon, label, grad }) => {
             const active = path === to || path.startsWith(`${to}/`);
             return (
               <Link key={to} to={to}
-                className={`flex flex-col items-center gap-1 py-2.5 text-[10px] font-extrabold transition-colors ${active ? "text-gold" : "text-muted-foreground"}`}>
-                <span className={`grid h-8 w-8 place-items-center rounded-xl transition-transform ${active ? `${grad} text-white shadow-glow scale-105` : "bg-secondary"}`}>
+                className={`flex min-w-0 flex-col items-center gap-1 py-2 text-[9px] font-extrabold leading-tight transition-colors ${active ? "text-gold" : "text-muted-foreground"}`}>
+                <span className={`grid h-7 w-7 place-items-center rounded-xl transition-transform ${active ? `${grad} text-white shadow-glow scale-105` : "bg-secondary"}`}>
                   <Icon className="h-4 w-4" />
                 </span>
-                {label}
+                <span className="w-full truncate text-center">{label}</span>
               </Link>
             );
           })}
