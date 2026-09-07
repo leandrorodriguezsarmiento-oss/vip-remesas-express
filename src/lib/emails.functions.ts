@@ -38,7 +38,7 @@ export const sendTransactionStatusEmail = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: tx, error } = await (supabaseAdmin as any)
       .from("transactions")
-      .select("id, user_id, amount_send, currency_send, recipient_name")
+      .select("id, user_id, amount_brl, amount_dest, dest_currency, recipient_name")
       .eq("id", data.transactionId)
       .maybeSingle();
     if (error) throw error;
@@ -58,7 +58,8 @@ export const sendTransactionStatusEmail = createServerFn({ method: "POST" })
         `Estado: ${info.label}`,
         info.body,
         tx.recipient_name ? `Beneficiario: ${tx.recipient_name}` : "",
-        tx.amount_send ? `Monto enviado: ${tx.amount_send} ${tx.currency_send ?? ""}` : "",
+        tx.amount_brl ? `Monto enviado: ${tx.amount_brl}` : "",
+        tx.amount_dest ? `Recibe: ${tx.amount_dest} ${tx.dest_currency ?? ""}` : "",
         "",
         "Gracias por confiar en VIP Remesas.",
       ]
