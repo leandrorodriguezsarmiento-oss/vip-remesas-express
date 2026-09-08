@@ -108,38 +108,8 @@ function SendFlow() {
 
   /** Número de VIP Remesas que recibe las órdenes de MX / EE.UU. / Europa. */
   const WHATSAPP_NUMBER = "5595981006775";
-  /** Llave PIX (UUID) de VIP Remesas para pagos manuales. */
-  const PIX_KEY = "d1512e93-e329-4f6c-b2d3-769384b8f99a";
-
-  /** CRC16-CCITT (0xFFFF) requerido por el estándar BR Code / EMV. */
-  function crc16(str: string): string {
-    let crc = 0xffff;
-    for (let i = 0; i < str.length; i++) {
-      crc ^= str.charCodeAt(i) << 8;
-      for (let j = 0; j < 8; j++) crc = crc & 0x8000 ? ((crc << 1) ^ 0x1021) & 0xffff : (crc << 1) & 0xffff;
-    }
-    return crc.toString(16).toUpperCase().padStart(4, "0");
-  }
-
-  /** BR Code PIX estático (sin monto: el pagador escribe el valor). Válido en todos los bancos de Brasil. */
-  function emv(id: string, value: string) {
-    return `${id}${String(value.length).padStart(2, "0")}${value}`;
-  }
-  function buildStaticPixBrCode(key: string): string {
-    const gui = emv("00", "br.gov.bcb.pix") + emv("01", key);
-    const payload =
-      emv("00", "01") +
-      emv("26", gui) +
-      emv("52", "0000") +
-      emv("53", "986") +
-      emv("58", "BR") +
-      emv("59", "VIP REMESAS") +
-      emv("60", "BOA VISTA") +
-      emv("62", emv("05", "VIPREMESAS")) +
-      "6304";
-    return payload + crc16(payload);
-  }
-  const pixStaticCode = buildStaticPixBrCode(PIX_KEY);
+  /** Código PIX con el monto exacto (mismo formato que VipShop y Recargas). */
+  const pixPayCode = pixCode ?? (amountNum > 0 ? generatePixCode(tracking ?? "vip", amountNum) : null);
 
   function openWhatsApp(trackingId: string) {
     if (!origin || !originOpt || !method || !currency || !quote || !rate) return;
