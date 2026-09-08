@@ -126,7 +126,7 @@ function SendFlow() {
     const lines = [
       "*Nueva orden VIP Remesas*",
       `Código: ${trackingId}`,
-      `Cliente: ${user.email ?? user.id}`,
+      `Cliente: ${myUsername}`,
       "",
       `Origen: ${originOpt.name} (${originOpt.currency})`,
       `Método: ${method === "transferencia" ? "Transferencia" : "Efectivo"}`,
