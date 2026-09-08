@@ -447,18 +447,23 @@ function SendFlow() {
 
 
 
-          {origin === "BR" && (
-            <div className="rounded-xl border border-border bg-card p-4">
-              <p className="text-xs font-semibold">Llave PIX</p>
-              <p className="mt-1 break-all font-mono text-[11px] leading-relaxed text-muted-foreground">{PIX_KEY}</p>
-              <div className="mt-3">
-                <PixQrCode value={pixStaticCode} fileName={`pix-qr-${tracking ?? "pago"}.png`} />
+          {origin === "BR" && pixPayCode && (
+            <div className="space-y-3 rounded-2xl border border-gold/40 bg-card p-3">
+              <p className="text-xs font-extrabold uppercase text-muted-foreground">
+                Paga por PIX — el monto exacto ya viene incluido
+              </p>
+              <div className="rounded-xl bg-gradient-vip p-3">
+                <p className="text-[11px] font-extrabold uppercase text-muted-foreground">Monto exacto</p>
+                <p className="font-display text-2xl font-extrabold text-gold">
+                  {formatMoney(amountNum, "BRL")}
+                </p>
               </div>
-                <button
-                  onClick={() => { navigator.clipboard.writeText(PIX_KEY); toast.success("Llave PIX copiada"); }}
-                  className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-background px-4 py-2 text-sm font-medium hover:border-gold">
-                  <Copy className="h-4 w-4" /> Copiar llave PIX
-                </button>
+              <button
+                onClick={() => { navigator.clipboard.writeText(pixPayCode); toast.success("Código PIX copiado"); }}
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-sky px-4 py-3 text-sm font-extrabold text-white shadow-glow transition-transform active:scale-95">
+                <Copy className="h-4 w-4" /> Copiar código PIX
+              </button>
+              <PixQrCode value={pixPayCode} fileName={`pix-qr-${tracking ?? "pago"}.png`} />
             </div>
           )}
 
