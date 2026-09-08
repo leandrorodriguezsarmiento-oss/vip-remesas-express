@@ -87,6 +87,16 @@ function SendFlow() {
       return (data ?? []) as unknown as Saved[];
     },
   });
+  /** Nombre de usuario del cliente (para identificarlo en WhatsApp y en el panel). */
+  const myProfile = useQuery({
+    queryKey: ["my-username", user.id],
+    queryFn: async () => {
+      const { data } = await supabase.from("profiles")
+        .select("username, full_name").eq("id", user.id).maybeSingle();
+      return data as { username: string | null; full_name: string | null } | null;
+    },
+  });
+  const myUsername = myProfile.data?.username ?? myProfile.data?.full_name ?? user.email ?? user.id;
 
 
 
