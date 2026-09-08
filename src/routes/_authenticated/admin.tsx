@@ -255,7 +255,17 @@ function TransactionsTab({ isAdmin }: { isAdmin: boolean }) {
         .select("*").not("paid_at", "is", null)
         .order("created_at", { ascending: false }).limit(100);
       if (error) throw error;
-      return data;
+      // Nombre de usuario de quien envía, para saber a quién se le aprueba.
+      const ids = [...new Set((data ?? []).map((t) => t.user_id))];
+      let byId: Record<string, string> = {};
+      if (ids.length) {
+        const { data: profs } = await supabase.from("profiles")
+          .select("id, username, full_name").in("id", ids);
+        byId = Object.fromEntries(
+          (profs ?? []).map((p) => [p.id, p.username || p.full_name || ""]),
+        );
+      }
+      return (data ?? []).map((t) => ({ ...t, sender_username: byId[t.user_id] ?? "" }));
     },
   });
 
