@@ -317,6 +317,11 @@ function TransactionsTab({ isAdmin }: { isAdmin: boolean }) {
                 <span className="mr-1 text-gold">#{(t as { order_no?: number }).order_no ?? "—"}</span>
                 {t.recipient_name}
               </div>
+              {(t as { sender_username?: string }).sender_username && (
+                <div className="text-[11px] font-extrabold text-gold">
+                  Envía: {(t as { sender_username?: string }).sender_username}
+                </div>
+              )}
               <div className="text-[11px] font-semibold text-muted-foreground">
                 {new Date(t.created_at).toLocaleString("es")}
               </div>
