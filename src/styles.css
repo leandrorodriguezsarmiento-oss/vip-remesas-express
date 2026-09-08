@@ -98,22 +98,33 @@
   * {
     border-color: var(--color-border);
   }
-  html, body {
+  html {
+    /* No convertir <html> en contenedor de scroll: rompe el desplazamiento
+       con dos dedos en laptops. */
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+  body {
     background-color: var(--color-background);
     color: var(--color-foreground);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
-    /* iPhone: evita el desajuste horizontal y el zoom automático del texto */
     max-width: 100%;
-    overflow-x: hidden;
-    -webkit-text-size-adjust: 100%;
-    text-size-adjust: 100%;
-    overscroll-behavior-y: none;
+    /* clip evita el desajuste horizontal sin bloquear el scroll vertical */
+    overflow-x: clip;
+    overflow-y: visible;
+  }
+  /* Solo en pantallas táctiles evitamos el rebote; en laptop no tocamos nada */
+  @media (hover: none) and (pointer: coarse) {
+    body {
+      overscroll-behavior-y: none;
+    }
   }
   /* iOS hace zoom si la letra del campo es menor a 16px */
   input, select, textarea {
     font-size: max(16px, 1em);
   }
+
 
   h1, h2, h3 {
     font-family: var(--font-display);
