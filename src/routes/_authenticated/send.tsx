@@ -5,7 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import {
   ORIGINS, METHOD_CATEGORIES, CURRENCY_LABEL, formatMoney,
-  findRate, calcQuote,
+  findRate, calcQuote, generatePixCode,
   getOrigin, type OriginCode, type MethodCategory, type DestCurrency, type RateRow,
 } from "@/lib/remittance";
 import { createTransaction, markTransactionPaid } from "@/lib/orders.functions";
@@ -87,6 +87,16 @@ function SendFlow() {
       return (data ?? []) as unknown as Saved[];
     },
   });
+  /** Nombre de usuario del cliente (para identificarlo en WhatsApp y en el panel). */
+  const myProfile = useQuery({
+    queryKey: ["my-username", user.id],
+    queryFn: async () => {
+      const { data } = await supabase.from("profiles")
+        .select("username, full_name").eq("id", user.id).maybeSingle();
+      return data as { username: string | null; full_name: string | null } | null;
+    },
+  });
+  const myUsername = myProfile.data?.username ?? myProfile.data?.full_name ?? user.email ?? user.id;
 
 
 
@@ -108,45 +118,15 @@ function SendFlow() {
 
   /** Número de VIP Remesas que recibe las órdenes de MX / EE.UU. / Europa. */
   const WHATSAPP_NUMBER = "5595981006775";
-  /** Llave PIX (UUID) de VIP Remesas para pagos manuales. */
-  const PIX_KEY = "d1512e93-e329-4f6c-b2d3-769384b8f99a";
-
-  /** CRC16-CCITT (0xFFFF) requerido por el estándar BR Code / EMV. */
-  function crc16(str: string): string {
-    let crc = 0xffff;
-    for (let i = 0; i < str.length; i++) {
-      crc ^= str.charCodeAt(i) << 8;
-      for (let j = 0; j < 8; j++) crc = crc & 0x8000 ? ((crc << 1) ^ 0x1021) & 0xffff : (crc << 1) & 0xffff;
-    }
-    return crc.toString(16).toUpperCase().padStart(4, "0");
-  }
-
-  /** BR Code PIX estático (sin monto: el pagador escribe el valor). Válido en todos los bancos de Brasil. */
-  function emv(id: string, value: string) {
-    return `${id}${String(value.length).padStart(2, "0")}${value}`;
-  }
-  function buildStaticPixBrCode(key: string): string {
-    const gui = emv("00", "br.gov.bcb.pix") + emv("01", key);
-    const payload =
-      emv("00", "01") +
-      emv("26", gui) +
-      emv("52", "0000") +
-      emv("53", "986") +
-      emv("58", "BR") +
-      emv("59", "VIP REMESAS") +
-      emv("60", "BOA VISTA") +
-      emv("62", emv("05", "VIPREMESAS")) +
-      "6304";
-    return payload + crc16(payload);
-  }
-  const pixStaticCode = buildStaticPixBrCode(PIX_KEY);
+  /** Código PIX con el monto exacto (mismo formato que VipShop y Recargas). */
+  const pixPayCode = pixCode ?? (amountNum > 0 ? generatePixCode(tracking ?? "vip", amountNum) : null);
 
   function openWhatsApp(trackingId: string) {
     if (!origin || !originOpt || !method || !currency || !quote || !rate) return;
     const lines = [
       "*Nueva orden VIP Remesas*",
       `Código: ${trackingId}`,
-      `Cliente: ${user.email ?? user.id}`,
+      `Cliente: ${myUsername}`,
       "",
       `Origen: ${originOpt.name} (${originOpt.currency})`,
       `Método: ${method === "transferencia" ? "Transferencia" : "Efectivo"}`,
@@ -477,18 +457,23 @@ function SendFlow() {
 
 
 
-          {origin === "BR" && (
-            <div className="rounded-xl border border-border bg-card p-4">
-              <p className="text-xs font-semibold">Llave PIX</p>
-              <p className="mt-1 break-all font-mono text-[11px] leading-relaxed text-muted-foreground">{PIX_KEY}</p>
-              <div className="mt-3">
-                <PixQrCode value={pixStaticCode} fileName={`pix-qr-${tracking ?? "pago"}.png`} />
+          {origin === "BR" && pixPayCode && (
+            <div className="space-y-3 rounded-2xl border border-gold/40 bg-card p-3">
+              <p className="text-xs font-extrabold uppercase text-muted-foreground">
+                Paga por PIX — el monto exacto ya viene incluido
+              </p>
+              <div className="rounded-xl bg-gradient-vip p-3">
+                <p className="text-[11px] font-extrabold uppercase text-muted-foreground">Monto exacto</p>
+                <p className="font-display text-2xl font-extrabold text-gold">
+                  {formatMoney(amountNum, "BRL")}
+                </p>
               </div>
-                <button
-                  onClick={() => { navigator.clipboard.writeText(PIX_KEY); toast.success("Llave PIX copiada"); }}
-                  className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-background px-4 py-2 text-sm font-medium hover:border-gold">
-                  <Copy className="h-4 w-4" /> Copiar llave PIX
-                </button>
+              <button
+                onClick={() => { navigator.clipboard.writeText(pixPayCode); toast.success("Código PIX copiado"); }}
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-sky px-4 py-3 text-sm font-extrabold text-white shadow-glow transition-transform active:scale-95">
+                <Copy className="h-4 w-4" /> Copiar código PIX
+              </button>
+              <PixQrCode value={pixPayCode} fileName={`pix-qr-${tracking ?? "pago"}.png`} />
             </div>
           )}
 

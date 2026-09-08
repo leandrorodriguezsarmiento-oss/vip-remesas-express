@@ -255,7 +255,17 @@ function TransactionsTab({ isAdmin }: { isAdmin: boolean }) {
         .select("*").not("paid_at", "is", null)
         .order("created_at", { ascending: false }).limit(100);
       if (error) throw error;
-      return data;
+      // Nombre de usuario de quien envía, para saber a quién se le aprueba.
+      const ids = [...new Set((data ?? []).map((t) => t.user_id))];
+      let byId: Record<string, string> = {};
+      if (ids.length) {
+        const { data: profs } = await supabase.from("profiles")
+          .select("id, username, full_name").in("id", ids);
+        byId = Object.fromEntries(
+          (profs ?? []).map((p) => [p.id, p.username || p.full_name || ""]),
+        );
+      }
+      return (data ?? []).map((t) => ({ ...t, sender_username: byId[t.user_id] ?? "" }));
     },
   });
 
@@ -307,6 +317,11 @@ function TransactionsTab({ isAdmin }: { isAdmin: boolean }) {
                 <span className="mr-1 text-gold">#{(t as { order_no?: number }).order_no ?? "—"}</span>
                 {t.recipient_name}
               </div>
+              {(t as { sender_username?: string }).sender_username && (
+                <div className="text-[11px] font-extrabold text-gold">
+                  Envía: {(t as { sender_username?: string }).sender_username}
+                </div>
+              )}
               <div className="text-[11px] font-semibold text-muted-foreground">
                 {new Date(t.created_at).toLocaleString("es")}
               </div>
