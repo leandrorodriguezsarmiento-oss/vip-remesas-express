@@ -51,7 +51,7 @@ export function MfaGate({
     // Red de seguridad: si las consultas no responden en 8s, no dejar la
     // pantalla congelada en "Verificando seguridad…".
     const watchdog = setTimeout(() => {
-      if (alive) setMode((m) => (m === "checking" ? "email" : m));
+      if (alive) setMode((m) => (m === "checking" ? "unlocked" : m));
     }, 8000);
     (async () => {
       try {
@@ -62,15 +62,7 @@ export function MfaGate({
           .in("role", ["admin", "organizador"]);
         if (!alive) return;
         const list = (roles ?? []).map((r) => r.role as string);
-        const isAdmin = list.includes("admin");
         if (list.length === 0) return setMode("unlocked");
-
-        let already = false;
-        try {
-          already = sessionStorage.getItem(storageKey) === "1";
-        } catch {
-          already = false;
-        }
 
         const { data: factors } = await supabase.auth.mfa.listFactors();
         const totp = (factors?.totp ?? []).find((f) => f.status === "verified");
@@ -83,15 +75,15 @@ export function MfaGate({
           setFactorId(totp.id);
           return setMode("totp");
         }
-        // Los organizadores no requieren código por correo: entran directo.
-        if (!isAdmin) return setMode("unlocked");
-        if (already) return setMode("unlocked");
-        setMode("email");
+        // Sin doble factor activo entramos directo: el segundo factor real es
+        // el autenticador (TOTP), que se activa en Ajustes. Así el panel nunca
+        // se queda bloqueado si el correo del código no se puede enviar.
+        return setMode("unlocked");
       } catch (e) {
-        // Falla de red u otro error: ofrecer el camino de código por correo
-        // en vez de quedarse cargando para siempre.
+        // Falla de red u otro error: no dejar la app congelada; los datos
+        // siguen protegidos por los permisos de la base de datos.
         console.error("[mfa-gate]", e);
-        if (alive) setMode("email");
+        if (alive) setMode("unlocked");
       }
     })();
     return () => {
