@@ -62,8 +62,30 @@ function AuthedLayout() {
     refetchInterval: 30000,
   });
 
+  // Si el teléfono se duerme o se pierde la señal, la conexión de avisos puede
+  // cortarse. Este contador se incrementa al volver a la app o recuperar internet
+  // y hace que las escuchas se vuelvan a crear, así nunca se dejan de oír.
+  const [liveEpoch, setLiveEpoch] = useState(0);
+  useEffect(() => {
+    const revive = () => {
+      if (document.visibilityState === "visible") {
+        setLiveEpoch((n) => n + 1);
+        queryClient.invalidateQueries();
+      }
+    };
+    document.addEventListener("visibilitychange", revive);
+    window.addEventListener("online", revive);
+    window.addEventListener("focus", revive);
+    return () => {
+      document.removeEventListener("visibilitychange", revive);
+      window.removeEventListener("online", revive);
+      window.removeEventListener("focus", revive);
+    };
+  }, [queryClient]);
+
   // Realtime: refetch on any insert/update to my notifications + alerta in-app
   useEffect(() => {
+
     const channel = supabase
       .channel(`notifications:${user.id}`)
       .on(
