@@ -119,12 +119,12 @@ function AuthedLayout() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user.id, queryClient]);
+  }, [user.id, queryClient, liveEpoch]);
 
   // Realtime global: cualquier cambio hecho por admin u organizadores se refleja al instante.
   useEffect(() => {
     const tables = ["transactions", "recargas_requests", "store_orders", "store_products", "promos", "rates", "flights"] as const;
-    const channel = supabase.channel(`vip-live:${user.id}`);
+    const channel = supabase.channel(`vip-live:${user.id}:${liveEpoch}`);
     tables.forEach((table) => {
       channel.on("postgres_changes", { event: "*", schema: "public", table }, () => {
         queryClient.invalidateQueries();
@@ -134,7 +134,8 @@ function AuthedLayout() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user.id, queryClient]);
+  }, [user.id, queryClient, liveEpoch]);
+
 
 
 
