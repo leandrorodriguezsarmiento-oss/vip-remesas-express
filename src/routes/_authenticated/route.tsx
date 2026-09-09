@@ -62,10 +62,32 @@ function AuthedLayout() {
     refetchInterval: 30000,
   });
 
+  // Si el teléfono se duerme o se pierde la señal, la conexión de avisos puede
+  // cortarse. Este contador se incrementa al volver a la app o recuperar internet
+  // y hace que las escuchas se vuelvan a crear, así nunca se dejan de oír.
+  const [liveEpoch, setLiveEpoch] = useState(0);
+  useEffect(() => {
+    const revive = () => {
+      if (document.visibilityState === "visible") {
+        setLiveEpoch((n) => n + 1);
+        queryClient.invalidateQueries();
+      }
+    };
+    document.addEventListener("visibilitychange", revive);
+    window.addEventListener("online", revive);
+    window.addEventListener("focus", revive);
+    return () => {
+      document.removeEventListener("visibilitychange", revive);
+      window.removeEventListener("online", revive);
+      window.removeEventListener("focus", revive);
+    };
+  }, [queryClient]);
+
   // Realtime: refetch on any insert/update to my notifications + alerta in-app
   useEffect(() => {
+
     const channel = supabase
-      .channel(`notifications:${user.id}`)
+      .channel(`notifications:${user.id}:${liveEpoch}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "notifications", filter: `user_id=eq.${user.id}` },
@@ -97,12 +119,12 @@ function AuthedLayout() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user.id, queryClient]);
+  }, [user.id, queryClient, liveEpoch]);
 
   // Realtime global: cualquier cambio hecho por admin u organizadores se refleja al instante.
   useEffect(() => {
     const tables = ["transactions", "recargas_requests", "store_orders", "store_products", "promos", "rates", "flights"] as const;
-    const channel = supabase.channel(`vip-live:${user.id}`);
+    const channel = supabase.channel(`vip-live:${user.id}:${liveEpoch}`);
     tables.forEach((table) => {
       channel.on("postgres_changes", { event: "*", schema: "public", table }, () => {
         queryClient.invalidateQueries();
@@ -112,7 +134,8 @@ function AuthedLayout() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user.id, queryClient]);
+  }, [user.id, queryClient, liveEpoch]);
+
 
 
 
