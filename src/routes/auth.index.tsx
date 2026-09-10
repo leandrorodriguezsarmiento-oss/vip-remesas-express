@@ -146,9 +146,6 @@ function AuthPage() {
       password: sPassword,
     });
     if (!parsed.success) return toast.error(parsed.error.issues[0].message);
-    if (sCountry === "BR" && sCpf.replace(/\D/g, "").length !== 11) {
-      return toast.error("Para Brasil el CPF es obligatorio (11 dígitos)");
-    }
     setLoading(true);
     try {
       const { email } = await register({
@@ -157,7 +154,6 @@ function AuthPage() {
           username: sUsername,
           phone: sPhone,
           email: sEmail,
-          cpf: sCpf,
           country: sCountry,
           password: sPassword,
         },
