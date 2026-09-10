@@ -11,7 +11,7 @@ import { useLiveAdmin } from "@/hooks/use-live-admin";
 import { usePendingCounts } from "@/hooks/use-pending-counts";
 
 import { toast } from "sonner";
-import { Shield, Loader2, Trash2, Plus, Check, RefreshCw, Smartphone, Zap, BarChart3, CreditCard, Copy, UserCheck, Folder, FolderOpen, ChevronDown } from "lucide-react";
+import { Shield, Loader2, Trash2, Plus, Check, RefreshCw, RotateCcw, Smartphone, Zap, BarChart3, CreditCard, Copy, UserCheck, Folder, FolderOpen, ChevronDown } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   beforeLoad: async ({ context }) => {
@@ -922,7 +922,13 @@ function RecargasTab({ isAdmin = true }: { isAdmin?: boolean }) {
 }
 
 // ----------------- Reportes: totales por día -----------------
+const REPORTS_CUTOFF_KEY = "vip-reports-cutoff";
+
 function ReportsTab() {
+  const [cutoff, setCutoff] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    return window.localStorage.getItem(REPORTS_CUTOFF_KEY);
+  });
   const q = useQuery({
     queryKey: ["admin-reports"],
     queryFn: async () => {
@@ -933,11 +939,26 @@ function ReportsTab() {
       return data;
     },
   });
+
+  const resetReports = () => {
+    if (!confirm("¿Reiniciar los reportes? Los totales empezarán de cero desde ahora (no se borra ninguna remesa).")) return;
+    const now = new Date().toISOString();
+    window.localStorage.setItem(REPORTS_CUTOFF_KEY, now);
+    setCutoff(now);
+    toast.success("Reportes reiniciados");
+  };
+  const showAll = () => {
+    window.localStorage.removeItem(REPORTS_CUTOFF_KEY);
+    setCutoff(null);
+    toast.success("Mostrando el historial completo");
+  };
+
   if (q.isLoading) return <p className="text-sm text-muted-foreground">Cargando…</p>;
 
   // Agrupar por día (últimos 14)
+  const rows = (q.data ?? []).filter((t) => !cutoff || t.created_at > cutoff);
   const byDay = new Map<string, { total: number; count: number; completed: number }>();
-  q.data?.forEach((t) => {
+  rows.forEach((t) => {
     const day = new Date(t.created_at).toISOString().slice(0, 10);
     const b = byDay.get(day) ?? { total: 0, count: 0, completed: 0 };
     b.total += Number(t.total_brl);
@@ -951,6 +972,26 @@ function ReportsTab() {
 
   return (
     <div className="space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-card p-3">
+        <div>
+          <p className="text-xs font-semibold">Reiniciar reportes</p>
+          <p className="text-[11px] text-muted-foreground">
+            {cutoff
+              ? `Contando desde ${new Date(cutoff).toLocaleString("es")}`
+              : "Mostrando todo el historial"}
+          </p>
+        </div>
+        <div className="flex gap-2">
+          {cutoff && (
+            <button onClick={showAll} className="rounded-lg border border-border px-3 py-1.5 text-[11px] font-semibold">
+              Ver todo
+            </button>
+          )}
+          <button onClick={resetReports} className="flex items-center gap-1 rounded-lg bg-gradient-gold px-3 py-1.5 text-[11px] font-bold text-primary-foreground shadow-gold">
+            <RotateCcw className="h-3 w-3" /> Reiniciar
+          </button>
+        </div>
+      </div>
       <div className="grid grid-cols-2 gap-2">
         <div className="rounded-xl border border-gold/40 bg-card p-3">
           <p className="text-[10px] uppercase text-muted-foreground">Total procesado</p>
@@ -985,7 +1026,7 @@ function ReportsTab() {
           <UserCheck className="h-4 w-4 text-gold" />
           <p className="text-xs font-extrabold uppercase text-muted-foreground">Trabajo de cada organizador por día</p>
         </div>
-        <OrganizerReports />
+        <OrganizerReports cutoff={cutoff} />
       </div>
     </div>
   );
@@ -1768,11 +1809,11 @@ function DaySummaryCard({ day, list, title }: { day: string; list: DailyRow[]; t
 }
 
 /** Reporte del admin: qué hizo cada organizador, por día. */
-function OrganizerReports() {
+function OrganizerReports({ cutoff }: { cutoff: string | null }) {
   const organizers = useOrganizers(true);
   const q = useDailyWork(true, null);
   if (q.isLoading || organizers.isLoading) return <p className="text-sm text-muted-foreground">Cargando…</p>;
-  const rows = (q.data ?? []).filter((r) => r.assigned_to);
+  const rows = (q.data ?? []).filter((r) => r.assigned_to && (!cutoff || r.when > cutoff));
   if (rows.length === 0) {
     return <p className="text-sm text-muted-foreground">Aún no hay trabajo asignado a organizadores.</p>;
   }
