@@ -93,7 +93,7 @@ function AuthPage() {
   function changeCountry(code: string) {
     setSCountry(code);
     setSPhone(formatPhone("", code));
-    if (code !== "BR") setSCpf("");
+    
   }
 
 
