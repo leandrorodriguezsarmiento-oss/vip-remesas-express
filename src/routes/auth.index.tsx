@@ -53,15 +53,6 @@ function onlyDigits(v: string, keepPlus = false): string {
   return plus ? `+${digits}` : digits;
 }
 
-/** CPF con puntos y guion automáticos: 111.222.333-44 */
-function formatCpf(v: string): string {
-  const d = v.replace(/\D/g, "").slice(0, 11);
-  let out = d.slice(0, 3);
-  if (d.length > 3) out += `.${d.slice(3, 6)}`;
-  if (d.length > 6) out += `.${d.slice(6, 9)}`;
-  if (d.length > 9) out += `-${d.slice(9, 11)}`;
-  return out;
-}
 
 /** Teléfono: prefijo del país + cantidad exacta de dígitos permitida. */
 const PHONE_RULES: Record<string, { prefix: string; max: number }> = {
@@ -95,14 +86,14 @@ function AuthPage() {
   const [sUsername, setSUsername] = useState("");
   const [sPhone, setSPhone] = useState("+55 ");
   const [sEmail, setSEmail] = useState("");
-  const [sCpf, setSCpf] = useState("");
+  
   const [sCountry, setSCountry] = useState("BR");
   const [sPassword, setSPassword] = useState("");
 
   function changeCountry(code: string) {
     setSCountry(code);
     setSPhone(formatPhone("", code));
-    if (code !== "BR") setSCpf("");
+    
   }
 
 
@@ -146,9 +137,6 @@ function AuthPage() {
       password: sPassword,
     });
     if (!parsed.success) return toast.error(parsed.error.issues[0].message);
-    if (sCountry === "BR" && sCpf.replace(/\D/g, "").length !== 11) {
-      return toast.error("Para Brasil el CPF es obligatorio (11 dígitos)");
-    }
     setLoading(true);
     try {
       const { email } = await register({
@@ -157,7 +145,6 @@ function AuthPage() {
           username: sUsername,
           phone: sPhone,
           email: sEmail,
-          cpf: sCpf,
           country: sCountry,
           password: sPassword,
         },
@@ -269,18 +256,9 @@ function AuthPage() {
                 inputMode="tel"
               />
               <Field label="Correo electrónico" type="email" value={sEmail} onChange={(v) => setSEmail(v.trim())} placeholder="tu@correo.com" autoComplete="email" />
-              {sCountry === "BR" && (
-                <Field
-                  label="CPF"
-                  value={sCpf}
-                  onChange={(v) => setSCpf(formatCpf(v))}
-                  placeholder="000.000.000-00"
-                  inputMode="numeric"
-                />
-              )}
               <Field label="Contraseña" type="password" value={sPassword} onChange={setSPassword} placeholder="Mínimo 6 caracteres" autoComplete="new-password" />
               <p className="text-xs text-muted-foreground">
-                Entras con tu usuario, teléfono, correo {sCountry === "BR" ? "o CPF " : ""}y contraseña.
+                Entras con tu usuario, teléfono o correo y contraseña.
               </p>
 
               <SubmitButton loading={loading}>Crear cuenta VIP</SubmitButton>
