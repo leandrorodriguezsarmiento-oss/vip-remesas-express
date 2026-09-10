@@ -283,6 +283,10 @@ function AuthPage() {
             Continuar con Google
           </button>
         </div>
+
+        <p className="mt-6 text-center text-[11px] font-bold text-muted-foreground/70">
+          Hecho por <span className="text-gold">Aranch</span>
+        </p>
       </div>
     </div>
   );
@@ -316,7 +320,7 @@ function SubmitButton({ children, loading }: { children: React.ReactNode; loadin
   );
 }
 
-/** Recuperación de contraseña por correo (enlace seguro de Lovable Cloud). */
+/** Recuperación de contraseña por correo (enlace seguro). */
 function ForgotPassword({ onBack }: { onBack: () => void }) {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);

@@ -62,7 +62,7 @@ const T = {
     education: "Estudios",
     skills: "Habilidades",
     languages: "Idiomas",
-    footer: "Currículo creado gratis con VIP Remesas",
+    footer: "Currículo creado gratis con Aranch",
   },
   pt: {
     fallbackName: "Nome completo",
@@ -72,7 +72,7 @@ const T = {
     education: "Formação",
     skills: "Competências",
     languages: "Idiomas",
-    footer: "Currículo criado gratuitamente com VIP Remesas",
+    footer: "Currículo criado gratuitamente com Aranch",
   },
 } as const;
 
