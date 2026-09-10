@@ -1809,11 +1809,11 @@ function DaySummaryCard({ day, list, title }: { day: string; list: DailyRow[]; t
 }
 
 /** Reporte del admin: qué hizo cada organizador, por día. */
-function OrganizerReports() {
+function OrganizerReports({ cutoff }: { cutoff: string | null }) {
   const organizers = useOrganizers(true);
   const q = useDailyWork(true, null);
   if (q.isLoading || organizers.isLoading) return <p className="text-sm text-muted-foreground">Cargando…</p>;
-  const rows = (q.data ?? []).filter((r) => r.assigned_to);
+  const rows = (q.data ?? []).filter((r) => r.assigned_to && (!cutoff || r.when > cutoff));
   if (rows.length === 0) {
     return <p className="text-sm text-muted-foreground">Aún no hay trabajo asignado a organizadores.</p>;
   }
