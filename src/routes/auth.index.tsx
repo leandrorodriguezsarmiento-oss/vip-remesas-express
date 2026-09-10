@@ -86,7 +86,7 @@ function AuthPage() {
   const [sUsername, setSUsername] = useState("");
   const [sPhone, setSPhone] = useState("+55 ");
   const [sEmail, setSEmail] = useState("");
-  const [sCpf, setSCpf] = useState("");
+  
   const [sCountry, setSCountry] = useState("BR");
   const [sPassword, setSPassword] = useState("");
 
