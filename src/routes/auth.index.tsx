@@ -269,18 +269,9 @@ function AuthPage() {
                 inputMode="tel"
               />
               <Field label="Correo electrónico" type="email" value={sEmail} onChange={(v) => setSEmail(v.trim())} placeholder="tu@correo.com" autoComplete="email" />
-              {sCountry === "BR" && (
-                <Field
-                  label="CPF"
-                  value={sCpf}
-                  onChange={(v) => setSCpf(formatCpf(v))}
-                  placeholder="000.000.000-00"
-                  inputMode="numeric"
-                />
-              )}
               <Field label="Contraseña" type="password" value={sPassword} onChange={setSPassword} placeholder="Mínimo 6 caracteres" autoComplete="new-password" />
               <p className="text-xs text-muted-foreground">
-                Entras con tu usuario, teléfono, correo {sCountry === "BR" ? "o CPF " : ""}y contraseña.
+                Entras con tu usuario, teléfono o correo y contraseña.
               </p>
 
               <SubmitButton loading={loading}>Crear cuenta VIP</SubmitButton>
