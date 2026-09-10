@@ -922,7 +922,13 @@ function RecargasTab({ isAdmin = true }: { isAdmin?: boolean }) {
 }
 
 // ----------------- Reportes: totales por día -----------------
+const REPORTS_CUTOFF_KEY = "vip-reports-cutoff";
+
 function ReportsTab() {
+  const [cutoff, setCutoff] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    return window.localStorage.getItem(REPORTS_CUTOFF_KEY);
+  });
   const q = useQuery({
     queryKey: ["admin-reports"],
     queryFn: async () => {
@@ -933,11 +939,26 @@ function ReportsTab() {
       return data;
     },
   });
+
+  const resetReports = () => {
+    if (!confirm("¿Reiniciar los reportes? Los totales empezarán de cero desde ahora (no se borra ninguna remesa).")) return;
+    const now = new Date().toISOString();
+    window.localStorage.setItem(REPORTS_CUTOFF_KEY, now);
+    setCutoff(now);
+    toast.success("Reportes reiniciados");
+  };
+  const showAll = () => {
+    window.localStorage.removeItem(REPORTS_CUTOFF_KEY);
+    setCutoff(null);
+    toast.success("Mostrando el historial completo");
+  };
+
   if (q.isLoading) return <p className="text-sm text-muted-foreground">Cargando…</p>;
 
   // Agrupar por día (últimos 14)
+  const rows = (q.data ?? []).filter((t) => !cutoff || t.created_at > cutoff);
   const byDay = new Map<string, { total: number; count: number; completed: number }>();
-  q.data?.forEach((t) => {
+  rows.forEach((t) => {
     const day = new Date(t.created_at).toISOString().slice(0, 10);
     const b = byDay.get(day) ?? { total: 0, count: 0, completed: 0 };
     b.total += Number(t.total_brl);
@@ -951,6 +972,26 @@ function ReportsTab() {
 
   return (
     <div className="space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-card p-3">
+        <div>
+          <p className="text-xs font-semibold">Reiniciar reportes</p>
+          <p className="text-[11px] text-muted-foreground">
+            {cutoff
+              ? `Contando desde ${new Date(cutoff).toLocaleString("es")}`
+              : "Mostrando todo el historial"}
+          </p>
+        </div>
+        <div className="flex gap-2">
+          {cutoff && (
+            <button onClick={showAll} className="rounded-lg border border-border px-3 py-1.5 text-[11px] font-semibold">
+              Ver todo
+            </button>
+          )}
+          <button onClick={resetReports} className="flex items-center gap-1 rounded-lg bg-gradient-gold px-3 py-1.5 text-[11px] font-bold text-primary-foreground shadow-gold">
+            <RotateCcw className="h-3 w-3" /> Reiniciar
+          </button>
+        </div>
+      </div>
       <div className="grid grid-cols-2 gap-2">
         <div className="rounded-xl border border-gold/40 bg-card p-3">
           <p className="text-[10px] uppercase text-muted-foreground">Total procesado</p>
