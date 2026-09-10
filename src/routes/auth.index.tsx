@@ -53,15 +53,6 @@ function onlyDigits(v: string, keepPlus = false): string {
   return plus ? `+${digits}` : digits;
 }
 
-/** CPF con puntos y guion automáticos: 111.222.333-44 */
-function formatCpf(v: string): string {
-  const d = v.replace(/\D/g, "").slice(0, 11);
-  let out = d.slice(0, 3);
-  if (d.length > 3) out += `.${d.slice(3, 6)}`;
-  if (d.length > 6) out += `.${d.slice(6, 9)}`;
-  if (d.length > 9) out += `-${d.slice(9, 11)}`;
-  return out;
-}
 
 /** Teléfono: prefijo del país + cantidad exacta de dígitos permitida. */
 const PHONE_RULES: Record<string, { prefix: string; max: number }> = {
