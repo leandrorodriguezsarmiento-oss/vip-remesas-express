@@ -1026,7 +1026,7 @@ function ReportsTab() {
           <UserCheck className="h-4 w-4 text-gold" />
           <p className="text-xs font-extrabold uppercase text-muted-foreground">Trabajo de cada organizador por día</p>
         </div>
-        <OrganizerReports />
+        <OrganizerReports cutoff={cutoff} />
       </div>
     </div>
   );
