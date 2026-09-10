@@ -11,7 +11,7 @@ import { useLiveAdmin } from "@/hooks/use-live-admin";
 import { usePendingCounts } from "@/hooks/use-pending-counts";
 
 import { toast } from "sonner";
-import { Shield, Loader2, Trash2, Plus, Check, RefreshCw, Smartphone, Zap, BarChart3, CreditCard, Copy, UserCheck, Folder, FolderOpen, ChevronDown } from "lucide-react";
+import { Shield, Loader2, Trash2, Plus, Check, RefreshCw, RotateCcw, Smartphone, Zap, BarChart3, CreditCard, Copy, UserCheck, Folder, FolderOpen, ChevronDown } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   beforeLoad: async ({ context }) => {
