@@ -861,6 +861,47 @@ export type Database = {
         }
         Relationships: []
       }
+      transaction_audit_log: {
+        Row: {
+          action: string
+          actor_id: string | null
+          created_at: string
+          details: Json
+          from_status: string | null
+          id: string
+          to_status: string | null
+          transaction_id: string
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          created_at?: string
+          details?: Json
+          from_status?: string | null
+          id?: string
+          to_status?: string | null
+          transaction_id: string
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          created_at?: string
+          details?: Json
+          from_status?: string | null
+          id?: string
+          to_status?: string | null
+          transaction_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transaction_audit_log_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       transactions: {
         Row: {
           amount_brl: number
@@ -879,7 +920,12 @@ export type Database = {
           origin_country: string
           origin_currency: string
           paid_at: string | null
+          payment_confirmed_at: string | null
+          payment_confirmed_by: string | null
           payment_method: string
+          payment_rejected_at: string | null
+          payment_rejection_reason: string | null
+          payment_reported_at: string | null
           pix_code: string | null
           recipient_card: string | null
           recipient_name: string
@@ -906,7 +952,12 @@ export type Database = {
           origin_country?: string
           origin_currency?: string
           paid_at?: string | null
+          payment_confirmed_at?: string | null
+          payment_confirmed_by?: string | null
           payment_method: string
+          payment_rejected_at?: string | null
+          payment_rejection_reason?: string | null
+          payment_reported_at?: string | null
           pix_code?: string | null
           recipient_card?: string | null
           recipient_name: string
@@ -933,7 +984,12 @@ export type Database = {
           origin_country?: string
           origin_currency?: string
           paid_at?: string | null
+          payment_confirmed_at?: string | null
+          payment_confirmed_by?: string | null
           payment_method?: string
+          payment_rejected_at?: string | null
+          payment_rejection_reason?: string | null
+          payment_reported_at?: string | null
           pix_code?: string | null
           recipient_card?: string | null
           recipient_name?: string
@@ -1025,7 +1081,14 @@ export type Database = {
     Enums: {
       app_role: "admin" | "user" | "organizador" | "restaurante"
       recarga_status: "pending" | "processing" | "completed" | "rejected"
-      tx_status: "pending" | "processing" | "completed" | "rejected"
+      tx_status:
+        | "pending"
+        | "processing"
+        | "completed"
+        | "rejected"
+        | "pending_payment"
+        | "payment_reported"
+        | "payment_confirmed"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1155,7 +1218,15 @@ export const Constants = {
     Enums: {
       app_role: ["admin", "user", "organizador", "restaurante"],
       recarga_status: ["pending", "processing", "completed", "rejected"],
-      tx_status: ["pending", "processing", "completed", "rejected"],
+      tx_status: [
+        "pending",
+        "processing",
+        "completed",
+        "rejected",
+        "pending_payment",
+        "payment_reported",
+        "payment_confirmed",
+      ],
     },
   },
 } as const
