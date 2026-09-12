@@ -22,7 +22,12 @@ export function unlockNotificationSound() {
   unlocked = true;
   const arm = () => {
     const c = getCtx();
-    if (!c) return;
+    if (!c) {
+      window.removeEventListener("pointerdown", arm);
+      window.removeEventListener("touchstart", arm);
+      window.removeEventListener("keydown", arm);
+      return;
+    }
     void c.resume();
     try {
       const osc = c.createOscillator();

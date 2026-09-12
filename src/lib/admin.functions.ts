@@ -1,5 +1,81 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { z } from "zod";
+
+const transactionActionSchema = z.object({
+  transactionId: z.string().uuid(),
+  action: z.enum(["confirm_payment", "start_processing", "complete", "reject"]),
+  assignedTo: z.string().uuid().nullable().optional(),
+  reason: z.string().trim().min(3).max(300).optional(),
+});
+
+/** Ejecuta transiciones de remesas en servidor y deja una auditoría inmutable. */
+export const updateTransactionWorkflow = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => transactionActionSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    const [{ data: isAdmin }, { data: isOrganizer }] = await Promise.all([
+      context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" }),
+      context.supabase.rpc("has_role", { _user_id: context.userId, _role: "organizador" }),
+    ]);
+    if (!isAdmin && !isOrganizer) throw new Error("No autorizado");
+    if (!isAdmin && !["complete", "reject"].includes(data.action)) {
+      throw new Error("Solo el administrador puede confirmar pagos o asignar remesas");
+    }
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: tx, error } = await supabaseAdmin
+      .from("transactions")
+      .select("id,status,assigned_to,payment_reported_at,payment_confirmed_at")
+      .eq("id", data.transactionId)
+      .maybeSingle();
+    if (error) throw error;
+    if (!tx) throw new Error("Remesa no encontrada");
+    if (!isAdmin && tx.assigned_to !== context.userId) throw new Error("Esta remesa no está asignada a ti");
+
+    const now = new Date().toISOString();
+    let toStatus: "payment_confirmed" | "processing" | "completed" | "rejected";
+    let patch: {
+      status: "payment_confirmed" | "processing" | "completed" | "rejected";
+      paid_at?: string;
+      payment_confirmed_at?: string;
+      payment_confirmed_by?: string;
+      assigned_to?: string;
+      payment_rejected_at?: string;
+      payment_rejection_reason?: string;
+    };
+    if (data.action === "confirm_payment") {
+      if (tx.status !== "payment_reported" || !tx.payment_reported_at) throw new Error("El cliente aún no informó este pago");
+      toStatus = "payment_confirmed";
+      patch = { status: toStatus, paid_at: now, payment_confirmed_at: now, payment_confirmed_by: context.userId };
+    } else if (data.action === "start_processing") {
+      if (tx.status !== "payment_confirmed" || !tx.payment_confirmed_at) throw new Error("Primero confirma el pago recibido");
+      if (!data.assignedTo) throw new Error("Elige un organizador");
+      toStatus = "processing";
+      patch = { status: toStatus, assigned_to: data.assignedTo };
+    } else if (data.action === "complete") {
+      if (tx.status !== "processing") throw new Error("La remesa debe estar en proceso");
+      toStatus = "completed";
+      patch = { status: toStatus };
+    } else {
+      if (!["payment_reported", "payment_confirmed", "processing"].includes(tx.status)) throw new Error("Esta remesa no se puede rechazar");
+      toStatus = "rejected";
+      patch = { status: toStatus, payment_rejected_at: now, payment_rejection_reason: data.reason ?? "Rechazada por el equipo" };
+    }
+
+    const { error: updateError } = await supabaseAdmin.from("transactions").update(patch).eq("id", tx.id).eq("status", tx.status);
+    if (updateError) throw updateError;
+    const { error: auditError } = await supabaseAdmin.from("transaction_audit_log").insert({
+      transaction_id: tx.id,
+      actor_id: context.userId,
+      action: data.action,
+      from_status: tx.status,
+      to_status: toStatus,
+      details: { assigned_to: data.assignedTo ?? null, reason: data.reason ?? null },
+    });
+    if (auditError) throw auditError;
+    return { ok: true, status: toStatus };
+  });
 
 /** Activa o quita el rol de organizador (sólo el admin dueño puede hacerlo). */
 export const setOrganizerRole = createServerFn({ method: "POST" })

@@ -4,6 +4,9 @@ import { z } from "zod";
 
 const STATUS_TEXT: Record<string, { label: string; body: string }> = {
   pending: { label: "Pendiente", body: "Recibimos tu solicitud y está en cola para revisión." },
+  pending_payment: { label: "Pendiente de pago", body: "Tu orden está creada y espera el pago." },
+  payment_reported: { label: "Pago informado", body: "Recibimos tu aviso y verificaremos el pago manualmente." },
+  payment_confirmed: { label: "Pago confirmado", body: "Confirmamos la recepción del pago." },
   processing: { label: "En proceso", body: "Tu solicitud está siendo procesada por nuestro equipo." },
   completed: { label: "Completada", body: "¡Listo! Tu solicitud fue completada con éxito." },
   rejected: { label: "Rechazada", body: "Tu solicitud fue rechazada. Contáctanos por WhatsApp para más detalles." },
@@ -20,7 +23,7 @@ export const sendTransactionStatusEmail = createServerFn({ method: "POST" })
     z
       .object({
         transactionId: z.string().uuid(),
-        status: z.enum(["pending", "processing", "completed", "rejected"]),
+        status: z.enum(["pending", "pending_payment", "payment_reported", "payment_confirmed", "processing", "completed", "rejected"]),
       })
       .parse(data),
   )

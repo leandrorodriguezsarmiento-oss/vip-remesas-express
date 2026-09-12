@@ -13,7 +13,8 @@ export const Route = createFileRoute("/api/public/mercadopago/webhook")({
     handlers: {
       POST: async ({ request }) => {
         const accessToken = process.env.MERCADOPAGO_ACCESS_TOKEN;
-        if (!accessToken) return new Response("Not configured", { status: 503 });
+        const secret = process.env.MERCADOPAGO_WEBHOOK_SECRET;
+        if (!accessToken || !secret) return new Response("Payment webhook not configured", { status: 503 });
 
         const rawBody = await request.text();
         let payload: {
@@ -29,13 +30,11 @@ export const Route = createFileRoute("/api/public/mercadopago/webhook")({
 
         // Firma obligatoria cuando el secreto está configurado: si falta el
         // header o no coincide, se rechaza (no se puede saltar omitiéndolo).
-        const secret = process.env.MERCADOPAGO_WEBHOOK_SECRET;
         const signatureHeader = request.headers.get("x-signature");
         const requestId = request.headers.get("x-request-id");
-        if (secret) {
-          if (!signatureHeader || !requestId) {
-            return new Response("Missing signature", { status: 401 });
-          }
+        if (!signatureHeader || !requestId) {
+          return new Response("Missing signature", { status: 401 });
+        }
           const parts = Object.fromEntries(
             signatureHeader.split(",").map((p) => p.trim().split("=") as [string, string]),
           );
@@ -50,9 +49,6 @@ export const Route = createFileRoute("/api/public/mercadopago/webhook")({
           if (a.length !== b.length || !timingSafeEqual(a, b)) {
             return new Response("Invalid signature", { status: 401 });
           }
-        }
-
-
         // Solo procesamos eventos de pagos
         const paymentId = payload.data?.id;
         if (!paymentId || (payload.type && payload.type !== "payment")) {
@@ -70,6 +66,7 @@ export const Route = createFileRoute("/api/public/mercadopago/webhook")({
           status?: string;
           external_reference?: string;
           transaction_amount?: number;
+          currency_id?: string;
         };
 
         const trackingId = payment.external_reference;
@@ -77,26 +74,38 @@ export const Route = createFileRoute("/api/public/mercadopago/webhook")({
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-        // Mapear estado de MP → tx_status
-        const map: Record<string, "pending" | "processing" | "completed" | "rejected"> = {
-          approved: "processing", // aprobado por MP → pasa a "procesando" hasta que admin confirme entrega
-          in_process: "processing",
-          pending: "pending",
-          authorized: "processing",
+        const { data: paymentRow } = await supabaseAdmin
+          .from("mercadopago_payments")
+          .select("id,transaction_id,user_id,amount,currency,mp_payment_id")
+          .eq("tracking_id", trackingId)
+          .maybeSingle();
+        if (!paymentRow) return new Response("Unknown payment reference", { status: 404 });
+        if (paymentRow.mp_payment_id === String(paymentId)) return Response.json({ ok: true, duplicate: true });
+        if (payment.currency_id !== paymentRow.currency || Math.abs(Number(payment.transaction_amount) - Number(paymentRow.amount)) > 0.009) {
+          return new Response("Payment amount or currency mismatch", { status: 409 });
+        }
+
+        const map: Record<string, "pending_payment" | "payment_confirmed" | "rejected"> = {
+          approved: "payment_confirmed",
+          authorized: "payment_confirmed",
+          in_process: "pending_payment",
+          pending: "pending_payment",
           rejected: "rejected",
           cancelled: "rejected",
           refunded: "rejected",
           charged_back: "rejected",
         };
-        const newStatus = map[payment.status ?? ""] ?? "pending";
+        const newStatus = map[payment.status ?? ""] ?? "pending_payment";
 
         // Un pago aprobado/autorizado confirma el cobro: registramos paid_at
         // para que el panel admin reciba el aviso con sonido.
-        const paidNow = ["approved", "authorized", "in_process"].includes(payment.status ?? "");
+        const paidNow = ["approved", "authorized"].includes(payment.status ?? "");
+        const now = new Date().toISOString();
         const { error } = await supabaseAdmin
           .from("transactions")
-          .update({ status: newStatus, ...(paidNow ? { paid_at: new Date().toISOString() } : {}) })
-          .eq("tracking_id", trackingId);
+          .update({ status: newStatus, ...(paidNow ? { paid_at: now, payment_confirmed_at: now } : {}) })
+          .eq("id", paymentRow.transaction_id)
+          .eq("user_id", paymentRow.user_id);
         if (error) return new Response(error.message, { status: 500 });
 
         // Actualizar historial de pagos Mercado Pago
@@ -108,7 +117,17 @@ export const Route = createFileRoute("/api/public/mercadopago/webhook")({
             internal_status: newStatus,
             amount: Number(payment.transaction_amount ?? 0) || undefined,
           })
-          .eq("tracking_id", trackingId);
+          .eq("id", paymentRow.id)
+          .is("mp_payment_id", null);
+
+        await supabaseAdmin.from("transaction_audit_log").insert({
+          transaction_id: paymentRow.transaction_id,
+          actor_id: null,
+          action: `mercadopago_${payment.status ?? "unknown"}`,
+          from_status: null,
+          to_status: newStatus,
+          details: { payment_id: String(paymentId) },
+        });
 
         return Response.json({ ok: true, trackingId, status: newStatus });
 

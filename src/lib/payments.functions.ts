@@ -32,12 +32,23 @@ export const createMercadoPagoPreference = createServerFn({ method: "POST" })
     if (error) throw error;
     if (!tx) throw new Error("Transacción no encontrada");
     if (tx.user_id !== context.userId) throw new Error("No autorizado");
-    if (tx.status !== "pending") throw new Error("La transacción no está pendiente de pago");
+    if (tx.status !== "pending_payment" && tx.status !== "pending") throw new Error("La transacción no está pendiente de pago");
 
-    const origin =
-      process.env.PUBLIC_SITE_URL ||
-      process.env.VITE_PUBLIC_SITE_URL ||
-      "https://vip-remesas-express.lovable.app";
+    const origin = process.env.PUBLIC_SITE_URL;
+    if (!origin || !origin.startsWith("https://")) throw new Error("Falta configurar PUBLIC_SITE_URL con el dominio HTTPS");
+
+    const { data: existing } = await supabaseAdmin
+      .from("mercadopago_payments")
+      .select("preference_id,checkout_url")
+      .eq("transaction_id", tx.id)
+      .eq("internal_status", "created")
+      .not("checkout_url", "is", null)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (existing?.preference_id && existing.checkout_url) {
+      return { preferenceId: existing.preference_id, checkoutUrl: existing.checkout_url };
+    }
 
     const body = {
       external_reference: tx.tracking_id,
@@ -144,13 +155,8 @@ export const dispatchRechargeToProvider = createServerFn({ method: "POST" })
     if (!req) throw new Error("Recarga no encontrada");
     if (req.status !== "pending") throw new Error("La recarga ya fue procesada");
 
-    // Modo mock: solo marca como processing sin llamar a nada externo.
     if (cfg.provider === "mock" || !cfg.api_base_url || !cfg.api_key_name) {
-      await supabaseAdmin
-        .from("recargas_requests")
-        .update({ status: "processing", provider_ref: `mock-${Date.now()}` })
-        .eq("id", req.id);
-      return { ok: true, provider: "mock" };
+      throw new Error("Proveedor real de recargas no configurado; la solicitud continúa pendiente");
     }
 
     const apiKey = process.env[cfg.api_key_name];

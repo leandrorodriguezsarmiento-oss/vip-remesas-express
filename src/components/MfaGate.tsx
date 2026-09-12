@@ -1,9 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
-import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
-import { sendVerificationCode, verifyVerificationCode } from "@/lib/auth-verification.functions";
 import { BrandMark } from "@/components/BrandMark";
-import { Loader2, ShieldCheck, Mail, LogOut } from "lucide-react";
+import { Loader2, ShieldCheck, LogOut, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 
 /**
@@ -17,7 +15,7 @@ import { toast } from "sonner";
  * Así, aunque alguien clone la contraseña, no puede entrar al panel ni cambiar
  * las cuentas de envío sin el segundo factor.
  */
-type Mode = "checking" | "unlocked" | "totp" | "email";
+type Mode = "checking" | "unlocked" | "totp" | "enroll" | "error";
 
 export function MfaGate({
   userId,
@@ -33,9 +31,8 @@ export function MfaGate({
   const [factorId, setFactorId] = useState<string | null>(null);
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
-  const [sent, setSent] = useState(false);
-  const sendCode = useServerFn(sendVerificationCode);
-  const verifyCode = useServerFn(verifyVerificationCode);
+  const [retryKey, setRetryKey] = useState(0);
+  const [errorText, setErrorText] = useState("");
 
   const unlock = useCallback(() => {
     try {
@@ -48,11 +45,8 @@ export function MfaGate({
 
   useEffect(() => {
     let alive = true;
-    // Red de seguridad: si las consultas no responden en 8s, no dejar la
-    // pantalla congelada en "Verificando seguridad…".
-    const watchdog = setTimeout(() => {
-      if (alive) setMode((m) => (m === "checking" ? "unlocked" : m));
-    }, 8000);
+    setMode("checking");
+    setErrorText("");
     (async () => {
       try {
         const { data: roles } = await supabase
@@ -75,22 +69,19 @@ export function MfaGate({
           setFactorId(totp.id);
           return setMode("totp");
         }
-        // Sin doble factor activo entramos directo: el segundo factor real es
-        // el autenticador (TOTP), que se activa en Ajustes. Así el panel nunca
-        // se queda bloqueado si el correo del código no se puede enviar.
-        return setMode("unlocked");
+        return setMode("enroll");
       } catch (e) {
-        // Falla de red u otro error: no dejar la app congelada; los datos
-        // siguen protegidos por los permisos de la base de datos.
         console.error("[mfa-gate]", e);
-        if (alive) setMode("unlocked");
+        if (alive) {
+          setErrorText("No se pudo comprobar la seguridad. Revisa tu conexión e inténtalo otra vez.");
+          setMode("error");
+        }
       }
     })();
     return () => {
       alive = false;
-      clearTimeout(watchdog);
     };
-  }, [userId, storageKey, unlock]);
+  }, [userId, storageKey, unlock, retryKey]);
 
   async function submitTotp() {
     if (!factorId || code.length !== 6) return;
@@ -107,34 +98,6 @@ export function MfaGate({
       unlock();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Código inválido");
-    } finally {
-      setBusy(false);
-      setCode("");
-    }
-  }
-
-  async function requestEmailCode() {
-    if (!email) return toast.error("Tu cuenta no tiene correo asociado");
-    setBusy(true);
-    try {
-      await sendCode({ data: { email, type: "email" } });
-      setSent(true);
-      toast.success(`Código enviado a ${email}`);
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "No se pudo enviar el código");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function submitEmailCode() {
-    if (!email || code.length !== 6) return;
-    setBusy(true);
-    try {
-      await verifyCode({ data: { email, code } });
-      unlock();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Código inválido o expirado");
     } finally {
       setBusy(false);
       setCode("");
@@ -161,20 +124,29 @@ export function MfaGate({
             <Loader2 className="h-4 w-4 animate-spin" /> Verificando seguridad…
           </div>
         ) : (
+          mode === "enroll" ? (
+            <>
+              <h1 className="flex items-center gap-2 font-display text-xl font-extrabold"><ShieldCheck className="h-5 w-5 text-gold" />Doble factor obligatorio</h1>
+              <p className="mt-2 text-sm font-bold text-muted-foreground">Activa el autenticador TOTP en Ajustes antes de abrir el panel administrativo.</p>
+              <a href="/settings" className="mt-4 block w-full rounded-xl bg-gradient-gold px-4 py-3 text-center text-sm font-extrabold text-primary-foreground shadow-gold">Abrir ajustes de seguridad</a>
+            </>
+          ) : mode === "error" ? (
+            <>
+              <h1 className="font-display text-xl font-extrabold">Acceso bloqueado</h1>
+              <p className="mt-2 text-sm font-bold text-destructive">{errorText}</p>
+              <button onClick={() => setRetryKey((n) => n + 1)} className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-gold px-4 py-3 text-sm font-extrabold text-primary-foreground"><RefreshCw className="h-4 w-4" />Reintentar</button>
+            </>
+          ) : (
           <>
             <h1 className="flex items-center gap-2 font-display text-xl font-extrabold">
-              {mode === "totp" ? <ShieldCheck className="h-5 w-5 text-gold" /> : <Mail className="h-5 w-5 text-gold" />}
+               <ShieldCheck className="h-5 w-5 text-gold" />
               Verificación de staff
             </h1>
             <p className="mt-2 text-xs font-bold text-muted-foreground">
-              {mode === "totp"
-                ? "Escribe los 6 dígitos de tu app de autenticación para abrir el panel."
-                : sent
-                  ? `Escribe el código de 6 dígitos que enviamos a ${email}.`
-                  : "Por seguridad enviamos un código a tu correo cada vez que abres la app."}
+              Escribe los 6 dígitos de tu app de autenticación para abrir el panel.
             </p>
 
-            {(mode === "totp" || sent) && (
+            {mode === "totp" && (
               <input
                 value={code}
                 onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
@@ -187,26 +159,14 @@ export function MfaGate({
 
             <button
               onClick={() => {
-                if (mode === "totp") void submitTotp();
-                else if (sent) void submitEmailCode();
-                else void requestEmailCode();
+                void submitTotp();
               }}
-              disabled={busy || ((mode === "totp" || sent) && code.length !== 6)}
+              disabled={busy || code.length !== 6}
               className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-gold px-4 py-3 text-sm font-extrabold text-primary-foreground shadow-gold disabled:opacity-60"
             >
               {busy && <Loader2 className="h-4 w-4 animate-spin" />}
-              {mode === "totp" ? "Desbloquear" : sent ? "Verificar código" : "Enviarme el código"}
+              Desbloquear
             </button>
-
-            {mode === "email" && sent && (
-              <button
-                onClick={() => void requestEmailCode()}
-                disabled={busy}
-                className="mt-2 w-full rounded-lg border border-border px-3 py-2 text-xs font-bold text-muted-foreground"
-              >
-                Reenviar código
-              </button>
-            )}
 
             <button
               onClick={() => void signOut()}
@@ -215,6 +175,7 @@ export function MfaGate({
               <LogOut className="h-3.5 w-3.5" /> Salir de la cuenta
             </button>
           </>
+          )
         )}
       </div>
     </div>

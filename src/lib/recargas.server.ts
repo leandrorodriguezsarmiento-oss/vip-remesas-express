@@ -81,12 +81,7 @@ export async function dispatchRecharge(
   if (req.status !== "pending") throw new Error("La recarga ya fue procesada");
 
   if (isMock(config)) {
-    const ref = `mock-${Date.now()}`;
-    await supabaseAdmin
-      .from("recargas_requests")
-      .update({ status: "completed", provider_ref: ref, notes: "Completada en modo mock" })
-      .eq("id", req.id);
-    return { status: "completed", providerRef: ref };
+    throw new Error("Proveedor real de recargas no configurado; la solicitud continúa pendiente");
   }
 
   const apiKey = requireApiKey(config);
@@ -135,11 +130,7 @@ async function pollRecharge(
   const supabaseAdmin = await getAdmin();
 
   if (isMock(cfg)) {
-    await supabaseAdmin
-      .from("recargas_requests")
-      .update({ status: "completed", notes: "Completada en modo mock" })
-      .eq("id", req.id);
-    return "completed";
+    throw new Error("Proveedor real de recargas no configurado");
   }
 
   const apiKey = requireApiKey(cfg);
