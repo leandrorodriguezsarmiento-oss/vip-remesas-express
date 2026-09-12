@@ -35,7 +35,15 @@ export const updateTransactionWorkflow = createServerFn({ method: "POST" })
 
     const now = new Date().toISOString();
     let toStatus: "payment_confirmed" | "processing" | "completed" | "rejected";
-    let patch: Record<string, unknown>;
+    let patch: {
+      status: "payment_confirmed" | "processing" | "completed" | "rejected";
+      paid_at?: string;
+      payment_confirmed_at?: string;
+      payment_confirmed_by?: string;
+      assigned_to?: string;
+      payment_rejected_at?: string;
+      payment_rejection_reason?: string;
+    };
     if (data.action === "confirm_payment") {
       if (tx.status !== "payment_reported" || !tx.payment_reported_at) throw new Error("El cliente aún no informó este pago");
       toStatus = "payment_confirmed";
