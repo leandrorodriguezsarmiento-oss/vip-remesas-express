@@ -133,10 +133,10 @@ export function formatMoney(n: number, currency: string): string {
 export const formatBRL = (n: number) => formatMoney(n, "BRL");
 export const formatCurrency = (n: number, currency: string) => formatMoney(n, currency);
 
-// ---------------- PIX (llave real VIP Remesas) ----------------
-// Llave PIX aleatoria (UUID) de VIP Remesas. El código se construye siguiendo
-// el estándar BR Code / EMV para que cualquier app bancaria de Brasil lo lea.
-export const PIX_KEY = "d1512e93-e329-4f6c-b2d3-769384b8f99a";
+// ---------------- PIX (dato público de cobro) ----------------
+// Una llave PIX se muestra al pagador, por lo que no es un secreto. Se puede
+// sustituir al desplegar sin recompilar mediante VITE_PIX_KEY.
+export const PIX_KEY = import.meta.env.VITE_PIX_KEY || "d1512e93-e329-4f6c-b2d3-769384b8f99a";
 
 function pixCrc16(payload: string): string {
   let crc = 0xffff;
@@ -170,20 +170,3 @@ export function generatePixCode(_trackingId: string, amountBrl: number): string 
   return payload + pixCrc16(payload);
 }
 
-
-
-// 🔌 SLOT DE INTEGRACIÓN: webhook / polling que confirme que el PIX
-// entró y marque la transacción como `processing` → `completed`.
-export async function checkPixPayment(_trackingId: string): Promise<{ paid: boolean }> {
-  await new Promise((r) => setTimeout(r, 800));
-  return { paid: true };
-}
-
-// 🔌 SLOT DE INTEGRACIÓN: API real de Cubacel para lanzar recarga.
-export async function sendCubacelRecharge(_input: {
-  phone: string;
-  promoId: string;
-}): Promise<{ ok: true; providerRef: string }> {
-  await new Promise((r) => setTimeout(r, 700));
-  return { ok: true, providerRef: `CUBACEL-${Date.now()}` };
-}

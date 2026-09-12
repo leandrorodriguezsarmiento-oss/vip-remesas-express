@@ -6,7 +6,7 @@ import { playNotificationSound } from "@/lib/notify-sound";
 
 /**
  * Escucha en vivo las tablas operativas del panel (remesas, recargas y pedidos).
- * Las remesas sólo avisan cuando el pago está confirmado (paid_at); las recargas
+ * Las remesas avisan cuando el cliente reporta el pago; las recargas
  * y pedidos avisan al crearse, porque se pagan antes de enviarse.
  */
 export function useLiveAdmin(userId?: string) {
@@ -50,10 +50,10 @@ export function useLiveAdmin(userId?: string) {
     // Remesas: avisar sólo al confirmarse el pago.
     channel.on("postgres_changes", { event: "INSERT", schema: "public", table: "transactions" }, refresh);
     channel.on("postgres_changes", { event: "UPDATE", schema: "public", table: "transactions" }, (payload) => {
-      const oldRow = payload.old as { paid_at?: string | null } | null;
-      const newRow = payload.new as { paid_at?: string | null } | null;
+      const oldRow = payload.old as { payment_reported_at?: string | null } | null;
+      const newRow = payload.new as { payment_reported_at?: string | null } | null;
       if (assignedToMe(payload, "Remesa asignada a ti")) return;
-      if (!oldRow?.paid_at && newRow?.paid_at) alert("Remesa pagada");
+      if (!oldRow?.payment_reported_at && newRow?.payment_reported_at) alert("Cliente informó un pago");
       else refresh();
     });
 

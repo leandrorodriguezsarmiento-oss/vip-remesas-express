@@ -8,7 +8,7 @@ import {
   findRate, calcQuote, generatePixCode,
   getOrigin, type OriginCode, type MethodCategory, type DestCurrency, type RateRow,
 } from "@/lib/remittance";
-import { createTransaction, markTransactionPaid } from "@/lib/orders.functions";
+import { createTransaction, reportTransactionPayment } from "@/lib/orders.functions";
 import { createMercadoPagoPreference } from "@/lib/payments.functions";
 import { PixQrCode } from "@/components/PixQrCode";
 import { FlagIcon } from "@/components/FlagIcon";
@@ -54,7 +54,7 @@ function SendFlow() {
   const [loading, setLoading] = useState(false);
   const createTx = useServerFn(createTransaction);
   const createMpPreference = useServerFn(createMercadoPagoPreference);
-  const markPaid = useServerFn(markTransactionPaid);
+  const reportPaid = useServerFn(reportTransactionPayment);
 
 
   const [origin, setOrigin] = useState<OriginCode | null>(null);
@@ -221,10 +221,10 @@ function SendFlow() {
     if (!tracking) return;
     setLoading(true);
     try {
-      // El servidor registra el momento del pago y avisa al panel admin.
-      await markPaid({ data: { trackingId: tracking } });
+      // El servidor registra solamente el aviso. El admin confirma los fondos.
+      await reportPaid({ data: { trackingId: tracking } });
       await queryClient.invalidateQueries({ queryKey: ["transactions-recent"] });
-      toast.success("Pago informado. Procesando tu remesa.");
+      toast.success("Pago informado. Lo verificaremos antes de procesar.");
       setStep(7);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Error");
@@ -507,7 +507,7 @@ function SendFlow() {
             <Check className="h-10 w-10 text-primary-foreground" />
           </div>
           <h1 className="animate-rise font-display text-3xl font-bold text-gradient-gold">¡Enviado!</h1>
-          <p className="mt-2 text-sm text-muted-foreground">Tu remesa está siendo procesada.</p>
+          <p className="mt-2 text-sm text-muted-foreground">Recibimos tu aviso de pago y lo verificaremos manualmente.</p>
 
           {/* Vuelo origen → Cuba */}
           <div className="relative mx-auto mt-5 flex w-64 items-center justify-between">
@@ -522,9 +522,9 @@ function SendFlow() {
             </span>
           </div>
           <div className="animate-rise mx-auto mt-6 max-w-xs rounded-2xl border border-gold/40 bg-card p-5 shadow-glow">
-            <p className="text-sm font-bold text-foreground">Estado: en proceso</p>
+            <p className="text-sm font-bold text-foreground">Estado: pago pendiente de verificación</p>
             <p className="mt-1 text-xs font-semibold text-muted-foreground">
-              Te avisamos por notificación cuando esté completada.
+              Te avisaremos al confirmar el pago y en cada avance de la remesa.
             </p>
           </div>
 
