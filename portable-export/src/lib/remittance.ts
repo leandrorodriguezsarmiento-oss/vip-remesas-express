@@ -133,12 +133,10 @@ export function formatMoney(n: number, currency: string): string {
 export const formatBRL = (n: number) => formatMoney(n, "BRL");
 export const formatCurrency = (n: number, currency: string) => formatMoney(n, currency);
 
-// ---------------- PIX (llave real VIP Remesas) ----------------
-// Llave estática (sin monto ni CRC). Insertamos el campo 54 (monto) y
-// recalculamos el CRC16-CCITT (poli 0x1021, init 0xFFFF) para que la app
-// bancaria del cliente lea el monto exacto al pegar el código.
-const PIX_STATIC_BR =
-  "00020126360014br.gov.bcb.pix0114+55959810067755204000053039865802BR5908ARANCH996009Sao Paulo610901227-20062240520daqr33445318438073686";
+// ---------------- PIX (dato público de cobro) ----------------
+// Una llave PIX se muestra al pagador, por lo que no es un secreto. Se puede
+// sustituir al desplegar sin recompilar mediante VITE_PIX_KEY.
+export const PIX_KEY = import.meta.env.VITE_PIX_KEY || "d1512e93-e329-4f6c-b2d3-769384b8f99a";
 
 function pixCrc16(payload: string): string {
   let crc = 0xffff;
@@ -151,29 +149,24 @@ function pixCrc16(payload: string): string {
   return crc.toString(16).toUpperCase().padStart(4, "0");
 }
 
+function emv(id: string, value: string): string {
+  return `${id}${String(value.length).padStart(2, "0")}${value}`;
+}
+
 // Genera un PIX copia y pega con el monto embebido en BRL.
 export function generatePixCode(_trackingId: string, amountBrl: number): string {
-  const amount = amountBrl.toFixed(2);
-  const amountField = `54${amount.length.toString().padStart(2, "0")}${amount}`;
-  // Insertamos el campo 54 justo antes de 5802BR (país)
-  const [before, after] = PIX_STATIC_BR.split("5802BR");
-  const withoutCrc = `${before}${amountField}5802BR${after}6304`;
-  return withoutCrc + pixCrc16(withoutCrc);
+  const amount = amountBrl > 0 ? amountBrl.toFixed(2) : "";
+  const payload =
+    emv("00", "01") +
+    emv("26", emv("00", "br.gov.bcb.pix") + emv("01", PIX_KEY)) +
+    emv("52", "0000") +
+    emv("53", "986") +
+    (amount ? emv("54", amount) : "") +
+    emv("58", "BR") +
+    emv("59", "VIP REMESAS") +
+    emv("60", "BOA VISTA") +
+    emv("62", emv("05", "VIPREMESAS")) +
+    "6304";
+  return payload + pixCrc16(payload);
 }
 
-
-// 🔌 SLOT DE INTEGRACIÓN: webhook / polling que confirme que el PIX
-// entró y marque la transacción como `processing` → `completed`.
-export async function checkPixPayment(_trackingId: string): Promise<{ paid: boolean }> {
-  await new Promise((r) => setTimeout(r, 800));
-  return { paid: true };
-}
-
-// 🔌 SLOT DE INTEGRACIÓN: API real de Cubacel para lanzar recarga.
-export async function sendCubacelRecharge(_input: {
-  phone: string;
-  promoId: string;
-}): Promise<{ ok: true; providerRef: string }> {
-  await new Promise((r) => setTimeout(r, 700));
-  return { ok: true, providerRef: `CUBACEL-${Date.now()}` };
-}

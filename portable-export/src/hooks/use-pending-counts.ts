@@ -17,8 +17,7 @@ export function usePendingCounts() {
         supabase
           .from("transactions")
           .select("id", { count: "exact", head: true })
-          .not("paid_at", "is", null)
-          .in("status", pend),
+          .in("status", ["payment_reported", "payment_confirmed", "processing"]),
         supabase.from("recargas_requests").select("id", { count: "exact", head: true }).in("status", pend),
         supabase.from("store_orders").select("id", { count: "exact", head: true }).in("status", pend),
       ]);

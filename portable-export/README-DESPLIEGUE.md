@@ -33,7 +33,8 @@ bun run start   # sirve .output/server/index.mjs
 - Sube esta carpeta a tu repositorio y crea la rama `main`.
 - Secrets del repo: `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`,
   `VITE_SUPABASE_PROJECT_ID`, `VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY`, `VPS_PATH`.
-- Cada push a `main` compila (`ci.yml`) y despliega al VPS (`deploy.yml`).
+- Cada push a `main` compila (`ci.yml`) y publica en Cloudflare Workers (`deploy.yml`).
+- Guía completa de Cloudflare: `README-CLOUDFLARE.md`.
 - Apps Android/iPhone: ver `MOVIL.md`.
 
 ## 7. Play Store (TWA)

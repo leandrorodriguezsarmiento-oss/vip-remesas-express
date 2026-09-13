@@ -93,17 +93,24 @@ for (const field of ["dependencies", "devDependencies"] as const) {
 pkg.scripts = {
   dev: "vite dev",
   build: "vite build",
-  start: "node .output/server/index.mjs",
   preview: "vite preview",
+  typecheck: "tsc --noEmit",
   lint: "eslint .",
+  deploy: "wrangler deploy -c dist/server/wrangler.json",
+  "deploy:dry-run": "wrangler deploy --dry-run -c dist/server/wrangler.json",
+  "cf-typegen": "wrangler types",
 };
+pkg.devDependencies["@cloudflare/vite-plugin"] = "^1.14.2";
+pkg.devDependencies["wrangler"] = "^4.45.0";
 write("package.json", JSON.stringify(pkg, null, 2) + "\n");
 
-// 4. Configuración de Vite propia (sin @lovable.dev/vite-tanstack-config)
+// 4. Configuración de Vite para Cloudflare Workers (sin paquetes de terceros)
 write(
   "vite.config.ts",
   `import { defineConfig } from "vite";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
+import { cloudflare } from "@cloudflare/vite-plugin";
+import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import tsConfigPaths from "vite-tsconfig-paths";
 
@@ -112,11 +119,30 @@ export default defineConfig({
   plugins: [
     tsConfigPaths(),
     tailwindcss(),
-    // Salida Node autohospedable (VPS + pm2/systemd detrás de Nginx).
-    // Para otros destinos define NITRO_PRESET (vercel, netlify, cloudflare-module...).
+    // Entorno SSR de Cloudflare Workers (lee wrangler.jsonc).
+    cloudflare({ viteEnvironment: { name: "ssr" } }),
     tanstackStart({ server: { entry: "server" } }),
+    react(),
   ],
 });
+`,
+);
+
+// 4b. Configuración del Worker
+write(
+  "wrangler.jsonc",
+  `{
+  // Worker de VIP Remesas Express (TanStack Start full-stack sobre Cloudflare).
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "vip-remesas-express",
+  "compatibility_date": "2026-09-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "main": "src/server.ts",
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  }
+}
 `,
 );
 
@@ -163,25 +189,40 @@ for (const rel of ["src/lib/emailjs.server.ts", "src/lib/payments.functions.ts",
   patch(rel, [[/"https:\/\/vip-remesas-express\.lovable\.app"/g, '(process.env["PUBLIC_SITE_URL"] || "http://localhost:3000")']]);
 }
 
+// 8b. Traducción del currículo con un proveedor de IA propio (API compatible OpenAI)
+patch("src/lib/cv-translate.functions.ts", [
+  [
+    /const apiKey = process\.env\["LOVABLE_API_KEY"\];/,
+    'const apiKey = process.env["AI_API_KEY"];',
+  ],
+  [
+    /"https:\/\/ai\.gateway\.lovable\.dev\/v1\/chat\/completions"/,
+    'process.env["AI_API_URL"] || "https://api.openai.com/v1/chat/completions"',
+  ],
+  [/model: "google\/gemini-2\.5-flash",/, 'model: process.env["AI_MODEL"] || "gpt-4o-mini",'],
+]);
+
 // 9. Plantilla de variables de entorno y guía de despliegue
 write(
   ".env.example",
-  `# --- Cliente (se envían al navegador: solo URL y clave pública) ---
+  `# --- Cliente (se envían al navegador: SOLO información pública) ---
 VITE_SUPABASE_URL=https://TU-PROYECTO.supabase.co
 VITE_SUPABASE_PUBLISHABLE_KEY=
 VITE_SUPABASE_PROJECT_ID=
+VITE_VAPID_PUBLIC_KEY=
+VITE_PIX_KEY=
 
-# --- Servidor ---
+# --- Servidor (secretos: nunca con prefijo VITE_) ---
 SUPABASE_URL=https://TU-PROYECTO.supabase.co
 SUPABASE_PUBLISHABLE_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
-PUBLIC_SITE_URL=https://tudominio.com
+PUBLIC_SITE_URL=https://vipremesas.com
 
 # Pagos
 MERCADOPAGO_ACCESS_TOKEN=
 MERCADOPAGO_WEBHOOK_SECRET=
 
-# Recargas
+# Recargas (proveedor manual mientras no exista API real)
 RECARGAS_API_URL=
 RECARGAS_API_KEY=
 RECARGA_WEBHOOK_SECRET=
@@ -191,7 +232,12 @@ EMAILJS_SERVICE_ID=
 EMAILJS_TEMPLATE_ID=
 EMAILJS_PUBLIC_KEY=
 EMAILJS_PRIVATE_KEY=
-EMAILJS_ORIGIN=https://tudominio.com
+EMAILJS_ORIGIN=https://vipremesas.com
+
+# Traducción del currículo (API compatible con OpenAI; opcional)
+AI_API_URL=https://api.openai.com/v1/chat/completions
+AI_API_KEY=
+AI_MODEL=gpt-4o-mini
 
 # Notificaciones push
 VAPID_PUBLIC_KEY=
@@ -309,7 +355,7 @@ jobs:
 
 write(
   ".github/workflows/deploy.yml",
-  `name: Deploy VPS
+  `name: Deploy Cloudflare Workers
 
 # Actualizar la web en producción: haz push a main (o lánzalo a mano).
 on:
@@ -326,19 +372,87 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Desplegar por SSH
-        uses: appleboy/ssh-action@v1.2.0
+      - uses: oven-sh/setup-bun@v2
         with:
-          host: \${{ secrets.VPS_HOST }}
-          username: \${{ secrets.VPS_USER }}
-          key: \${{ secrets.VPS_SSH_KEY }}
-          script: |
-            set -e
-            cd \${{ secrets.VPS_PATH }}
-            git pull --ff-only
-            bun install --frozen-lockfile
-            bun run build
-            pm2 restart vip-remesas || pm2 start "bun run start" --name vip-remesas
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - run: bun run build
+        env:
+          VITE_SUPABASE_URL: \${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: \${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+          VITE_SUPABASE_PROJECT_ID: \${{ secrets.VITE_SUPABASE_PROJECT_ID }}
+          VITE_VAPID_PUBLIC_KEY: \${{ secrets.VITE_VAPID_PUBLIC_KEY }}
+          VITE_PIX_KEY: \${{ secrets.VITE_PIX_KEY }}
+      - name: Publicar en Cloudflare
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: \${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: \${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: deploy
+`,
+);
+
+// 11c. Guía de despliegue en Cloudflare Workers
+write(
+  "README-CLOUDFLARE.md",
+  `# VIP Remesas Express — Cloudflare Workers
+
+Aplicación full-stack (TanStack Start) servida por un Worker. Base de datos,
+autenticación y RLS siguen en Supabase; los pagos siguen siendo manuales.
+
+## 1. Instalar y compilar
+\`\`\`bash
+bun install
+bun run typecheck
+bun run build
+bun run deploy:dry-run     # comprueba el Worker sin publicar
+\`\`\`
+
+## 2. Desarrollo con el runtime real del Worker
+\`\`\`bash
+bun run dev        # Vite + entorno Cloudflare
+bun run preview    # wrangler dev sobre el build de producción
+\`\`\`
+
+## 3. Publicar
+\`\`\`bash
+bunx wrangler login
+bun run deploy
+\`\`\`
+También se publica solo en cada push a \`main\` (\`.github/workflows/deploy.yml\`)
+con los secrets \`CLOUDFLARE_API_TOKEN\` y \`CLOUDFLARE_ACCOUNT_ID\`.
+
+## 4. Variables y secretos
+Las \`VITE_*\` son públicas y se inyectan al compilar (build o secrets del repo).
+Los secretos del servidor van en el Worker, nunca en el navegador:
+\`\`\`bash
+bunx wrangler secret put PUBLIC_SITE_URL
+bunx wrangler secret put MERCADOPAGO_ACCESS_TOKEN
+bunx wrangler secret put MERCADOPAGO_WEBHOOK_SECRET
+bunx wrangler secret put EMAILJS_SERVICE_ID
+bunx wrangler secret put EMAILJS_TEMPLATE_ID
+bunx wrangler secret put EMAILJS_PUBLIC_KEY
+bunx wrangler secret put EMAILJS_PRIVATE_KEY
+bunx wrangler secret put VAPID_PUBLIC_KEY
+bunx wrangler secret put VAPID_PRIVATE_KEY
+bunx wrangler secret put PUSH_DISPATCH_SECRET
+bunx wrangler secret put SUPABASE_URL
+bunx wrangler secret put SUPABASE_PUBLISHABLE_KEY
+bunx wrangler secret put SUPABASE_SERVICE_ROLE_KEY
+\`\`\`
+
+## 5. Conectar vipremesas.com (cuando lo decidas)
+1. Añade el dominio a Cloudflare y apunta los nameservers en tu registrador.
+2. Workers & Pages > vip-remesas-express > Settings > Domains & Routes >
+   *Add custom domain* → \`vipremesas.com\` y \`www.vipremesas.com\`.
+3. Actualiza \`PUBLIC_SITE_URL=https://vipremesas.com\` (secret del Worker).
+4. Supabase Auth: Site URL \`https://vipremesas.com\`, Redirect URLs \`https://vipremesas.com/**\`.
+5. Mercado Pago: webhook \`https://vipremesas.com/api/public/mercadopago/webhook\`.
+6. Triggers de push en la base de datos: \`https://vipremesas.com/api/public/push/dispatch\`.
+
+## 6. Límites del runtime del Worker
+\`nodejs_compat\` cubre \`crypto\`, \`createHmac\`, \`timingSafeEqual\` y \`Buffer\`.
+No añadas paquetes que necesiten binarios nativos, procesos hijos o disco real.
 `,
 );
 
@@ -444,7 +558,8 @@ patch("README-DESPLIEGUE.md", [
 - Sube esta carpeta a tu repositorio y crea la rama \`main\`.
 - Secrets del repo: \`VITE_SUPABASE_URL\`, \`VITE_SUPABASE_PUBLISHABLE_KEY\`,
   \`VITE_SUPABASE_PROJECT_ID\`, \`VPS_HOST\`, \`VPS_USER\`, \`VPS_SSH_KEY\`, \`VPS_PATH\`.
-- Cada push a \`main\` compila (\`ci.yml\`) y despliega al VPS (\`deploy.yml\`).
+- Cada push a \`main\` compila (\`ci.yml\`) y publica en Cloudflare Workers (\`deploy.yml\`).
+- Guía completa de Cloudflare: \`README-CLOUDFLARE.md\`.
 - Apps Android/iPhone: ver \`MOVIL.md\`.
 
 ## 7. Play Store (TWA)`,

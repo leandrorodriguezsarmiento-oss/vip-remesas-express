@@ -5,13 +5,13 @@ import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { formatMoney } from "@/lib/remittance";
 import { CUBA_PROVINCES } from "@/lib/provinces";
-import { deleteUserAsAdmin, listOrganizers, setOrganizerRole, setUserProvince } from "@/lib/admin.functions";
+import { deleteUserAsAdmin, listOrganizers, setOrganizerRole, setUserProvince, updateTransactionWorkflow } from "@/lib/admin.functions";
 import { sendTransactionStatusEmail } from "@/lib/emails.functions";
 import { useLiveAdmin } from "@/hooks/use-live-admin";
 import { usePendingCounts } from "@/hooks/use-pending-counts";
 
 import { toast } from "sonner";
-import { Shield, Loader2, Trash2, Plus, Check, RefreshCw, Smartphone, Zap, BarChart3, CreditCard, Copy, UserCheck, Folder, FolderOpen, ChevronDown } from "lucide-react";
+import { Shield, Loader2, Trash2, Plus, Check, RefreshCw, RotateCcw, Smartphone, Zap, BarChart3, CreditCard, Copy, UserCheck, Folder, FolderOpen, ChevronDown } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   beforeLoad: async ({ context }) => {
@@ -27,7 +27,7 @@ export const Route = createFileRoute("/_authenticated/admin")({
   component: AdminPanel,
 });
 
-type Tab = "tx" | "recargas" | "rates" | "promos" | "users" | "api" | "banners" | "payments" | "mp" | "reports" | "store" | "orders" | "myday" | "flights";
+type Tab = "tx" | "recargas" | "rates" | "promos" | "users" | "api" | "banners" | "payments" | "mp" | "reports" | "store" | "orders" | "myday" | "flights" | "migrantes";
 
 function AdminPanel() {
   const { isAdmin, user } = Route.useRouteContext();
@@ -39,7 +39,7 @@ function AdminPanel() {
   const tabs: [Tab, string][] = isAdmin
     ? [
         ["tx", "Remesas"], ["recargas", "Recargas"], ["orders", "Pedidos"], ["reports", "Reportes"],
-        ["rates", "Tasas"], ["promos", "Promos"], ["banners", "Banners"], ["flights", "Pasajes"],
+        ["rates", "Tasas"], ["promos", "Promos"], ["banners", "Banners"], ["flights", "Pasajes"], ["migrantes", "Migrantes"],
         ["store", "VipShop"],
         ["payments", "Cuentas de pago"], ["mp", "Mercado Pago"], ["users", "Usuarios"], ["api", "API"],
       ]
@@ -115,6 +115,7 @@ function AdminPanel() {
       {isAdmin && tab === "promos" && <PromosTab />}
       {isAdmin && tab === "banners" && <BannersTab />}
       {isAdmin && tab === "flights" && <FlightsTab />}
+      {isAdmin && tab === "migrantes" && <MigrantResourcesTab />}
       {isAdmin && tab === "payments" && <PaymentMethodsTab />}
       {isAdmin && tab === "mp" && <MercadoPagoTab />}
       {isAdmin && tab === "users" && <UsersTab />}
@@ -127,7 +128,13 @@ function AdminPanel() {
 
 // ----------------- Transacciones -----------------
 const STATUS_ES: Record<string, string> = {
-  pending: "Pendiente", processing: "Procesando", completed: "Completada", rejected: "Rechazada",
+  pending: "Pendiente",
+  pending_payment: "Pendiente de pago",
+  payment_reported: "Pago informado",
+  payment_confirmed: "Pago confirmado",
+  processing: "Procesando",
+  completed: "Completada",
+  rejected: "Rechazada",
 };
 
 type AdminTx = {
@@ -249,39 +256,64 @@ function TransactionsTab({ isAdmin }: { isAdmin: boolean }) {
     refetchInterval: 10000,
     refetchIntervalInBackground: true,
     queryFn: async () => {
-      // Sólo remesas con pago informado: nada llega al panel antes de pagarse.
+      // Sólo remesas donde el cliente ya informó el pago: nada llega antes de eso.
       const { data, error } = await supabase.from("transactions")
-        .select("*").not("paid_at", "is", null)
+        .select("*")
+        .in("status", ["payment_reported", "payment_confirmed", "processing", "completed", "rejected"])
         .order("created_at", { ascending: false }).limit(100);
       if (error) throw error;
-      return data;
+      // Nombre de usuario de quien envía, para saber a quién se le aprueba.
+      const ids = [...new Set((data ?? []).map((t) => t.user_id))];
+      let byId: Record<string, string> = {};
+      if (ids.length) {
+        const { data: profs } = await supabase.from("profiles")
+          .select("id, username, full_name").in("id", ids);
+        byId = Object.fromEntries(
+          (profs ?? []).map((p) => [p.id, p.username || p.full_name || ""]),
+        );
+      }
+      return (data ?? []).map((t) => ({ ...t, sender_username: byId[t.user_id] ?? "" }));
     },
   });
 
   const organizers = useOrganizers(isAdmin);
   const [assign, setAssign] = useState<Record<string, string>>({});
 
-  const upd = useMutation({
-    mutationFn: async ({ id, status, assignedTo }: { id: string; status: "pending" | "processing" | "completed" | "rejected"; assignedTo?: string | null }) => {
-      const patch: { status: typeof status; assigned_to?: string | null } = { status };
-      if (status === "processing") patch.assigned_to = assignedTo || null;
-      const { error } = await supabase.from("transactions").update(patch).eq("id", id);
-      if (error) throw error;
+  const workflow = useServerFn(updateTransactionWorkflow);
+  const act = useMutation({
+    mutationFn: async (input: {
+      transactionId: string;
+      action: "confirm_payment" | "start_processing" | "complete" | "reject";
+      assignedTo?: string | null;
+      reason?: string;
+    }) => {
+      const res = await workflow({ data: input });
+      if (!res.ok) return res;
       try {
-        await sendTransactionStatusEmail({ data: { transactionId: id, status } });
+        await sendTransactionStatusEmail({ data: { transactionId: input.transactionId, status: res.status } });
       } catch {
         /* el correo es complementario: no bloquea el cambio de estado */
       }
+      return res;
     },
-    onSuccess: () => { toast.success("Estado actualizado"); qc.invalidateQueries({ queryKey: ["admin-tx"] }); },
+    onSuccess: (res) => {
+      if (!res.ok) { toast.error(res.message); return; }
+      toast.success("Estado actualizado");
+      qc.invalidateQueries({ queryKey: ["admin-tx"] });
+    },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Error"),
   });
 
+  const rejectTx = (id: string) => {
+    const reason = window.prompt("Motivo del rechazo (mínimo 3 caracteres)")?.trim();
+    if (!reason || reason.length < 3) return;
+    act.mutate({ transactionId: id, action: "reject", reason });
+  };
 
   if (q.isLoading) return <p className="text-sm text-muted-foreground">Cargando…</p>;
 
   const all = q.data ?? [];
-  const active = all.filter((t) => t.status === "pending" || t.status === "processing");
+  const active = all.filter((t) => t.status !== "completed" && t.status !== "rejected");
   const done = all.filter((t) => t.status === "completed" || t.status === "rejected");
   const rows = view === "active" ? active : done;
 
@@ -306,6 +338,11 @@ function TransactionsTab({ isAdmin }: { isAdmin: boolean }) {
                 <span className="mr-1 text-gold">#{(t as { order_no?: number }).order_no ?? "—"}</span>
                 {t.recipient_name}
               </div>
+              {(t as { sender_username?: string }).sender_username && (
+                <div className="text-[11px] font-extrabold text-gold">
+                  Envía: {(t as { sender_username?: string }).sender_username}
+                </div>
+              )}
               <div className="text-[11px] font-semibold text-muted-foreground">
                 {new Date(t.created_at).toLocaleString("es")}
               </div>
@@ -326,24 +363,47 @@ function TransactionsTab({ isAdmin }: { isAdmin: boolean }) {
           </div>
 
           <AssignedBadge organizers={organizers.data ?? []} id={(t as { assigned_to?: string | null }).assigned_to} />
-          {isAdmin && t.status !== "completed" && t.status !== "rejected" && (
+          <p className="text-[11px] font-bold text-gold">Estado: {STATUS_ES[t.status] ?? t.status}</p>
+
+          {isAdmin && t.status === "payment_reported" && (
+            <div className="flex flex-wrap gap-1">
+              <button onClick={() => act.mutate({ transactionId: t.id, action: "confirm_payment" })}
+                disabled={act.isPending}
+                className="rounded-full bg-gradient-gold px-3 py-1.5 text-[10px] font-bold text-primary-foreground shadow-gold disabled:opacity-60">
+                Confirmar pago recibido
+              </button>
+              <button onClick={() => rejectTx(t.id)} disabled={act.isPending}
+                className="rounded-full border border-destructive px-3 py-1.5 text-[10px] font-bold text-destructive disabled:opacity-60">
+                Rechazar pago
+              </button>
+            </div>
+          )}
+
+          {isAdmin && t.status === "payment_confirmed" && (
             <AssignAndSend
               organizers={organizers.data ?? []}
               value={assign[t.id] ?? (t as { assigned_to?: string | null }).assigned_to ?? ""}
               onChange={(v) => setAssign((prev) => ({ ...prev, [t.id]: v }))}
-              onSend={(orgId) => upd.mutate({ id: t.id, status: "processing", assignedTo: orgId })}
-              disabled={upd.isPending}
+              onSend={(orgId) => act.mutate({ transactionId: t.id, action: "start_processing", assignedTo: orgId })}
+              disabled={act.isPending}
             />
           )}
-          <div className="flex flex-wrap gap-1">
-            {(isAdmin ? (["pending", "completed", "rejected"] as const) : (["completed"] as const)).map((s) => (
-              <button key={s}
-                onClick={() => upd.mutate({ id: t.id, status: s })}
-                className={`rounded-full px-2 py-1 text-[10px] font-semibold ${t.status === s ? "bg-gradient-gold text-primary-foreground" : "border border-border bg-background text-muted-foreground"}`}>
-                {STATUS_ES[s]}
+
+          {t.status === "processing" && (
+            <div className="flex flex-wrap gap-1">
+              <button onClick={() => act.mutate({ transactionId: t.id, action: "complete" })}
+                disabled={act.isPending}
+                className="rounded-full bg-gradient-gold px-3 py-1.5 text-[10px] font-bold text-primary-foreground shadow-gold disabled:opacity-60">
+                Completar
               </button>
-            ))}
-          </div>
+              {isAdmin && (
+                <button onClick={() => rejectTx(t.id)} disabled={act.isPending}
+                  className="rounded-full border border-destructive px-3 py-1.5 text-[10px] font-bold text-destructive disabled:opacity-60">
+                  Rechazar
+                </button>
+              )}
+            </div>
+          )}
         </div>
       ))}
       {rows.length === 0 && (
@@ -906,7 +966,13 @@ function RecargasTab({ isAdmin = true }: { isAdmin?: boolean }) {
 }
 
 // ----------------- Reportes: totales por día -----------------
+const REPORTS_CUTOFF_KEY = "vip-reports-cutoff";
+
 function ReportsTab() {
+  const [cutoff, setCutoff] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    return window.localStorage.getItem(REPORTS_CUTOFF_KEY);
+  });
   const q = useQuery({
     queryKey: ["admin-reports"],
     queryFn: async () => {
@@ -917,11 +983,26 @@ function ReportsTab() {
       return data;
     },
   });
+
+  const resetReports = () => {
+    if (!confirm("¿Reiniciar los reportes? Los totales empezarán de cero desde ahora (no se borra ninguna remesa).")) return;
+    const now = new Date().toISOString();
+    window.localStorage.setItem(REPORTS_CUTOFF_KEY, now);
+    setCutoff(now);
+    toast.success("Reportes reiniciados");
+  };
+  const showAll = () => {
+    window.localStorage.removeItem(REPORTS_CUTOFF_KEY);
+    setCutoff(null);
+    toast.success("Mostrando el historial completo");
+  };
+
   if (q.isLoading) return <p className="text-sm text-muted-foreground">Cargando…</p>;
 
   // Agrupar por día (últimos 14)
+  const rows = (q.data ?? []).filter((t) => !cutoff || t.created_at > cutoff);
   const byDay = new Map<string, { total: number; count: number; completed: number }>();
-  q.data?.forEach((t) => {
+  rows.forEach((t) => {
     const day = new Date(t.created_at).toISOString().slice(0, 10);
     const b = byDay.get(day) ?? { total: 0, count: 0, completed: 0 };
     b.total += Number(t.total_brl);
@@ -935,6 +1016,26 @@ function ReportsTab() {
 
   return (
     <div className="space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-card p-3">
+        <div>
+          <p className="text-xs font-semibold">Reiniciar reportes</p>
+          <p className="text-[11px] text-muted-foreground">
+            {cutoff
+              ? `Contando desde ${new Date(cutoff).toLocaleString("es")}`
+              : "Mostrando todo el historial"}
+          </p>
+        </div>
+        <div className="flex gap-2">
+          {cutoff && (
+            <button onClick={showAll} className="rounded-lg border border-border px-3 py-1.5 text-[11px] font-semibold">
+              Ver todo
+            </button>
+          )}
+          <button onClick={resetReports} className="flex items-center gap-1 rounded-lg bg-gradient-gold px-3 py-1.5 text-[11px] font-bold text-primary-foreground shadow-gold">
+            <RotateCcw className="h-3 w-3" /> Reiniciar
+          </button>
+        </div>
+      </div>
       <div className="grid grid-cols-2 gap-2">
         <div className="rounded-xl border border-gold/40 bg-card p-3">
           <p className="text-[10px] uppercase text-muted-foreground">Total procesado</p>
@@ -969,7 +1070,7 @@ function ReportsTab() {
           <UserCheck className="h-4 w-4 text-gold" />
           <p className="text-xs font-extrabold uppercase text-muted-foreground">Trabajo de cada organizador por día</p>
         </div>
-        <OrganizerReports />
+        <OrganizerReports cutoff={cutoff} />
       </div>
     </div>
   );
@@ -1752,11 +1853,11 @@ function DaySummaryCard({ day, list, title }: { day: string; list: DailyRow[]; t
 }
 
 /** Reporte del admin: qué hizo cada organizador, por día. */
-function OrganizerReports() {
+function OrganizerReports({ cutoff }: { cutoff: string | null }) {
   const organizers = useOrganizers(true);
   const q = useDailyWork(true, null);
   if (q.isLoading || organizers.isLoading) return <p className="text-sm text-muted-foreground">Cargando…</p>;
-  const rows = (q.data ?? []).filter((r) => r.assigned_to);
+  const rows = (q.data ?? []).filter((r) => r.assigned_to && (!cutoff || r.when > cutoff));
   if (rows.length === 0) {
     return <p className="text-sm text-muted-foreground">Aún no hay trabajo asignado a organizadores.</p>;
   }
@@ -1882,6 +1983,156 @@ function FlightsTab() {
           </div>
           <MiniInput label="Notas" value={f.notes ?? ""}
             onChange={(v) => update.mutate({ id: f.id, notes: v || null })} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ----------------- VipMigrante (recursos gratis) -----------------
+type MigrantRow = {
+  id: string;
+  kind: "lugar" | "contacto" | "app";
+  title: string;
+  description: string | null;
+  address: string | null;
+  phone: string | null;
+  url: string | null;
+  state_code: string | null;
+  city: string | null;
+  sort_order: number;
+  active: boolean;
+};
+
+const KIND_LABEL: Record<MigrantRow["kind"], string> = {
+  lugar: "Lugar / trámite",
+  contacto: "Contacto útil",
+  app: "App necesaria",
+};
+
+function MigrantResourcesTab() {
+  const qc = useQueryClient();
+  const q = useQuery({
+    queryKey: ["admin-migrant-resources"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("migrant_resources").select("*").order("sort_order");
+      if (error) throw error;
+      return data as unknown as MigrantRow[];
+    },
+  });
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: ["admin-migrant-resources"] });
+    qc.invalidateQueries({ queryKey: ["migrant-resources"] });
+  };
+  const update = useMutation({
+    mutationFn: async (v: { id: string } & Partial<Omit<MigrantRow, "id">>) => {
+      const { id, ...patch } = v;
+      const { error } = await supabase.from("migrant_resources").update(patch).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => { toast.success("Recurso actualizado"); invalidate(); },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Error"),
+  });
+  const add = useMutation({
+    mutationFn: async (r: { kind: MigrantRow["kind"]; title: string; description: string | null; address: string | null; phone: string | null; url: string | null; state_code: string | null; city: string | null }) => {
+      const { error } = await supabase.from("migrant_resources").insert({ ...r, sort_order: (q.data?.length ?? 0) + 1 });
+      if (error) throw error;
+    },
+    onSuccess: () => { toast.success("Recurso creado"); invalidate(); },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Error"),
+  });
+  const del = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("migrant_resources").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => { toast.success("Recurso eliminado"); invalidate(); },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Error"),
+  });
+
+  const [kind, setKind] = useState<MigrantRow["kind"]>("lugar");
+  const [title, setTitle] = useState("");
+  const [desc, setDesc] = useState("");
+  const [addr, setAddr] = useState("");
+  const [phone, setPhone] = useState("");
+  const [url, setUrl] = useState("");
+  const [state, setState] = useState("");
+  const [city, setCity] = useState("");
+
+  return (
+    <div className="space-y-3">
+      <div className="rounded-xl border border-gold/40 bg-card p-3 space-y-2">
+        <p className="text-xs font-semibold uppercase text-muted-foreground">Nuevo recurso gratis para migrantes</p>
+        <div className="grid grid-cols-2 gap-2">
+          <label className="space-y-1">
+            <span className="text-[10px] font-semibold uppercase text-muted-foreground">Tipo</span>
+            <select value={kind} onChange={(e) => setKind(e.target.value as MigrantRow["kind"])}
+              className="w-full rounded-lg border border-border bg-background px-2 py-1.5 text-xs">
+              <option value="lugar">Lugar / trámite</option>
+              <option value="contacto">Contacto útil</option>
+              <option value="app">App necesaria</option>
+            </select>
+          </label>
+          <MiniInput label="Título" value={title} onChange={setTitle} />
+        </div>
+        <MiniInput label="Descripción" value={desc} onChange={setDesc} />
+        <div className="grid grid-cols-2 gap-2">
+          <MiniInput label="Dirección" value={addr} onChange={setAddr} />
+          <MiniInput label="Teléfono" value={phone} onChange={setPhone} />
+        </div>
+        <MiniInput label="Enlace (web o app)" value={url} onChange={setUrl} />
+        <div className="grid grid-cols-2 gap-2">
+          <MiniInput label="Estado (ej. RR, SP) vacío = todo Brasil" value={state} onChange={setState} />
+          <MiniInput label="Ciudad" value={city} onChange={setCity} />
+        </div>
+        <button
+          onClick={() => {
+            if (!title) return toast.error("Título requerido");
+            add.mutate({
+              kind, title,
+              description: desc || null, address: addr || null, phone: phone || null,
+              url: url || null, state_code: state.trim().toUpperCase() || null, city: city || null,
+            });
+            setTitle(""); setDesc(""); setAddr(""); setPhone(""); setUrl(""); setState(""); setCity("");
+          }}
+          className="flex w-full items-center justify-center gap-1 rounded-lg bg-gradient-gold px-3 py-1.5 text-xs font-semibold text-primary-foreground shadow-gold">
+          <Plus className="h-3 w-3" /> Añadir recurso
+        </button>
+      </div>
+
+      {q.data?.map((r) => (
+        <div key={r.id} className="space-y-2 rounded-xl border border-border bg-card p-3">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-bold">
+              {r.kind === "lugar" ? "📍" : r.kind === "contacto" ? "📞" : "📱"} {r.title}
+              <span className="ml-2 rounded-full bg-secondary px-2 py-0.5 text-[9px] font-extrabold uppercase text-muted-foreground">
+                {KIND_LABEL[r.kind]}{r.state_code ? ` · ${r.state_code}` : ""}
+              </span>
+            </p>
+            <div className="flex items-center gap-2">
+              <button onClick={() => update.mutate({ id: r.id, active: !r.active })}
+                className={`rounded-full px-2 py-0.5 text-[10px] font-extrabold ${r.active ? "bg-success/20 text-success" : "bg-muted text-muted-foreground"}`}>
+                {r.active ? "Activo" : "Inactivo"}
+              </button>
+              <button onClick={() => del.mutate(r.id)} className="rounded-md p-1 text-destructive hover:bg-destructive/10">
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+          <MiniInput label="Descripción" value={r.description ?? ""}
+            onChange={(v) => update.mutate({ id: r.id, description: v || null })} />
+          <div className="grid grid-cols-2 gap-2">
+            <MiniInput label="Dirección" value={r.address ?? ""}
+              onChange={(v) => update.mutate({ id: r.id, address: v || null })} />
+            <MiniInput label="Teléfono" value={r.phone ?? ""}
+              onChange={(v) => update.mutate({ id: r.id, phone: v || null })} />
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <MiniInput label="Enlace" value={r.url ?? ""}
+              onChange={(v) => update.mutate({ id: r.id, url: v || null })} />
+            <MiniInput label="Orden" value={String(r.sort_order)}
+              onChange={(v) => update.mutate({ id: r.id, sort_order: Number(v) || 0 })} />
+          </div>
         </div>
       ))}
     </div>

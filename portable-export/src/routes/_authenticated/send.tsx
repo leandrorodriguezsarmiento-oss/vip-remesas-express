@@ -5,10 +5,10 @@ import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import {
   ORIGINS, METHOD_CATEGORIES, CURRENCY_LABEL, formatMoney,
-  findRate, calcQuote,
+  findRate, calcQuote, generatePixCode,
   getOrigin, type OriginCode, type MethodCategory, type DestCurrency, type RateRow,
 } from "@/lib/remittance";
-import { createTransaction, markTransactionPaid } from "@/lib/orders.functions";
+import { createTransaction, reportTransactionPayment } from "@/lib/orders.functions";
 import { createMercadoPagoPreference } from "@/lib/payments.functions";
 import { PixQrCode } from "@/components/PixQrCode";
 import { FlagIcon } from "@/components/FlagIcon";
@@ -54,7 +54,7 @@ function SendFlow() {
   const [loading, setLoading] = useState(false);
   const createTx = useServerFn(createTransaction);
   const createMpPreference = useServerFn(createMercadoPagoPreference);
-  const markPaid = useServerFn(markTransactionPaid);
+  const reportPaid = useServerFn(reportTransactionPayment);
 
 
   const [origin, setOrigin] = useState<OriginCode | null>(null);
@@ -87,17 +87,17 @@ function SendFlow() {
       return (data ?? []) as unknown as Saved[];
     },
   });
-
-  const paymentMethods = useQuery({
-    queryKey: ["payment-methods", origin],
-    enabled: !!origin,
+  /** Nombre de usuario del cliente (para identificarlo en WhatsApp y en el panel). */
+  const myProfile = useQuery({
+    queryKey: ["my-username", user.id],
     queryFn: async () => {
-      const { data, error } = await supabase.from("payment_methods")
-        .select("*").eq("active", true).eq("origin_country", origin!).order("sort_order");
-      if (error) throw error;
-      return data;
+      const { data } = await supabase.from("profiles")
+        .select("username, full_name").eq("id", user.id).maybeSingle();
+      return data as { username: string | null; full_name: string | null } | null;
     },
   });
+  const myUsername = myProfile.data?.username ?? myProfile.data?.full_name ?? user.email ?? user.id;
+
 
 
   const rate = useMemo(
@@ -116,7 +116,37 @@ function SendFlow() {
     return METHOD_CATEGORIES.find((m) => m.id === method)!.currencies;
   }, [method]);
 
+  /** Número de VIP Remesas que recibe las órdenes de MX / EE.UU. / Europa. */
+  const WHATSAPP_NUMBER = "5595981006775";
+  /** Código PIX con el monto exacto (mismo formato que VipShop y Recargas). */
+  const pixPayCode = pixCode ?? (amountNum > 0 ? generatePixCode(tracking ?? "vip", amountNum) : null);
+
+  function openWhatsApp(trackingId: string) {
+    if (!origin || !originOpt || !method || !currency || !quote || !rate) return;
+    const lines = [
+      "*Nueva orden VIP Remesas*",
+      `Código: ${trackingId}`,
+      `Cliente: ${myUsername}`,
+      "",
+      `Origen: ${originOpt.name} (${originOpt.currency})`,
+      `Método: ${method === "transferencia" ? "Transferencia" : "Efectivo"}`,
+      `Moneda destino: ${currency}`,
+      `Envía: ${formatMoney(amountNum, originOpt.currency)}`,
+      `Tasa: 1 ${originOpt.currency} = ${rate.rate} ${currency}`,
+      `Recibe: ${formatMoney(quote.amountDest, currency)}`,
+      "",
+      `Destinatario: ${recipient.name}`,
+      `Teléfono: ${recipient.phone}`,
+      recipient.card ? `Tarjeta / Cuenta: ${recipient.card}` : null,
+      recipient.address ? `Dirección de entrega: ${recipient.address}` : null,
+      recipient.notes ? `Notas: ${recipient.notes}` : null,
+    ].filter(Boolean);
+    const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(lines.join("\n"))}`;
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
+
   async function createOrder() {
+
     if (!origin || !method || !currency || !rate || !quote || !originOpt) return;
     setLoading(true);
     try {
@@ -154,6 +184,9 @@ function SendFlow() {
       setPixCode(res.pixCode);
       setTxId(res.transactionId);
       setStep(6);
+      if (origin !== "BR") openWhatsApp(res.trackingId);
+
+
 
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Error al crear la orden");
@@ -188,10 +221,10 @@ function SendFlow() {
     if (!tracking) return;
     setLoading(true);
     try {
-      // El servidor registra el momento del pago y avisa al panel admin.
-      await markPaid({ data: { trackingId: tracking } });
+      // El servidor registra solamente el aviso. El admin confirma los fondos.
+      await reportPaid({ data: { trackingId: tracking } });
       await queryClient.invalidateQueries({ queryKey: ["transactions-recent"] });
-      toast.success("Pago informado. Procesando tu remesa.");
+      toast.success("Pago informado. Lo verificaremos antes de procesar.");
       setStep(7);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Error");
@@ -385,8 +418,9 @@ function SendFlow() {
           <button onClick={createOrder} disabled={loading}
             className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-gold px-4 py-4 text-base font-semibold text-primary-foreground shadow-gold transition-transform active:scale-95 animate-glow-pulse disabled:opacity-70 disabled:animate-none">
             {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}
-            Crear orden y pagar con PIX
+            {origin === "BR" ? "Crear orden y pagar con PIX" : "Crear orden y enviar por WhatsApp"}
           </button>
+
         </Step>
       )}
 
@@ -395,12 +429,12 @@ function SendFlow() {
         <div className="space-y-4">
           <div>
             <h1 className="font-display text-2xl font-bold">
-              {origin === "BR" ? "Paga con PIX" : "Datos para transferir"}
+              {origin === "BR" ? "Paga con PIX" : "Envía tu orden"}
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">
               {origin === "BR"
                 ? "Copia el código y pégalo en tu app de banco — el monto ya viene incluido."
-                : "Transfiere el total exacto usando estos datos. Pon tu código de seguimiento como concepto."}
+                : "Revisa los datos y envía la orden por WhatsApp para coordinar el pago y la entrega."}
             </p>
           </div>
           <div className="rounded-2xl border border-gold/40 bg-gradient-gold p-5 text-center shadow-gold">
@@ -423,53 +457,45 @@ function SendFlow() {
 
 
 
-          {origin === "BR" && pixCode && (
-            <div className="rounded-xl border border-border bg-card p-4">
-              <p className="text-xs text-muted-foreground">Escanea el QR con tu app del banco</p>
-              <div className="mt-3">
-                <PixQrCode value={pixCode} fileName={`pix-${tracking}.png`} />
+          {origin === "BR" && pixPayCode && (
+            <div className="space-y-3 rounded-2xl border border-gold/40 bg-card p-3">
+              <p className="text-xs font-extrabold uppercase text-muted-foreground">
+                Paga por PIX — el monto exacto ya viene incluido
+              </p>
+              <div className="rounded-xl bg-gradient-vip p-3">
+                <p className="text-[11px] font-extrabold uppercase text-muted-foreground">Monto exacto</p>
+                <p className="font-display text-2xl font-extrabold text-gold">
+                  {formatMoney(amountNum, "BRL")}
+                </p>
               </div>
-              <p className="mt-4 text-xs text-muted-foreground">PIX copia y pega (monto incluido)</p>
-              <p className="mt-1 break-all font-mono text-[11px] leading-relaxed">{pixCode}</p>
               <button
-                onClick={() => { navigator.clipboard.writeText(pixCode); toast.success("Código copiado"); }}
-                className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-background px-4 py-2 text-sm font-medium hover:border-gold">
+                onClick={() => { navigator.clipboard.writeText(pixPayCode); toast.success("Código PIX copiado"); }}
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-sky px-4 py-3 text-sm font-extrabold text-white shadow-glow transition-transform active:scale-95">
                 <Copy className="h-4 w-4" /> Copiar código PIX
               </button>
+              <PixQrCode value={pixPayCode} fileName={`pix-qr-${tracking ?? "pago"}.png`} />
             </div>
           )}
 
-          {origin !== "BR" && (
-            <div className="space-y-2">
-              {paymentMethods.isLoading && <p className="text-sm text-muted-foreground">Cargando datos…</p>}
-              {paymentMethods.data && paymentMethods.data.length === 0 && (
-                <div className="rounded-xl border border-dashed border-border bg-card/60 p-4 text-sm text-muted-foreground">
-                  Aún no hay métodos de pago configurados para este origen. El admin debe añadirlos.
-                </div>
-              )}
-              {paymentMethods.data?.map((pm) => (
-                <div key={pm.id} className="rounded-xl border border-border bg-card p-4">
-                  <div className="flex items-center justify-between">
-                    <p className="font-semibold text-gold">{pm.label}</p>
-                    <button
-                      onClick={() => { navigator.clipboard.writeText(pm.instructions); toast.success("Datos copiados"); }}
-                      className="rounded-md p-1 hover:bg-accent">
-                      <Copy className="h-4 w-4" />
-                    </button>
-                  </div>
-                  <pre className="mt-2 whitespace-pre-wrap break-words font-mono text-[11px] leading-relaxed text-muted-foreground">
-{pm.instructions}
-                  </pre>
-                </div>
-              ))}
-            </div>
+          {origin !== "BR" && tracking && (
+            <button
+              onClick={() => openWhatsApp(tracking)}
+              className="flex w-full items-center justify-center gap-2 rounded-xl border border-primary bg-primary px-4 py-3.5 text-sm font-semibold text-primary-foreground">
+              <Sparkles className="h-4 w-4" /> Enviar datos por WhatsApp
+            </button>
           )}
 
-          <button onClick={confirmPaid} disabled={loading}
+
+          <button onClick={() => { confirmPaid(); if (origin === "BR" && tracking) openWhatsApp(tracking); }} disabled={loading}
             className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-gold px-4 py-3.5 text-sm font-semibold text-primary-foreground shadow-gold disabled:opacity-70">
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
             Ya pagué, verificar
           </button>
+          {origin === "BR" && tracking && (
+            <p className="text-center text-xs text-muted-foreground">
+              Al verificar se abrirá WhatsApp para enviarnos el comprobante de pago.
+            </p>
+          )}
         </div>
       )}
 
@@ -481,7 +507,7 @@ function SendFlow() {
             <Check className="h-10 w-10 text-primary-foreground" />
           </div>
           <h1 className="animate-rise font-display text-3xl font-bold text-gradient-gold">¡Enviado!</h1>
-          <p className="mt-2 text-sm text-muted-foreground">Tu remesa está siendo procesada.</p>
+          <p className="mt-2 text-sm text-muted-foreground">Recibimos tu aviso de pago y lo verificaremos manualmente.</p>
 
           {/* Vuelo origen → Cuba */}
           <div className="relative mx-auto mt-5 flex w-64 items-center justify-between">
@@ -496,9 +522,9 @@ function SendFlow() {
             </span>
           </div>
           <div className="animate-rise mx-auto mt-6 max-w-xs rounded-2xl border border-gold/40 bg-card p-5 shadow-glow">
-            <p className="text-sm font-bold text-foreground">Estado: en proceso</p>
+            <p className="text-sm font-bold text-foreground">Estado: pago pendiente de verificación</p>
             <p className="mt-1 text-xs font-semibold text-muted-foreground">
-              Te avisamos por notificación cuando esté completada.
+              Te avisaremos al confirmar el pago y en cada avance de la remesa.
             </p>
           </div>
 

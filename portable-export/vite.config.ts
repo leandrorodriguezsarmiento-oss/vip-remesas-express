@@ -1,5 +1,7 @@
 import { defineConfig } from "vite";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
+import { cloudflare } from "@cloudflare/vite-plugin";
+import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import tsConfigPaths from "vite-tsconfig-paths";
 
@@ -8,8 +10,9 @@ export default defineConfig({
   plugins: [
     tsConfigPaths(),
     tailwindcss(),
-    // Salida Node autohospedable (VPS + pm2/systemd detrás de Nginx).
-    // Para otros destinos define NITRO_PRESET (vercel, netlify, cloudflare-module...).
+    // Entorno SSR de Cloudflare Workers (lee wrangler.jsonc).
+    cloudflare({ viteEnvironment: { name: "ssr" } }),
     tanstackStart({ server: { entry: "server" } }),
+    react(),
   ],
 });

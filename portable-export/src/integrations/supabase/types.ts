@@ -302,6 +302,54 @@ export type Database = {
           },
         ]
       }
+      migrant_resources: {
+        Row: {
+          active: boolean
+          address: string | null
+          city: string | null
+          created_at: string
+          description: string | null
+          id: string
+          kind: string
+          phone: string | null
+          sort_order: number
+          state_code: string | null
+          title: string
+          updated_at: string
+          url: string | null
+        }
+        Insert: {
+          active?: boolean
+          address?: string | null
+          city?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          kind?: string
+          phone?: string | null
+          sort_order?: number
+          state_code?: string | null
+          title: string
+          updated_at?: string
+          url?: string | null
+        }
+        Update: {
+          active?: boolean
+          address?: string | null
+          city?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          kind?: string
+          phone?: string | null
+          sort_order?: number
+          state_code?: string | null
+          title?: string
+          updated_at?: string
+          url?: string | null
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           body: string | null
@@ -813,6 +861,47 @@ export type Database = {
         }
         Relationships: []
       }
+      transaction_audit_log: {
+        Row: {
+          action: string
+          actor_id: string | null
+          created_at: string
+          details: Json
+          from_status: string | null
+          id: string
+          to_status: string | null
+          transaction_id: string
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          created_at?: string
+          details?: Json
+          from_status?: string | null
+          id?: string
+          to_status?: string | null
+          transaction_id: string
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          created_at?: string
+          details?: Json
+          from_status?: string | null
+          id?: string
+          to_status?: string | null
+          transaction_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transaction_audit_log_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       transactions: {
         Row: {
           amount_brl: number
@@ -831,7 +920,12 @@ export type Database = {
           origin_country: string
           origin_currency: string
           paid_at: string | null
+          payment_confirmed_at: string | null
+          payment_confirmed_by: string | null
           payment_method: string
+          payment_rejected_at: string | null
+          payment_rejection_reason: string | null
+          payment_reported_at: string | null
           pix_code: string | null
           recipient_card: string | null
           recipient_name: string
@@ -858,7 +952,12 @@ export type Database = {
           origin_country?: string
           origin_currency?: string
           paid_at?: string | null
+          payment_confirmed_at?: string | null
+          payment_confirmed_by?: string | null
           payment_method: string
+          payment_rejected_at?: string | null
+          payment_rejection_reason?: string | null
+          payment_reported_at?: string | null
           pix_code?: string | null
           recipient_card?: string | null
           recipient_name: string
@@ -885,7 +984,12 @@ export type Database = {
           origin_country?: string
           origin_currency?: string
           paid_at?: string | null
+          payment_confirmed_at?: string | null
+          payment_confirmed_by?: string | null
           payment_method?: string
+          payment_rejected_at?: string | null
+          payment_rejection_reason?: string | null
+          payment_reported_at?: string | null
           pix_code?: string | null
           recipient_card?: string | null
           recipient_name?: string
@@ -973,11 +1077,27 @@ export type Database = {
         Returns: boolean
       }
       reset_rate_limit: { Args: { _key: string }; Returns: undefined }
+      transition_transaction_workflow: {
+        Args: {
+          _action: string
+          _assigned_to?: string
+          _reason?: string
+          _transaction_id: string
+        }
+        Returns: Database["public"]["Enums"]["tx_status"]
+      }
     }
     Enums: {
       app_role: "admin" | "user" | "organizador" | "restaurante"
       recarga_status: "pending" | "processing" | "completed" | "rejected"
-      tx_status: "pending" | "processing" | "completed" | "rejected"
+      tx_status:
+        | "pending"
+        | "processing"
+        | "completed"
+        | "rejected"
+        | "pending_payment"
+        | "payment_reported"
+        | "payment_confirmed"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -993,12 +1113,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1022,11 +1142,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1047,11 +1167,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1072,11 +1192,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1089,11 +1209,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1107,7 +1227,15 @@ export const Constants = {
     Enums: {
       app_role: ["admin", "user", "organizador", "restaurante"],
       recarga_status: ["pending", "processing", "completed", "rejected"],
-      tx_status: ["pending", "processing", "completed", "rejected"],
+      tx_status: [
+        "pending",
+        "processing",
+        "completed",
+        "rejected",
+        "pending_payment",
+        "payment_reported",
+        "payment_confirmed",
+      ],
     },
   },
 } as const
