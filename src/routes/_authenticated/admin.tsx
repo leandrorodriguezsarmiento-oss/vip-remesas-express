@@ -348,24 +348,47 @@ function TransactionsTab({ isAdmin }: { isAdmin: boolean }) {
           </div>
 
           <AssignedBadge organizers={organizers.data ?? []} id={(t as { assigned_to?: string | null }).assigned_to} />
-          {isAdmin && t.status !== "completed" && t.status !== "rejected" && (
+          <p className="text-[11px] font-bold text-gold">Estado: {STATUS_ES[t.status] ?? t.status}</p>
+
+          {isAdmin && t.status === "payment_reported" && (
+            <div className="flex flex-wrap gap-1">
+              <button onClick={() => act.mutate({ transactionId: t.id, action: "confirm_payment" })}
+                disabled={act.isPending}
+                className="rounded-full bg-gradient-gold px-3 py-1.5 text-[10px] font-bold text-primary-foreground shadow-gold disabled:opacity-60">
+                Confirmar pago recibido
+              </button>
+              <button onClick={() => rejectTx(t.id)} disabled={act.isPending}
+                className="rounded-full border border-destructive px-3 py-1.5 text-[10px] font-bold text-destructive disabled:opacity-60">
+                Rechazar pago
+              </button>
+            </div>
+          )}
+
+          {isAdmin && t.status === "payment_confirmed" && (
             <AssignAndSend
               organizers={organizers.data ?? []}
               value={assign[t.id] ?? (t as { assigned_to?: string | null }).assigned_to ?? ""}
               onChange={(v) => setAssign((prev) => ({ ...prev, [t.id]: v }))}
-              onSend={(orgId) => upd.mutate({ id: t.id, status: "processing", assignedTo: orgId })}
-              disabled={upd.isPending}
+              onSend={(orgId) => act.mutate({ transactionId: t.id, action: "start_processing", assignedTo: orgId })}
+              disabled={act.isPending}
             />
           )}
-          <div className="flex flex-wrap gap-1">
-            {(isAdmin ? (["pending", "completed", "rejected"] as const) : (["completed"] as const)).map((s) => (
-              <button key={s}
-                onClick={() => upd.mutate({ id: t.id, status: s })}
-                className={`rounded-full px-2 py-1 text-[10px] font-semibold ${t.status === s ? "bg-gradient-gold text-primary-foreground" : "border border-border bg-background text-muted-foreground"}`}>
-                {STATUS_ES[s]}
+
+          {t.status === "processing" && (
+            <div className="flex flex-wrap gap-1">
+              <button onClick={() => act.mutate({ transactionId: t.id, action: "complete" })}
+                disabled={act.isPending}
+                className="rounded-full bg-gradient-gold px-3 py-1.5 text-[10px] font-bold text-primary-foreground shadow-gold disabled:opacity-60">
+                Completar
               </button>
-            ))}
-          </div>
+              {isAdmin && (
+                <button onClick={() => rejectTx(t.id)} disabled={act.isPending}
+                  className="rounded-full border border-destructive px-3 py-1.5 text-[10px] font-bold text-destructive disabled:opacity-60">
+                  Rechazar
+                </button>
+              )}
+            </div>
+          )}
         </div>
       ))}
       {rows.length === 0 && (
