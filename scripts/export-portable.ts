@@ -97,7 +97,7 @@ pkg.scripts = {
   typecheck: "tsc --noEmit",
   lint: "eslint .",
   deploy: "wrangler deploy",
-  "deploy:dry-run": "wrangler deploy --dry-run -c dist/vip-remesas-express/wrangler.json",
+  "deploy:dry-run": "wrangler deploy --dry-run -c dist/server/wrangler.json",
   "cf-typegen": "wrangler types",
 };
 pkg.devDependencies["@cloudflare/vite-plugin"] = "^1.14.2";
