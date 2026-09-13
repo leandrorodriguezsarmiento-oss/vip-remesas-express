@@ -256,9 +256,10 @@ function TransactionsTab({ isAdmin }: { isAdmin: boolean }) {
     refetchInterval: 10000,
     refetchIntervalInBackground: true,
     queryFn: async () => {
-      // Sólo remesas con pago informado: nada llega al panel antes de pagarse.
+      // Sólo remesas donde el cliente ya informó el pago: nada llega antes de eso.
       const { data, error } = await supabase.from("transactions")
-        .select("*").not("paid_at", "is", null)
+        .select("*")
+        .in("status", ["payment_reported", "payment_confirmed", "processing", "completed", "rejected"])
         .order("created_at", { ascending: false }).limit(100);
       if (error) throw error;
       // Nombre de usuario de quien envía, para saber a quién se le aprueba.
