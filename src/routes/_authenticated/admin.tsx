@@ -5,7 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { formatMoney } from "@/lib/remittance";
 import { CUBA_PROVINCES } from "@/lib/provinces";
-import { deleteUserAsAdmin, listOrganizers, setOrganizerRole, setUserProvince } from "@/lib/admin.functions";
+import { deleteUserAsAdmin, listOrganizers, setOrganizerRole, setUserProvince, updateTransactionWorkflow } from "@/lib/admin.functions";
 import { sendTransactionStatusEmail } from "@/lib/emails.functions";
 import { useLiveAdmin } from "@/hooks/use-live-admin";
 import { usePendingCounts } from "@/hooks/use-pending-counts";
@@ -128,7 +128,13 @@ function AdminPanel() {
 
 // ----------------- Transacciones -----------------
 const STATUS_ES: Record<string, string> = {
-  pending: "Pendiente", processing: "Procesando", completed: "Completada", rejected: "Rechazada",
+  pending: "Pendiente",
+  pending_payment: "Pendiente de pago",
+  payment_reported: "Pago informado",
+  payment_confirmed: "Pago confirmado",
+  processing: "Procesando",
+  completed: "Completada",
+  rejected: "Rechazada",
 };
 
 type AdminTx = {
