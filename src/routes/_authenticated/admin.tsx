@@ -279,27 +279,36 @@ function TransactionsTab({ isAdmin }: { isAdmin: boolean }) {
   const organizers = useOrganizers(isAdmin);
   const [assign, setAssign] = useState<Record<string, string>>({});
 
-  const upd = useMutation({
-    mutationFn: async ({ id, status, assignedTo }: { id: string; status: "pending" | "processing" | "completed" | "rejected"; assignedTo?: string | null }) => {
-      const patch: { status: typeof status; assigned_to?: string | null } = { status };
-      if (status === "processing") patch.assigned_to = assignedTo || null;
-      const { error } = await supabase.from("transactions").update(patch).eq("id", id);
-      if (error) throw error;
+  const workflow = useServerFn(updateTransactionWorkflow);
+  const act = useMutation({
+    mutationFn: async (input: {
+      transactionId: string;
+      action: "confirm_payment" | "start_processing" | "complete" | "reject";
+      assignedTo?: string | null;
+      reason?: string;
+    }) => {
+      const res = await workflow({ data: input });
       try {
-        await sendTransactionStatusEmail({ data: { transactionId: id, status } });
+        await sendTransactionStatusEmail({ data: { transactionId: input.transactionId, status: res.status } });
       } catch {
         /* el correo es complementario: no bloquea el cambio de estado */
       }
+      return res;
     },
     onSuccess: () => { toast.success("Estado actualizado"); qc.invalidateQueries({ queryKey: ["admin-tx"] }); },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Error"),
   });
 
+  const rejectTx = (id: string) => {
+    const reason = window.prompt("Motivo del rechazo (mínimo 3 caracteres)")?.trim();
+    if (!reason || reason.length < 3) return;
+    act.mutate({ transactionId: id, action: "reject", reason });
+  };
 
   if (q.isLoading) return <p className="text-sm text-muted-foreground">Cargando…</p>;
 
   const all = q.data ?? [];
-  const active = all.filter((t) => t.status === "pending" || t.status === "processing");
+  const active = all.filter((t) => t.status !== "completed" && t.status !== "rejected");
   const done = all.filter((t) => t.status === "completed" || t.status === "rejected");
   const rows = view === "active" ? active : done;
 
