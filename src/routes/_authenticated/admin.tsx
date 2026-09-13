@@ -288,6 +288,7 @@ function TransactionsTab({ isAdmin }: { isAdmin: boolean }) {
       reason?: string;
     }) => {
       const res = await workflow({ data: input });
+      if (!res.ok) return res;
       try {
         await sendTransactionStatusEmail({ data: { transactionId: input.transactionId, status: res.status } });
       } catch {
@@ -295,7 +296,11 @@ function TransactionsTab({ isAdmin }: { isAdmin: boolean }) {
       }
       return res;
     },
-    onSuccess: () => { toast.success("Estado actualizado"); qc.invalidateQueries({ queryKey: ["admin-tx"] }); },
+    onSuccess: (res) => {
+      if (!res.ok) { toast.error(res.message); return; }
+      toast.success("Estado actualizado");
+      qc.invalidateQueries({ queryKey: ["admin-tx"] });
+    },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Error"),
   });
 
