@@ -1,5 +1,103 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { z } from "zod";
+
+const transactionActionSchema = z.object({
+  transactionId: z.string().uuid(),
+  action: z.enum(["confirm_payment", "start_processing", "complete", "reject"]),
+  assignedTo: z.string().uuid().nullable().optional(),
+  reason: z.string().trim().max(300).optional(),
+});
+
+/** Error de regla de negocio: se devuelve al cliente como mensaje, no como fallo 500. */
+class WorkflowRuleError extends Error {}
+const rule = (message: string): never => {
+  throw new WorkflowRuleError(message);
+};
+
+type WorkflowResult =
+  | { ok: true; status: "payment_confirmed" | "processing" | "completed" | "rejected" }
+  | { ok: false; message: string };
+
+/** Ejecuta transiciones de remesas en servidor y deja una auditoría inmutable. */
+export const updateTransactionWorkflow = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => {
+    const parsed = transactionActionSchema.safeParse(input);
+    if (!parsed.success) throw new WorkflowRuleError("Datos inválidos para esta acción");
+    return parsed.data;
+  })
+  .handler(async ({ data, context }): Promise<WorkflowResult> => {
+   try {
+    const [{ data: isAdmin }, { data: isOrganizer }] = await Promise.all([
+      context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" }),
+      context.supabase.rpc("has_role", { _user_id: context.userId, _role: "organizador" }),
+    ]);
+    if (!isAdmin && !isOrganizer) rule("No autorizado");
+    if (!isAdmin && !["complete", "reject"].includes(data.action)) {
+      rule("Solo el administrador puede confirmar pagos o asignar remesas");
+    }
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: tx, error } = await supabaseAdmin
+      .from("transactions")
+      .select("id,status,assigned_to,payment_reported_at,payment_confirmed_at")
+      .eq("id", data.transactionId)
+      .maybeSingle();
+    if (error) throw error;
+    if (!tx) rule("Remesa no encontrada");
+    if (!isAdmin && tx!.assigned_to !== context.userId) rule("Esta remesa no está asignada a ti");
+
+    const now = new Date().toISOString();
+    const current = tx!.status;
+    let toStatus: "payment_confirmed" | "processing" | "completed" | "rejected";
+    let patch: {
+      status: "payment_confirmed" | "processing" | "completed" | "rejected";
+      paid_at?: string;
+      payment_confirmed_at?: string;
+      payment_confirmed_by?: string;
+      assigned_to?: string;
+      payment_rejected_at?: string;
+      payment_rejection_reason?: string;
+    };
+    if (data.action === "confirm_payment") {
+      if (current !== "payment_reported" || !tx!.payment_reported_at) rule("El cliente aún no informó este pago");
+      toStatus = "payment_confirmed";
+      patch = { status: toStatus, paid_at: now, payment_confirmed_at: now, payment_confirmed_by: context.userId };
+    } else if (data.action === "start_processing") {
+      if (current !== "payment_confirmed" || !tx!.payment_confirmed_at) rule("Primero confirma el pago recibido");
+      if (!data.assignedTo) rule("Elige un organizador");
+      toStatus = "processing";
+      patch = { status: toStatus, assigned_to: data.assignedTo! };
+    } else if (data.action === "complete") {
+      if (current !== "processing") rule("La remesa debe estar en proceso");
+      toStatus = "completed";
+      patch = { status: toStatus };
+    } else {
+      if (!["payment_reported", "payment_confirmed", "processing"].includes(current)) rule("Esta remesa no se puede rechazar");
+      const reason = (data.reason ?? "").trim();
+      if (reason.length < 3) rule("Escribe un motivo de al menos 3 caracteres");
+      toStatus = "rejected";
+      patch = { status: toStatus, payment_rejected_at: now, payment_rejection_reason: reason };
+    }
+
+    const { error: updateError } = await supabaseAdmin.from("transactions").update(patch).eq("id", tx!.id).eq("status", current);
+    if (updateError) throw updateError;
+    const { error: auditError } = await supabaseAdmin.from("transaction_audit_log").insert({
+      transaction_id: tx!.id,
+      actor_id: context.userId,
+      action: data.action,
+      from_status: current,
+      to_status: toStatus,
+      details: { assigned_to: data.assignedTo ?? null, reason: data.reason ?? null },
+    });
+    if (auditError) throw auditError;
+    return { ok: true, status: toStatus };
+   } catch (e) {
+     if (e instanceof WorkflowRuleError) return { ok: false, message: e.message };
+     throw e;
+   }
+  });
 
 /** Activa o quita el rol de organizador (sólo el admin dueño puede hacerlo). */
 export const setOrganizerRole = createServerFn({ method: "POST" })

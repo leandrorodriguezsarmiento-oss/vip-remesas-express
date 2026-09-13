@@ -26,8 +26,8 @@ export const createRechargePreference = createServerFn({ method: "POST" })
     if (r.user_id !== context.userId) throw new Error("No autorizado");
     if (r.status !== "pending") throw new Error("Esta recarga ya está en proceso");
 
-    const origin =
-      process.env["PUBLIC_SITE_URL"] || (process.env["PUBLIC_SITE_URL"] || "http://localhost:3000");
+    const origin = process.env["PUBLIC_SITE_URL"];
+    if (!origin || !origin.startsWith("https://")) throw new Error("Falta configurar PUBLIC_SITE_URL con el dominio HTTPS");
 
     const res = await fetch("https://api.mercadopago.com/checkout/preferences", {
       method: "POST",

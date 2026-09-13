@@ -207,6 +207,10 @@ function Landing() {
             </div>
           ))}
         </div>
+
+        <p className="mt-10 text-center text-[11px] font-bold text-muted-foreground/60">
+          Hecho por <span className="text-gold">Aranch</span>
+        </p>
       </main>
     </div>
   );

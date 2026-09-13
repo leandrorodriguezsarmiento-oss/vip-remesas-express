@@ -21,8 +21,8 @@ export const Route = createFileRoute("/api/public/push/dispatch")({
 
 
         const privateJwkRaw = process.env.VAPID_PRIVATE_JWK;
-        const adminContact = process.env.VAPID_SUBJECT || "mailto:admin@example.com";
-        if (!privateJwkRaw) {
+        const adminContact = process.env.VAPID_SUBJECT;
+        if (!privateJwkRaw || !adminContact) {
           return new Response("VAPID not configured", { status: 500 });
         }
         const privateJWK = JSON.parse(privateJwkRaw) as JsonWebKey;

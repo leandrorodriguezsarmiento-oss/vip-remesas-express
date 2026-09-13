@@ -53,6 +53,13 @@ export function usePushAutoEnroll(userId: string) {
 
     if (Notification.permission === "granted") {
       void subscribe();
+      const retry = () => void subscribe();
+      window.addEventListener("online", retry);
+      document.addEventListener("visibilitychange", retry);
+      return () => {
+        window.removeEventListener("online", retry);
+        document.removeEventListener("visibilitychange", retry);
+      };
       return;
     }
     if (Notification.permission === "denied" || localStorage.getItem(askedKey)) return;
@@ -64,6 +71,12 @@ export function usePushAutoEnroll(userId: string) {
       if (perm === "granted") void subscribe();
     };
     window.addEventListener("pointerdown", onGesture, { once: true });
-    return () => window.removeEventListener("pointerdown", onGesture);
+    window.addEventListener("touchstart", onGesture, { once: true });
+    window.addEventListener("keydown", onGesture, { once: true });
+    return () => {
+      window.removeEventListener("pointerdown", onGesture);
+      window.removeEventListener("touchstart", onGesture);
+      window.removeEventListener("keydown", onGesture);
+    };
   }, [userId, save]);
 }

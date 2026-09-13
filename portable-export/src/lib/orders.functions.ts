@@ -84,7 +84,7 @@ export const createTransaction = createServerFn({ method: "POST" })
         total_brl: data.amount,
         payment_method: paymentMethod,
         pix_code: pixCode,
-        status: "pending",
+        status: "pending_payment",
       })
       .select("id")
       .single();
@@ -128,12 +128,8 @@ export const createRechargeRequest = createServerFn({ method: "POST" })
     return { ok: true, id: inserted.id as string, priceBrl: Number(promo.price_brl) };
   });
 
-/**
- * El usuario declara que ya transfirió. Marcamos el momento del pago
- * (`paid_at`) verificando que la remesa sea suya; recién entonces el
- * disparador avisa al panel admin. Es idempotente.
- */
-export const markTransactionPaid = createServerFn({ method: "POST" })
+/** El cliente informa un PIX. Sólo registra el aviso; no confirma fondos. */
+export const reportTransactionPayment = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data) => z.object({ trackingId: z.string().trim().min(1).max(60) }).parse(data))
   .handler(async ({ data, context }) => {
@@ -141,22 +137,28 @@ export const markTransactionPaid = createServerFn({ method: "POST" })
 
     const { data: tx, error } = await supabaseAdmin
       .from("transactions")
-      .select("id,user_id,status,paid_at")
+      .select("id,user_id,status,payment_reported_at")
       .eq("tracking_id", data.trackingId)
       .eq("user_id", context.userId)
       .maybeSingle();
     if (error) throw error;
     if (!tx) throw new Error("Remesa no encontrada");
-    if (tx.paid_at) return { ok: true, status: tx.status, already: true };
+    if (tx.payment_reported_at) return { ok: true, status: tx.status, already: true };
+    if (tx.status !== "pending_payment" && tx.status !== "pending") {
+      throw new Error("Esta remesa ya no admite avisos de pago");
+    }
 
     const { data: updated, error: updErr } = await supabaseAdmin
       .from("transactions")
-      .update({ paid_at: new Date().toISOString(), status: "processing" })
+      .update({ payment_reported_at: new Date().toISOString(), status: "payment_reported" })
       .eq("id", tx.id)
       .eq("user_id", context.userId)
-      .is("paid_at", null)
+      .is("payment_reported_at", null)
       .select("status")
       .maybeSingle();
     if (updErr) throw updErr;
     return { ok: true, status: updated?.status ?? tx.status, already: !updated };
   });
+
+// Alias temporal para exportaciones antiguas; conserva la nueva semántica segura.
+export const markTransactionPaid = reportTransactionPayment;

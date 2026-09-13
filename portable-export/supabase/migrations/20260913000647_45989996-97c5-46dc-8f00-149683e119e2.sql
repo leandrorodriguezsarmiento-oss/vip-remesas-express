@@ -1,0 +1,2 @@
+REVOKE EXECUTE ON FUNCTION public.transition_transaction_workflow(uuid, text, uuid, text) FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.transition_transaction_workflow(uuid, text, uuid, text) TO service_role;

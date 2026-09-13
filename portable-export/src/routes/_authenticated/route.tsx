@@ -1,6 +1,6 @@
 import { createFileRoute, Outlet, Link, redirect, useNavigate, useLocation } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
-import { Home, Send, LogOut, Smartphone, Shield, Bell, Settings as SettingsIcon, Store, Clock as ClockIcon, Plane } from "lucide-react";
+import { Home, Send, LogOut, Smartphone, Shield, Bell, Settings as SettingsIcon, Store, Clock as ClockIcon, Plane, Compass } from "lucide-react";
 import { BrandMark } from "@/components/BrandMark";
 import { SectionMenu } from "@/components/SectionMenu";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
@@ -11,6 +11,7 @@ import { preloadAppImages } from "@/lib/preload-images";
 import bgFlags from "@/assets/bg-flags.jpg";
 import { MfaGate } from "@/components/MfaGate";
 import { usePushAutoEnroll } from "@/hooks/use-push-autoenroll";
+import { PushPermissionPrompt } from "@/components/PushPermissionPrompt";
 
 
 
@@ -61,10 +62,32 @@ function AuthedLayout() {
     refetchInterval: 30000,
   });
 
+  // Si el teléfono se duerme o se pierde la señal, la conexión de avisos puede
+  // cortarse. Este contador se incrementa al volver a la app o recuperar internet
+  // y hace que las escuchas se vuelvan a crear, así nunca se dejan de oír.
+  const [liveEpoch, setLiveEpoch] = useState(0);
+  useEffect(() => {
+    const revive = () => {
+      if (document.visibilityState === "visible") {
+        setLiveEpoch((n) => n + 1);
+        queryClient.invalidateQueries();
+      }
+    };
+    document.addEventListener("visibilitychange", revive);
+    window.addEventListener("online", revive);
+    window.addEventListener("focus", revive);
+    return () => {
+      document.removeEventListener("visibilitychange", revive);
+      window.removeEventListener("online", revive);
+      window.removeEventListener("focus", revive);
+    };
+  }, [queryClient]);
+
   // Realtime: refetch on any insert/update to my notifications + alerta in-app
   useEffect(() => {
+
     const channel = supabase
-      .channel(`notifications:${user.id}`)
+      .channel(`notifications:${user.id}:${liveEpoch}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "notifications", filter: `user_id=eq.${user.id}` },
@@ -96,12 +119,12 @@ function AuthedLayout() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user.id, queryClient]);
+  }, [user.id, queryClient, liveEpoch]);
 
   // Realtime global: cualquier cambio hecho por admin u organizadores se refleja al instante.
   useEffect(() => {
     const tables = ["transactions", "recargas_requests", "store_orders", "store_products", "promos", "rates", "flights"] as const;
-    const channel = supabase.channel(`vip-live:${user.id}`);
+    const channel = supabase.channel(`vip-live:${user.id}:${liveEpoch}`);
     tables.forEach((table) => {
       channel.on("postgres_changes", { event: "*", schema: "public", table }, () => {
         queryClient.invalidateQueries();
@@ -111,7 +134,8 @@ function AuthedLayout() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user.id, queryClient]);
+  }, [user.id, queryClient, liveEpoch]);
+
 
 
 
@@ -153,14 +177,19 @@ function AuthedLayout() {
         { to: "/send", icon: Send, label: "Remesas", grad: "bg-gradient-rose" },
         { to: "/tienda", icon: Store, label: "VipShop", grad: "bg-gradient-amber" },
         { to: "/pasajes", icon: Plane, label: "Pasajes", grad: "bg-gradient-sky" },
+        { to: "/migrantes", icon: Compass, label: "Migrante", grad: "bg-gradient-violet" },
         { to: "/history", icon: ClockIcon, label: "Historial", grad: "bg-gradient-violet" },
         { to: "/settings", icon: SettingsIcon, label: "Ajustes", grad: "bg-gradient-gold" },
       ] as const);
 
 
+  // En pantallas pequeñas (iPhone) la barra inferior sólo muestra los accesos
+  // principales; el resto vive en el menú lateral.
+  const bottomNav = nav.slice(0, 5);
+
   return (
     <MfaGate userId={user.id} email={user.email}>
-    <div className="relative min-h-screen bg-gradient-vip pb-24">
+    <div className="relative min-h-screen bg-gradient-vip pb-[calc(6.5rem+env(safe-area-inset-bottom))]">
       {/* Fondo opaco con las banderas de Brasil y Cuba */}
       <div
         aria-hidden
@@ -168,7 +197,7 @@ function AuthedLayout() {
         style={{ backgroundImage: `url(${bgFlags})` }}
       />
       <div className="relative z-10">
-      <header className="mx-auto flex max-w-md items-center justify-between px-5 pt-6">
+      <header className="mx-auto flex max-w-md items-center justify-between px-5 pt-[calc(1.25rem+env(safe-area-inset-top))]">
         <div className="flex items-center gap-2">
           <SectionMenu items={nav} />
           <Link to={admin ? "/admin" : "/dashboard"} className="flex items-center gap-2">
@@ -201,6 +230,8 @@ function AuthedLayout() {
           </button>
         </div>
       </header>
+
+      <PushPermissionPrompt userId={user.id} />
 
       {showNotif && (
         <div className="mx-auto mt-2 max-w-md px-5">
@@ -248,20 +279,23 @@ function AuthedLayout() {
         <Outlet />
       </main>
 
-      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-card/95 backdrop-blur">
+      <nav
+        className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-card/95 backdrop-blur"
+        style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+      >
         <div
-          className="mx-auto grid max-w-md"
-          style={{ gridTemplateColumns: `repeat(${nav.length}, minmax(0, 1fr))` }}
+          className="mx-auto grid max-w-md px-1"
+          style={{ gridTemplateColumns: `repeat(${bottomNav.length}, minmax(0, 1fr))` }}
         >
-          {nav.map(({ to, icon: Icon, label, grad }) => {
+          {bottomNav.map(({ to, icon: Icon, label, grad }) => {
             const active = path === to || path.startsWith(`${to}/`);
             return (
               <Link key={to} to={to}
-                className={`flex flex-col items-center gap-1 py-2.5 text-[10px] font-extrabold transition-colors ${active ? "text-gold" : "text-muted-foreground"}`}>
-                <span className={`grid h-8 w-8 place-items-center rounded-xl transition-transform ${active ? `${grad} text-white shadow-glow scale-105` : "bg-secondary"}`}>
+                className={`flex min-w-0 flex-col items-center gap-1 py-2 text-[9px] font-extrabold leading-tight transition-colors ${active ? "text-gold" : "text-muted-foreground"}`}>
+                <span className={`grid h-7 w-7 place-items-center rounded-xl transition-transform ${active ? `${grad} text-white shadow-glow scale-105` : "bg-secondary"}`}>
                   <Icon className="h-4 w-4" />
                 </span>
-                {label}
+                <span className="w-full truncate text-center">{label}</span>
               </Link>
             );
           })}

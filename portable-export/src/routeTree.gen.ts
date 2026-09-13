@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as McpRouteImport } from './routes/mcp'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
@@ -19,10 +20,15 @@ import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedSendRouteImport } from './routes/_authenticated/send'
 import { Route as AuthenticatedRecargasRouteImport } from './routes/_authenticated/recargas'
 import { Route as AuthenticatedPasajesRouteImport } from './routes/_authenticated/pasajes'
+import { Route as AuthenticatedMigrantesRouteImport } from './routes/_authenticated/migrantes'
 import { Route as AuthenticatedHistoryRouteImport } from './routes/_authenticated/history'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
+import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
+import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
 import { Route as AuthenticatedTransactionIdRouteImport } from './routes/_authenticated/transaction.$id'
+import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
+import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
 import { Route as ApiPublicRecargasWebhookRouteImport } from './routes/api/public/recargas.webhook'
 import { Route as ApiPublicPushDispatchRouteImport } from './routes/api/public/push.dispatch'
 import { Route as ApiPublicMercadopagoWebhookRouteImport } from './routes/api/public/mercadopago.webhook'
@@ -30,6 +36,11 @@ import { Route as ApiPublicMercadopagoWebhookRouteImport } from './routes/api/pu
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
   path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const McpRoute = McpRouteImport.update({
+  id: '/mcp',
+  path: '/mcp',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthRoute = AuthRouteImport.update({
@@ -76,6 +87,11 @@ const AuthenticatedPasajesRoute = AuthenticatedPasajesRouteImport.update({
   path: '/pasajes',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedMigrantesRoute = AuthenticatedMigrantesRouteImport.update({
+  id: '/migrantes',
+  path: '/migrantes',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedHistoryRoute = AuthenticatedHistoryRouteImport.update({
   id: '/history',
   path: '/history',
@@ -91,12 +107,35 @@ const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
   path: '/admin',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const Char91DotwellKnownChar93OauthProtectedResourceRoute =
+  Char91DotwellKnownChar93OauthProtectedResourceRouteImport.update({
+    id: '/.well-known/oauth-protected-resource',
+    path: '/.well-known/oauth-protected-resource',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const Char91DotmcpChar93ListToolsRoute =
+  Char91DotmcpChar93ListToolsRouteImport.update({
+    id: '/.mcp/list-tools',
+    path: '/.mcp/list-tools',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AuthenticatedTransactionIdRoute =
   AuthenticatedTransactionIdRouteImport.update({
     id: '/transaction/$id',
     path: '/transaction/$id',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const Char91DotmcpChar93InvokeToolToolRoute =
+  Char91DotmcpChar93InvokeToolToolRouteImport.update({
+    id: '/.mcp/invoke-tool/$tool',
+    path: '/.mcp/invoke-tool/$tool',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const DotlovableOauthConsentRoute = DotlovableOauthConsentRouteImport.update({
+  id: '/.lovable/oauth/consent',
+  path: '/.lovable/oauth/consent',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicRecargasWebhookRoute =
   ApiPublicRecargasWebhookRouteImport.update({
     id: '/api/public/recargas/webhook',
@@ -118,16 +157,22 @@ const ApiPublicMercadopagoWebhookRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRouteWithChildren
+  '/mcp': typeof McpRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
+  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/history': typeof AuthenticatedHistoryRoute
+  '/migrantes': typeof AuthenticatedMigrantesRoute
   '/pasajes': typeof AuthenticatedPasajesRoute
   '/recargas': typeof AuthenticatedRecargasRoute
   '/send': typeof AuthenticatedSendRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/tienda': typeof AuthenticatedTiendaRoute
   '/auth/': typeof AuthIndexRoute
+  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
+  '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/transaction/$id': typeof AuthenticatedTransactionIdRoute
   '/api/public/mercadopago/webhook': typeof ApiPublicMercadopagoWebhookRoute
   '/api/public/push/dispatch': typeof ApiPublicPushDispatchRoute
@@ -135,16 +180,22 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/mcp': typeof McpRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
+  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/history': typeof AuthenticatedHistoryRoute
+  '/migrantes': typeof AuthenticatedMigrantesRoute
   '/pasajes': typeof AuthenticatedPasajesRoute
   '/recargas': typeof AuthenticatedRecargasRoute
   '/send': typeof AuthenticatedSendRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/tienda': typeof AuthenticatedTiendaRoute
   '/auth': typeof AuthIndexRoute
+  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
+  '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/transaction/$id': typeof AuthenticatedTransactionIdRoute
   '/api/public/mercadopago/webhook': typeof ApiPublicMercadopagoWebhookRoute
   '/api/public/push/dispatch': typeof ApiPublicPushDispatchRoute
@@ -155,16 +206,22 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRouteWithChildren
+  '/mcp': typeof McpRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
+  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/history': typeof AuthenticatedHistoryRoute
+  '/_authenticated/migrantes': typeof AuthenticatedMigrantesRoute
   '/_authenticated/pasajes': typeof AuthenticatedPasajesRoute
   '/_authenticated/recargas': typeof AuthenticatedRecargasRoute
   '/_authenticated/send': typeof AuthenticatedSendRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/tienda': typeof AuthenticatedTiendaRoute
   '/auth/': typeof AuthIndexRoute
+  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
+  '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/_authenticated/transaction/$id': typeof AuthenticatedTransactionIdRoute
   '/api/public/mercadopago/webhook': typeof ApiPublicMercadopagoWebhookRoute
   '/api/public/push/dispatch': typeof ApiPublicPushDispatchRoute
@@ -175,16 +232,22 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
+    | '/mcp'
     | '/reset-password'
+    | '/.mcp/list-tools'
+    | '/.well-known/oauth-protected-resource'
     | '/admin'
     | '/dashboard'
     | '/history'
+    | '/migrantes'
     | '/pasajes'
     | '/recargas'
     | '/send'
     | '/settings'
     | '/tienda'
     | '/auth/'
+    | '/.lovable/oauth/consent'
+    | '/.mcp/invoke-tool/$tool'
     | '/transaction/$id'
     | '/api/public/mercadopago/webhook'
     | '/api/public/push/dispatch'
@@ -192,16 +255,22 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/mcp'
     | '/reset-password'
+    | '/.mcp/list-tools'
+    | '/.well-known/oauth-protected-resource'
     | '/admin'
     | '/dashboard'
     | '/history'
+    | '/migrantes'
     | '/pasajes'
     | '/recargas'
     | '/send'
     | '/settings'
     | '/tienda'
     | '/auth'
+    | '/.lovable/oauth/consent'
+    | '/.mcp/invoke-tool/$tool'
     | '/transaction/$id'
     | '/api/public/mercadopago/webhook'
     | '/api/public/push/dispatch'
@@ -211,16 +280,22 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/auth'
+    | '/mcp'
     | '/reset-password'
+    | '/.mcp/list-tools'
+    | '/.well-known/oauth-protected-resource'
     | '/_authenticated/admin'
     | '/_authenticated/dashboard'
     | '/_authenticated/history'
+    | '/_authenticated/migrantes'
     | '/_authenticated/pasajes'
     | '/_authenticated/recargas'
     | '/_authenticated/send'
     | '/_authenticated/settings'
     | '/_authenticated/tienda'
     | '/auth/'
+    | '/.lovable/oauth/consent'
+    | '/.mcp/invoke-tool/$tool'
     | '/_authenticated/transaction/$id'
     | '/api/public/mercadopago/webhook'
     | '/api/public/push/dispatch'
@@ -231,7 +306,12 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRouteWithChildren
+  McpRoute: typeof McpRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
+  Char91DotmcpChar93ListToolsRoute: typeof Char91DotmcpChar93ListToolsRoute
+  Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
+  Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
   ApiPublicMercadopagoWebhookRoute: typeof ApiPublicMercadopagoWebhookRoute
   ApiPublicPushDispatchRoute: typeof ApiPublicPushDispatchRoute
   ApiPublicRecargasWebhookRoute: typeof ApiPublicRecargasWebhookRoute
@@ -244,6 +324,13 @@ declare module '@tanstack/react-router' {
       path: '/reset-password'
       fullPath: '/reset-password'
       preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/mcp': {
+      id: '/mcp'
+      path: '/mcp'
+      fullPath: '/mcp'
+      preLoaderRoute: typeof McpRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth': {
@@ -309,6 +396,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPasajesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/migrantes': {
+      id: '/_authenticated/migrantes'
+      path: '/migrantes'
+      fullPath: '/migrantes'
+      preLoaderRoute: typeof AuthenticatedMigrantesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/history': {
       id: '/_authenticated/history'
       path: '/history'
@@ -330,12 +424,40 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/.well-known/oauth-protected-resource': {
+      id: '/.well-known/oauth-protected-resource'
+      path: '/.well-known/oauth-protected-resource'
+      fullPath: '/.well-known/oauth-protected-resource'
+      preLoaderRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/.mcp/list-tools': {
+      id: '/.mcp/list-tools'
+      path: '/.mcp/list-tools'
+      fullPath: '/.mcp/list-tools'
+      preLoaderRoute: typeof Char91DotmcpChar93ListToolsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/transaction/$id': {
       id: '/_authenticated/transaction/$id'
       path: '/transaction/$id'
       fullPath: '/transaction/$id'
       preLoaderRoute: typeof AuthenticatedTransactionIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/.mcp/invoke-tool/$tool': {
+      id: '/.mcp/invoke-tool/$tool'
+      path: '/.mcp/invoke-tool/$tool'
+      fullPath: '/.mcp/invoke-tool/$tool'
+      preLoaderRoute: typeof Char91DotmcpChar93InvokeToolToolRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/.lovable/oauth/consent': {
+      id: '/.lovable/oauth/consent'
+      path: '/.lovable/oauth/consent'
+      fullPath: '/.lovable/oauth/consent'
+      preLoaderRoute: typeof DotlovableOauthConsentRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/api/public/recargas/webhook': {
       id: '/api/public/recargas/webhook'
@@ -365,6 +487,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminRoute: typeof AuthenticatedAdminRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedHistoryRoute: typeof AuthenticatedHistoryRoute
+  AuthenticatedMigrantesRoute: typeof AuthenticatedMigrantesRoute
   AuthenticatedPasajesRoute: typeof AuthenticatedPasajesRoute
   AuthenticatedRecargasRoute: typeof AuthenticatedRecargasRoute
   AuthenticatedSendRoute: typeof AuthenticatedSendRoute
@@ -377,6 +500,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminRoute: AuthenticatedAdminRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedHistoryRoute: AuthenticatedHistoryRoute,
+  AuthenticatedMigrantesRoute: AuthenticatedMigrantesRoute,
   AuthenticatedPasajesRoute: AuthenticatedPasajesRoute,
   AuthenticatedRecargasRoute: AuthenticatedRecargasRoute,
   AuthenticatedSendRoute: AuthenticatedSendRoute,
@@ -402,7 +526,13 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRouteWithChildren,
+  McpRoute: McpRoute,
   ResetPasswordRoute: ResetPasswordRoute,
+  Char91DotmcpChar93ListToolsRoute: Char91DotmcpChar93ListToolsRoute,
+  Char91DotwellKnownChar93OauthProtectedResourceRoute:
+    Char91DotwellKnownChar93OauthProtectedResourceRoute,
+  DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
+  Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
   ApiPublicMercadopagoWebhookRoute: ApiPublicMercadopagoWebhookRoute,
   ApiPublicPushDispatchRoute: ApiPublicPushDispatchRoute,
   ApiPublicRecargasWebhookRoute: ApiPublicRecargasWebhookRoute,
