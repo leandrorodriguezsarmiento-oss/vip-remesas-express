@@ -5,7 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { formatMoney } from "@/lib/remittance";
 import { CUBA_PROVINCES } from "@/lib/provinces";
-import { deleteUserAsAdmin, listOrganizers, setOrganizerRole, setUserProvince } from "@/lib/admin.functions";
+import { deleteUserAsAdmin, listOrganizers, setOrganizerRole, setUserProvince, updateTransactionWorkflow } from "@/lib/admin.functions";
 import { sendTransactionStatusEmail } from "@/lib/emails.functions";
 import { useLiveAdmin } from "@/hooks/use-live-admin";
 import { usePendingCounts } from "@/hooks/use-pending-counts";
@@ -128,7 +128,13 @@ function AdminPanel() {
 
 // ----------------- Transacciones -----------------
 const STATUS_ES: Record<string, string> = {
-  pending: "Pendiente", processing: "Procesando", completed: "Completada", rejected: "Rechazada",
+  pending: "Pendiente",
+  pending_payment: "Pendiente de pago",
+  payment_reported: "Pago informado",
+  payment_confirmed: "Pago confirmado",
+  processing: "Procesando",
+  completed: "Completada",
+  rejected: "Rechazada",
 };
 
 type AdminTx = {
@@ -250,9 +256,10 @@ function TransactionsTab({ isAdmin }: { isAdmin: boolean }) {
     refetchInterval: 10000,
     refetchIntervalInBackground: true,
     queryFn: async () => {
-      // Sólo remesas con pago informado: nada llega al panel antes de pagarse.
+      // Sólo remesas donde el cliente ya informó el pago: nada llega antes de eso.
       const { data, error } = await supabase.from("transactions")
-        .select("*").not("paid_at", "is", null)
+        .select("*")
+        .in("status", ["payment_reported", "payment_confirmed", "processing", "completed", "rejected"])
         .order("created_at", { ascending: false }).limit(100);
       if (error) throw error;
       // Nombre de usuario de quien envía, para saber a quién se le aprueba.
@@ -272,27 +279,36 @@ function TransactionsTab({ isAdmin }: { isAdmin: boolean }) {
   const organizers = useOrganizers(isAdmin);
   const [assign, setAssign] = useState<Record<string, string>>({});
 
-  const upd = useMutation({
-    mutationFn: async ({ id, status, assignedTo }: { id: string; status: "pending" | "processing" | "completed" | "rejected"; assignedTo?: string | null }) => {
-      const patch: { status: typeof status; assigned_to?: string | null } = { status };
-      if (status === "processing") patch.assigned_to = assignedTo || null;
-      const { error } = await supabase.from("transactions").update(patch).eq("id", id);
-      if (error) throw error;
+  const workflow = useServerFn(updateTransactionWorkflow);
+  const act = useMutation({
+    mutationFn: async (input: {
+      transactionId: string;
+      action: "confirm_payment" | "start_processing" | "complete" | "reject";
+      assignedTo?: string | null;
+      reason?: string;
+    }) => {
+      const res = await workflow({ data: input });
       try {
-        await sendTransactionStatusEmail({ data: { transactionId: id, status } });
+        await sendTransactionStatusEmail({ data: { transactionId: input.transactionId, status: res.status } });
       } catch {
         /* el correo es complementario: no bloquea el cambio de estado */
       }
+      return res;
     },
     onSuccess: () => { toast.success("Estado actualizado"); qc.invalidateQueries({ queryKey: ["admin-tx"] }); },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Error"),
   });
 
+  const rejectTx = (id: string) => {
+    const reason = window.prompt("Motivo del rechazo (mínimo 3 caracteres)")?.trim();
+    if (!reason || reason.length < 3) return;
+    act.mutate({ transactionId: id, action: "reject", reason });
+  };
 
   if (q.isLoading) return <p className="text-sm text-muted-foreground">Cargando…</p>;
 
   const all = q.data ?? [];
-  const active = all.filter((t) => t.status === "pending" || t.status === "processing");
+  const active = all.filter((t) => t.status !== "completed" && t.status !== "rejected");
   const done = all.filter((t) => t.status === "completed" || t.status === "rejected");
   const rows = view === "active" ? active : done;
 
@@ -342,24 +358,47 @@ function TransactionsTab({ isAdmin }: { isAdmin: boolean }) {
           </div>
 
           <AssignedBadge organizers={organizers.data ?? []} id={(t as { assigned_to?: string | null }).assigned_to} />
-          {isAdmin && t.status !== "completed" && t.status !== "rejected" && (
+          <p className="text-[11px] font-bold text-gold">Estado: {STATUS_ES[t.status] ?? t.status}</p>
+
+          {isAdmin && t.status === "payment_reported" && (
+            <div className="flex flex-wrap gap-1">
+              <button onClick={() => act.mutate({ transactionId: t.id, action: "confirm_payment" })}
+                disabled={act.isPending}
+                className="rounded-full bg-gradient-gold px-3 py-1.5 text-[10px] font-bold text-primary-foreground shadow-gold disabled:opacity-60">
+                Confirmar pago recibido
+              </button>
+              <button onClick={() => rejectTx(t.id)} disabled={act.isPending}
+                className="rounded-full border border-destructive px-3 py-1.5 text-[10px] font-bold text-destructive disabled:opacity-60">
+                Rechazar pago
+              </button>
+            </div>
+          )}
+
+          {isAdmin && t.status === "payment_confirmed" && (
             <AssignAndSend
               organizers={organizers.data ?? []}
               value={assign[t.id] ?? (t as { assigned_to?: string | null }).assigned_to ?? ""}
               onChange={(v) => setAssign((prev) => ({ ...prev, [t.id]: v }))}
-              onSend={(orgId) => upd.mutate({ id: t.id, status: "processing", assignedTo: orgId })}
-              disabled={upd.isPending}
+              onSend={(orgId) => act.mutate({ transactionId: t.id, action: "start_processing", assignedTo: orgId })}
+              disabled={act.isPending}
             />
           )}
-          <div className="flex flex-wrap gap-1">
-            {(isAdmin ? (["pending", "completed", "rejected"] as const) : (["completed"] as const)).map((s) => (
-              <button key={s}
-                onClick={() => upd.mutate({ id: t.id, status: s })}
-                className={`rounded-full px-2 py-1 text-[10px] font-semibold ${t.status === s ? "bg-gradient-gold text-primary-foreground" : "border border-border bg-background text-muted-foreground"}`}>
-                {STATUS_ES[s]}
+
+          {t.status === "processing" && (
+            <div className="flex flex-wrap gap-1">
+              <button onClick={() => act.mutate({ transactionId: t.id, action: "complete" })}
+                disabled={act.isPending}
+                className="rounded-full bg-gradient-gold px-3 py-1.5 text-[10px] font-bold text-primary-foreground shadow-gold disabled:opacity-60">
+                Completar
               </button>
-            ))}
-          </div>
+              {isAdmin && (
+                <button onClick={() => rejectTx(t.id)} disabled={act.isPending}
+                  className="rounded-full border border-destructive px-3 py-1.5 text-[10px] font-bold text-destructive disabled:opacity-60">
+                  Rechazar
+                </button>
+              )}
+            </div>
+          )}
         </div>
       ))}
       {rows.length === 0 && (
