@@ -6,14 +6,29 @@ const transactionActionSchema = z.object({
   transactionId: z.string().uuid(),
   action: z.enum(["confirm_payment", "start_processing", "complete", "reject"]),
   assignedTo: z.string().uuid().nullable().optional(),
-  reason: z.string().trim().min(3).max(300).optional(),
+  reason: z.string().trim().max(300).optional(),
 });
+
+/** Error de regla de negocio: se devuelve al cliente como mensaje, no como fallo 500. */
+class WorkflowRuleError extends Error {}
+const rule = (message: string): never => {
+  throw new WorkflowRuleError(message);
+};
+
+type WorkflowResult =
+  | { ok: true; status: "payment_confirmed" | "processing" | "completed" | "rejected" }
+  | { ok: false; message: string };
 
 /** Ejecuta transiciones de remesas en servidor y deja una auditoría inmutable. */
 export const updateTransactionWorkflow = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) => transactionActionSchema.parse(input))
-  .handler(async ({ data, context }) => {
+  .inputValidator((input) => {
+    const parsed = transactionActionSchema.safeParse(input);
+    if (!parsed.success) throw new WorkflowRuleError("Datos inválidos para esta acción");
+    return parsed.data;
+  })
+  .handler(async ({ data, context }): Promise<WorkflowResult> => {
+   try {
     const [{ data: isAdmin }, { data: isOrganizer }] = await Promise.all([
       context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" }),
       context.supabase.rpc("has_role", { _user_id: context.userId, _role: "organizador" }),
