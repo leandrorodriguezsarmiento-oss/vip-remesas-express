@@ -189,6 +189,19 @@ for (const rel of ["src/lib/emailjs.server.ts", "src/lib/payments.functions.ts",
   patch(rel, [[/"https:\/\/vip-remesas-express\.lovable\.app"/g, '(process.env["PUBLIC_SITE_URL"] || "http://localhost:3000")']]);
 }
 
+// 8b. Traducción del currículo con un proveedor de IA propio (API compatible OpenAI)
+patch("src/lib/cv-translate.functions.ts", [
+  [
+    /const apiKey = process\.env\["LOVABLE_API_KEY"\];/,
+    'const apiKey = process.env["AI_API_KEY"];',
+  ],
+  [
+    /"https:\/\/ai\.gateway\.lovable\.dev\/v1\/chat\/completions"/,
+    'process.env["AI_API_URL"] || "https://api.openai.com/v1/chat/completions"',
+  ],
+  [/model: "google\/gemini-2\.5-flash",/, 'model: process.env["AI_MODEL"] || "gpt-4o-mini",'],
+]);
+
 // 9. Plantilla de variables de entorno y guía de despliegue
 write(
   ".env.example",
@@ -220,6 +233,11 @@ EMAILJS_TEMPLATE_ID=
 EMAILJS_PUBLIC_KEY=
 EMAILJS_PRIVATE_KEY=
 EMAILJS_ORIGIN=https://vipremesas.com
+
+# Traducción del currículo (API compatible con OpenAI; opcional)
+AI_API_URL=https://api.openai.com/v1/chat/completions
+AI_API_KEY=
+AI_MODEL=gpt-4o-mini
 
 # Notificaciones push
 VAPID_PUBLIC_KEY=

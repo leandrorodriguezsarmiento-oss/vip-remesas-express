@@ -15,16 +15,16 @@ export const translateCvToPortuguese = createServerFn({ method: "POST" })
     const entries = Object.entries(data.fields).filter(([, v]) => v.trim().length > 0);
     if (entries.length === 0) return { fields: data.fields };
 
-    const apiKey = process.env["LOVABLE_API_KEY"];
+    const apiKey = process.env["AI_API_KEY"];
     if (!apiKey) throw new Error("Servicio de traducción no disponible");
 
     const payload = Object.fromEntries(entries);
 
-    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const res = await fetch(process.env["AI_API_URL"] || "https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: process.env["AI_MODEL"] || "gpt-4o-mini",
         messages: [
           {
             role: "system",
