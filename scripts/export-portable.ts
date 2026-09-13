@@ -96,7 +96,7 @@ pkg.scripts = {
   preview: "vite preview",
   typecheck: "tsc --noEmit",
   lint: "eslint .",
-  deploy: "wrangler deploy",
+  deploy: "wrangler deploy -c dist/server/wrangler.json",
   "deploy:dry-run": "wrangler deploy --dry-run -c dist/server/wrangler.json",
   "cf-typegen": "wrangler types",
 };
@@ -558,7 +558,8 @@ patch("README-DESPLIEGUE.md", [
 - Sube esta carpeta a tu repositorio y crea la rama \`main\`.
 - Secrets del repo: \`VITE_SUPABASE_URL\`, \`VITE_SUPABASE_PUBLISHABLE_KEY\`,
   \`VITE_SUPABASE_PROJECT_ID\`, \`VPS_HOST\`, \`VPS_USER\`, \`VPS_SSH_KEY\`, \`VPS_PATH\`.
-- Cada push a \`main\` compila (\`ci.yml\`) y despliega al VPS (\`deploy.yml\`).
+- Cada push a \`main\` compila (\`ci.yml\`) y publica en Cloudflare Workers (\`deploy.yml\`).
+- Guía completa de Cloudflare: \`README-CLOUDFLARE.md\`.
 - Apps Android/iPhone: ver \`MOVIL.md\`.
 
 ## 7. Play Store (TWA)`,
