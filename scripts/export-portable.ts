@@ -93,11 +93,11 @@ for (const field of ["dependencies", "devDependencies"] as const) {
 pkg.scripts = {
   dev: "vite dev",
   build: "vite build",
-  preview: "wrangler dev",
+  preview: "vite preview",
   typecheck: "tsc --noEmit",
   lint: "eslint .",
   deploy: "wrangler deploy",
-  "deploy:dry-run": "wrangler deploy --dry-run",
+  "deploy:dry-run": "wrangler deploy --dry-run -c dist/vip-remesas-express/wrangler.json",
   "cf-typegen": "wrangler types",
 };
 pkg.devDependencies["@cloudflare/vite-plugin"] = "^1.14.2";
@@ -137,11 +137,7 @@ write(
   "name": "vip-remesas-express",
   "compatibility_date": "2026-09-01",
   "compatibility_flags": ["nodejs_compat"],
-  "main": ".output/server/index.mjs",
-  "assets": {
-    "directory": ".output/public",
-    "binding": "ASSETS"
-  },
+  "main": "src/server.ts",
   "observability": {
     "enabled": true,
     "head_sampling_rate": 1

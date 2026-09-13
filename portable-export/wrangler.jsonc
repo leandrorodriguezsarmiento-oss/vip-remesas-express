@@ -4,11 +4,7 @@
   "name": "vip-remesas-express",
   "compatibility_date": "2026-09-01",
   "compatibility_flags": ["nodejs_compat"],
-  "main": ".output/server/index.mjs",
-  "assets": {
-    "directory": ".output/public",
-    "binding": "ASSETS"
-  },
+  "main": "src/server.ts",
   "observability": {
     "enabled": true,
     "head_sampling_rate": 1
