@@ -1077,6 +1077,15 @@ export type Database = {
         Returns: boolean
       }
       reset_rate_limit: { Args: { _key: string }; Returns: undefined }
+      transition_transaction_workflow: {
+        Args: {
+          _action: string
+          _assigned_to?: string
+          _reason?: string
+          _transaction_id: string
+        }
+        Returns: Database["public"]["Enums"]["tx_status"]
+      }
     }
     Enums: {
       app_role: "admin" | "user" | "organizador" | "restaurante"
