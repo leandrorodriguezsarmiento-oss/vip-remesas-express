@@ -93,17 +93,24 @@ for (const field of ["dependencies", "devDependencies"] as const) {
 pkg.scripts = {
   dev: "vite dev",
   build: "vite build",
-  start: "node .output/server/index.mjs",
-  preview: "vite preview",
+  preview: "wrangler dev",
+  typecheck: "tsc --noEmit",
   lint: "eslint .",
+  deploy: "wrangler deploy",
+  "deploy:dry-run": "wrangler deploy --dry-run",
+  "cf-typegen": "wrangler types",
 };
+pkg.devDependencies["@cloudflare/vite-plugin"] = "^1.14.2";
+pkg.devDependencies["wrangler"] = "^4.45.0";
 write("package.json", JSON.stringify(pkg, null, 2) + "\n");
 
-// 4. Configuración de Vite propia (sin @lovable.dev/vite-tanstack-config)
+// 4. Configuración de Vite para Cloudflare Workers (sin paquetes de terceros)
 write(
   "vite.config.ts",
   `import { defineConfig } from "vite";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
+import { cloudflare } from "@cloudflare/vite-plugin";
+import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import tsConfigPaths from "vite-tsconfig-paths";
 
@@ -112,11 +119,34 @@ export default defineConfig({
   plugins: [
     tsConfigPaths(),
     tailwindcss(),
-    // Salida Node autohospedable (VPS + pm2/systemd detrás de Nginx).
-    // Para otros destinos define NITRO_PRESET (vercel, netlify, cloudflare-module...).
+    // Entorno SSR de Cloudflare Workers (lee wrangler.jsonc).
+    cloudflare({ viteEnvironment: { name: "ssr" } }),
     tanstackStart({ server: { entry: "server" } }),
+    react(),
   ],
 });
+`,
+);
+
+// 4b. Configuración del Worker
+write(
+  "wrangler.jsonc",
+  `{
+  // Worker de VIP Remesas Express (TanStack Start full-stack sobre Cloudflare).
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "vip-remesas-express",
+  "compatibility_date": "2026-09-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "main": ".output/server/index.mjs",
+  "assets": {
+    "directory": ".output/public",
+    "binding": "ASSETS"
+  },
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  }
+}
 `,
 );
 
