@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
-    "deploy": "wrangler deploy",
+    "deploy": "wrangler deploy -c dist/server/wrangler.json",
     "deploy:dry-run": "wrangler deploy --dry-run -c dist/server/wrangler.json",
     "cf-typegen": "wrangler types",
     "mobile:add": "cap add android && cap add ios",
