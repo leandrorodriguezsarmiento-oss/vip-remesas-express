@@ -3,6 +3,76 @@ import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 import { brokeredPreviewStorage } from './previewAuthStorage';
 
+const GOOGLE_CLIENT_ID = '386834362759-ia6kr0pg1snrp7ousft2bea5ee29gahq.apps.googleusercontent.com';
+
+type GoogleCredentialResponse = { credential: string };
+type GooglePromptNotification = {
+  isNotDisplayed: () => boolean;
+  isSkippedMoment: () => boolean;
+};
+
+declare global {
+  interface Window {
+    google?: {
+      accounts: {
+        id: {
+          initialize: (options: {
+            client_id: string;
+            callback: (response: GoogleCredentialResponse) => void;
+            nonce?: string;
+            use_fedcm_for_prompt?: boolean;
+          }) => void;
+          prompt: (callback?: (notification: GooglePromptNotification) => void) => void;
+        };
+      };
+    };
+  }
+}
+
+let googleScriptPromise: Promise<void> | null = null;
+
+function loadGoogleIdentityScript(): Promise<void> {
+  if (typeof window === 'undefined') {
+    return Promise.reject(new Error('Google Sign-In solo está disponible en el navegador.'));
+  }
+  if (window.google?.accounts?.id) return Promise.resolve();
+  if (googleScriptPromise) return googleScriptPromise;
+
+  googleScriptPromise = new Promise((resolve, reject) => {
+    const existing = document.querySelector<HTMLScriptElement>('script[data-google-identity="true"]');
+    if (existing) {
+      existing.addEventListener('load', () => resolve(), { once: true });
+      existing.addEventListener('error', () => reject(new Error('No se pudo cargar Google Sign-In.')), { once: true });
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.src = 'https://accounts.google.com/gsi/client';
+    script.async = true;
+    script.defer = true;
+    script.dataset.googleIdentity = 'true';
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error('No se pudo cargar Google Sign-In.'));
+    document.head.appendChild(script);
+  });
+
+  return googleScriptPromise;
+}
+
+function createNonce(): string {
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  return btoa(String.fromCharCode(...bytes));
+}
+
+async function hashNonce(nonce: string): Promise<string> {
+  const encoded = new TextEncoder().encode(nonce);
+  const hash = await crypto.subtle.digest('SHA-256', encoded);
+  return Array.from(new Uint8Array(hash))
+    .map((byte) => byte.toString(16).padStart(2, '0'))
+    .join('');
+}
+
 function isNewSupabaseApiKey(value: string): boolean {
   return value.startsWith('sb_publishable_') || value.startsWith('sb_secret_');
 }
@@ -17,7 +87,6 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
       new Headers(init.headers).forEach((value, key) => headers.set(key, value));
     }
 
-    // New Supabase API keys are opaque strings, not bearer JWTs.
     if (isNewSupabaseApiKey(supabaseKey) && headers.get('Authorization') === `Bearer ${supabaseKey}`) {
       headers.delete('Authorization');
     }
@@ -28,7 +97,6 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
 }
 
 function createSupabaseClient() {
-  // Valores públicos incorporados por Vite durante la compilación.
   const SUPABASE_URL = import.meta.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
   const SUPABASE_PUBLISHABLE_KEY = import.meta.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim();
 
@@ -42,7 +110,7 @@ function createSupabaseClient() {
     throw new Error(message);
   }
 
-  return createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+  const client = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
     global: {
       fetch: createSupabaseFetch(SUPABASE_PUBLISHABLE_KEY),
     },
@@ -54,12 +122,91 @@ function createSupabaseClient() {
       detectSessionInUrl: true,
     },
   });
+
+  // Google is handled directly by Google Identity Services. This bypasses
+  // Supabase's browser OAuth redirect, which was failing with a missing
+  // OAuth secret, while still creating the normal Supabase Auth session.
+  const auth = client.auth as typeof client.auth & {
+    __vipGooglePatched?: boolean;
+  };
+
+  if (!auth.__vipGooglePatched) {
+    const originalSignInWithOAuth = auth.signInWithOAuth.bind(auth);
+
+    auth.signInWithOAuth = async ((credentials: Parameters<typeof client.auth.signInWithOAuth>[0]) => {
+      if (credentials.provider !== 'google' || typeof window === 'undefined') {
+        return originalSignInWithOAuth(credentials);
+      }
+
+      try {
+        await loadGoogleIdentityScript();
+        const nonce = createNonce();
+        const hashedNonce = await hashNonce(nonce);
+
+        await new Promise<void>((resolve, reject) => {
+          let settled = false;
+          const finish = (fn: () => void) => {
+            if (settled) return;
+            settled = true;
+            fn();
+          };
+
+          window.google!.accounts.id.initialize({
+            client_id: GOOGLE_CLIENT_ID,
+            nonce: hashedNonce,
+            use_fedcm_for_prompt: true,
+            callback: async (response) => {
+              try {
+                const { error } = await client.auth.signInWithIdToken({
+                  provider: 'google',
+                  token: response.credential,
+                  nonce,
+                });
+                if (error) throw error;
+
+                const redirectTo = credentials.options?.redirectTo;
+                if (redirectTo) {
+                  const url = new URL(redirectTo, window.location.origin);
+                  const next = url.searchParams.get('next');
+                  window.location.replace(
+                    next && next.startsWith('/') && !next.startsWith('//') ? next : '/dashboard',
+                  );
+                } else {
+                  window.location.replace('/dashboard');
+                }
+
+                finish(resolve);
+              } catch (error) {
+                console.error('Google ID token authentication error:', error);
+                finish(() => reject(error instanceof Error ? error : new Error('No se pudo iniciar con Google.')));
+              }
+            },
+          });
+
+          window.google!.accounts.id.prompt((notification) => {
+            if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+              finish(() => reject(new Error('Google no pudo mostrar la ventana de inicio de sesión.')));
+            }
+          });
+        });
+
+        return { data: { provider: 'google', url: null }, error: null } as Awaited<ReturnType<typeof client.auth.signInWithOAuth>>;
+      } catch (error) {
+        return {
+          data: { provider: 'google', url: null },
+          error: error as Error,
+        } as Awaited<ReturnType<typeof client.auth.signInWithOAuth>>;
+      }
+    }) as typeof auth.signInWithOAuth;
+
+    auth.__vipGooglePatched = true;
+  }
+
+  return client;
 }
 
 let _supabase: ReturnType<typeof createSupabaseClient> | undefined;
 
-// Import the supabase client like this:
-// import { supabase } from "@/integrations/supabase/client";
 export const supabase = new Proxy({} as ReturnType<typeof createSupabaseClient>, {
   get(_, prop, receiver) {
     if (!_supabase) _supabase = createSupabaseClient();
