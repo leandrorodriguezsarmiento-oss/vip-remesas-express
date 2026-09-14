@@ -441,8 +441,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof Char91DotmcpChar93InvokeToolToolRouteImport
       parentRoute: typeof rootRouteImport
     }
-      parentRoute: typeof rootRouteImport
-    }
     '/api/public/recargas/webhook': {
       id: '/api/public/recargas/webhook'
       path: '/api/public/recargas/webhook'
