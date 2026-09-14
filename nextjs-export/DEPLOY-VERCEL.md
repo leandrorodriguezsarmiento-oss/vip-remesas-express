@@ -21,7 +21,7 @@ Sube **solo el contenido de `nextjs-export/`** a un repo de GitHub (que quede en
 | Variable | Valor |
 |---|---|
 | `NEXT_PUBLIC_SUPABASE_URL` | Project URL |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | anon public key |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | clave publicable |
 | `SUPABASE_SERVICE_ROLE_KEY` | service_role (secreto, sin NEXT_PUBLIC_) |
 | `ADMIN_EMAIL` | leandrorodriguezsarmiento@gmail.com |
 | `NEXT_PUBLIC_SITE_URL` | https://tudominio.com |
