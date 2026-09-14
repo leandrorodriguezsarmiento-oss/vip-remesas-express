@@ -68,6 +68,8 @@ bunx wrangler secret put SUPABASE_SERVICE_ROLE_KEY
 ```
 
 El despliegue usa `--keep-vars` para conservar la configuración del Worker.
+El workflow exige `SUPABASE_SERVICE_ROLE_KEY` en **GitHub Actions > Secrets**
+y lo carga como Secret del Worker en cada despliegue; nunca entra al build del navegador.
 `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` deben
 existir como Variables del Worker y durante el build. Son valores públicos;
 la clave administrativa sólo existe como `SUPABASE_SERVICE_ROLE_KEY` Secret.
