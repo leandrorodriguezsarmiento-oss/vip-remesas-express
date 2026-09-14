@@ -112,9 +112,7 @@ function AuthPage() {
         data: {
           fullName: sFullName,
           username: sUsername,
-          phone: sPhone,
           email: sEmail,
-          country: sCountry,
           password: sPassword,
         },
       });
