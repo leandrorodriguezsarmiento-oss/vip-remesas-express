@@ -447,6 +447,13 @@ jobs:
           NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: \${{ vars.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
           VITE_VAPID_PUBLIC_KEY: \${{ vars.VITE_VAPID_PUBLIC_KEY || secrets.VITE_VAPID_PUBLIC_KEY }}
           VITE_PIX_KEY: \${{ vars.VITE_PIX_KEY || secrets.VITE_PIX_KEY }}
+      - name: Comprobar que el build usa el proyecto correcto
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: \${{ vars.NEXT_PUBLIC_SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL }}
+        run: |
+          HOST=\$(echo "$NEXT_PUBLIC_SUPABASE_URL" | sed -E 's#https?://##; s#/.*##')
+          grep -rqF "$HOST" dist/client || (echo "El build no apunta a $HOST" && exit 1)
+          echo "Build verificado: $HOST"
       - name: Verificar Secret administrativo
         env:
           SUPABASE_SERVICE_ROLE_KEY: \${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
