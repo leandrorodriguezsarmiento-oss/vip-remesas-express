@@ -102,7 +102,6 @@ function AuthPage() {
     const parsed = signupSchema.safeParse({
       fullName: sFullName,
       username: sUsername,
-      phone: sPhone.replace(/\D/g, ""),
       email: sEmail,
       password: sPassword,
     });
