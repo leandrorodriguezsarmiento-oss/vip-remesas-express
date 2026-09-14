@@ -1,0 +1,82 @@
+name: Deploy VIPRemesas (Cloudflare Workers)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: true
+
+env:
+  NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL }}
+  NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ vars.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
+  VITE_VAPID_PUBLIC_KEY: ${{ vars.VITE_VAPID_PUBLIC_KEY || secrets.VITE_VAPID_PUBLIC_KEY }}
+  VITE_PIX_KEY: ${{ vars.VITE_PIX_KEY || secrets.VITE_PIX_KEY }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # La app de producción vive en portable-export/ cuando el repositorio
+      # incluye esa carpeta; si el repositorio ya es la copia portable, es la raíz.
+      - name: Detectar carpeta de la aplicación
+        run: |
+          if [ -f portable-export/wrangler.jsonc ]; then
+            echo "APP_DIR=portable-export" >> "$GITHUB_ENV"
+          elif [ -f wrangler.jsonc ]; then
+            echo "APP_DIR=." >> "$GITHUB_ENV"
+          else
+            echo "No encuentro wrangler.jsonc ni en la raíz ni en portable-export/." && exit 1
+          fi
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Verificar configuración pública
+        run: |
+          test -n "$NEXT_PUBLIC_SUPABASE_URL" || (echo "Falta NEXT_PUBLIC_SUPABASE_URL en Actions > Variables" && exit 1)
+          test -n "$NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY" || (echo "Falta NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY en Actions > Variables" && exit 1)
+
+      - name: Verificar Secret administrativo
+        env:
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          test -n "$SUPABASE_SERVICE_ROLE_KEY" || (echo "Falta SUPABASE_SERVICE_ROLE_KEY en Actions > Secrets" && exit 1)
+          test -n "${{ secrets.CLOUDFLARE_API_TOKEN }}" || (echo "Falta CLOUDFLARE_API_TOKEN en Actions > Secrets" && exit 1)
+          test -n "${{ secrets.CLOUDFLARE_ACCOUNT_ID }}" || (echo "Falta CLOUDFLARE_ACCOUNT_ID en Actions > Secrets" && exit 1)
+
+      - name: Instalar dependencias
+        run: cd "$APP_DIR" && bun install
+
+      - name: Compilar producción
+        run: cd "$APP_DIR" && bun run build
+
+      - name: Comprobar que el build usa el proyecto Supabase correcto
+        run: |
+          cd "$APP_DIR"
+          HOST=$(echo "$NEXT_PUBLIC_SUPABASE_URL" | sed -E 's#https?://##; s#/.*##')
+          grep -rqF "$HOST" dist/client || (echo "El build no apunta a $HOST" && exit 1)
+          if grep -rqF "uoglxwtritcsrglwimej" dist/client; then
+            echo "El build todavía contiene el proyecto antiguo uoglxwtritcsrglwimej" && exit 1
+          fi
+          if grep -rqE "SUPABASE_SERVICE_ROLE_KEY|sb_secret_" dist/client; then
+            echo "La clave administrativa no puede aparecer en el navegador" && exit 1
+          fi
+          echo "Build verificado: $HOST"
+
+      - name: Publicar en Cloudflare
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: ${{ env.APP_DIR }}
+          command: deploy -c dist/server/wrangler.json --keep-vars
+          secrets: |
+            SUPABASE_SERVICE_ROLE_KEY
+        env:
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
