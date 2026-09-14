@@ -6,10 +6,10 @@ import { z } from "zod";
 const registerSchema = z.object({
   fullName: z.string().trim().min(2).max(80),
   username: z.string().trim().min(3).max(24).regex(/^[a-zA-Z0-9._-]+$/),
-  phone: z.string().trim().min(8).max(24),
+  phone: z.string().trim().max(24).optional(),
   email: z.string().trim().email().max(255),
   cpf: z.string().trim().optional(),
-  country: z.string().trim().min(2).max(4),
+  country: z.string().trim().min(2).max(4).optional(),
   password: z.string().min(6).max(72),
 });
 
@@ -54,19 +54,19 @@ export const registerAccount = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => registerSchema.parse(input))
   .handler(async ({ data }) => {
     const username = normalizeAlias("username", data.username);
-    const phone = normalizeAlias("phone", data.phone);
+    const phone = data.phone ? normalizeAlias("phone", data.phone) : "";
     const cpf = data.cpf ? normalizeAlias("cpf", data.cpf) : "";
     const contactEmail = data.email.trim().toLowerCase();
 
     if (username.length < 3) throw new Error("Nombre de usuario inválido");
-    if (phone.length < 8) throw new Error("Teléfono inválido");
+    if (phone && phone.length < 8) throw new Error("Teléfono inválido");
     if (cpf && cpf.length !== 11) throw new Error("El CPF debe tener 11 dígitos");
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const aliases = [
       { alias: username, kind: "username" as const },
-      { alias: phone, kind: "phone" as const },
+      ...(phone ? [{ alias: phone, kind: "phone" as const }] : []),
       { alias: contactEmail, kind: "email" as const },
       ...(cpf ? [{ alias: cpf, kind: "cpf" as const }] : []),
     ];
@@ -96,10 +96,10 @@ export const registerAccount = createServerFn({ method: "POST" })
       email_confirm: true,
       user_metadata: {
         full_name: data.fullName.trim(),
-        phone: data.phone.trim(),
+        phone: data.phone?.trim() ?? "",
         username,
         cpf,
-        country: data.country,
+        country: data.country ?? "BR",
         contact_email: contactEmail,
       },
     });
