@@ -54,7 +54,7 @@ export const registerAccount = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => registerSchema.parse(input))
   .handler(async ({ data }) => {
     const username = normalizeAlias("username", data.username);
-    const phone = normalizeAlias("phone", data.phone);
+    const phone = data.phone ? normalizeAlias("phone", data.phone) : "";
     const cpf = data.cpf ? normalizeAlias("cpf", data.cpf) : "";
     const contactEmail = data.email.trim().toLowerCase();
 
