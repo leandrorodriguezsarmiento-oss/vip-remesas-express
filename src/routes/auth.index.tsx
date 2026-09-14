@@ -36,7 +36,6 @@ const signupSchema = z.object({
     .min(3, "Usuario: mínimo 3 caracteres")
     .max(24, "Usuario muy largo")
     .regex(/^[a-zA-Z0-9._-]+$/, "Usuario: sólo letras, números, . _ -"),
-  phone: z.string().trim().min(8, "Teléfono inválido").max(24),
   email: z.string().trim().email("Correo inválido").max(255),
   password: z.string().min(6, "Contraseña: mínimo 6 caracteres").max(72),
 });
