@@ -123,9 +123,6 @@ function createSupabaseClient() {
     },
   });
 
-  // Google is handled directly by Google Identity Services. This bypasses
-  // Supabase's browser OAuth redirect, which was failing with a missing
-  // OAuth secret, while still creating the normal Supabase Auth session.
   const auth = client.auth as typeof client.auth & {
     __vipGooglePatched?: boolean;
   };
@@ -133,7 +130,9 @@ function createSupabaseClient() {
   if (!auth.__vipGooglePatched) {
     const originalSignInWithOAuth = auth.signInWithOAuth.bind(auth);
 
-    auth.signInWithOAuth = async ((credentials: Parameters<typeof client.auth.signInWithOAuth>[0]) => {
+    const patchedSignInWithOAuth = async (
+      credentials: Parameters<typeof client.auth.signInWithOAuth>[0],
+    ) => {
       if (credentials.provider !== 'google' || typeof window === 'undefined') {
         return originalSignInWithOAuth(credentials);
       }
@@ -178,7 +177,9 @@ function createSupabaseClient() {
                 finish(resolve);
               } catch (error) {
                 console.error('Google ID token authentication error:', error);
-                finish(() => reject(error instanceof Error ? error : new Error('No se pudo iniciar con Google.')));
+                finish(() =>
+                  reject(error instanceof Error ? error : new Error('No se pudo iniciar con Google.')),
+                );
               }
             },
           });
@@ -190,15 +191,19 @@ function createSupabaseClient() {
           });
         });
 
-        return { data: { provider: 'google', url: null }, error: null } as Awaited<ReturnType<typeof client.auth.signInWithOAuth>>;
+        return {
+          data: { provider: 'google', url: null },
+          error: null,
+        } as Awaited<ReturnType<typeof client.auth.signInWithOAuth>>;
       } catch (error) {
         return {
           data: { provider: 'google', url: null },
           error: error as Error,
         } as Awaited<ReturnType<typeof client.auth.signInWithOAuth>>;
       }
-    }) as typeof auth.signInWithOAuth;
+    };
 
+    auth.signInWithOAuth = patchedSignInWithOAuth as typeof auth.signInWithOAuth;
     auth.__vipGooglePatched = true;
   }
 
