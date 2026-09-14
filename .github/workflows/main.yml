@@ -55,6 +55,11 @@ jobs:
             exit 1
           fi
 
+          if [ "$NEXT_PUBLIC_SUPABASE_URL" != "https://nczavdcqueebhhtkuasv.supabase.co" ]; then
+            echo "ERROR: NEXT_PUBLIC_SUPABASE_URL no apunta al proyecto nuevo."
+            exit 1
+          fi
+
           echo "Variables públicas de Supabase encontradas."
 
       - name: Verificar Secrets
@@ -96,7 +101,7 @@ jobs:
         run: |
           cd "$APP_DIR"
 
-          HOST=$(echo "$NEXT_PUBLIC_SUPABASE_URL" | sed -E 's#https?://##; s#/.*##')
+          EXPECTED_URL="https://nczavdcqueebhhtkuasv.supabase.co"
 
           echo "Proyecto Supabase esperado: $HOST"
 
@@ -110,11 +115,11 @@ jobs:
             exit 1
           fi
 
-          if grep -rqF "$HOST" dist/client; then
+          if grep -rqF "$EXPECTED_URL" dist/client; then
             echo "Proyecto Supabase correcto encontrado."
           else
-            echo "ADVERTENCIA: No se encontró la URL de Supabase directamente en dist/client."
-            echo "Continuando porque algunas aplicaciones inyectan la configuración durante el runtime."
+            echo "ERROR: El navegador no contiene la URL del proyecto nuevo."
+            exit 1
           fi
 
       - name: Verificar que no se exponga la clave administrativa

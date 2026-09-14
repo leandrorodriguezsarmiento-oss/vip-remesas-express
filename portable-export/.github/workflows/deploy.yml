@@ -36,9 +36,12 @@ jobs:
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL }}
         run: |
-          HOST=$(echo "$NEXT_PUBLIC_SUPABASE_URL" | sed -E 's#https?://##; s#/.*##')
-          grep -rqF "$HOST" dist/client || (echo "El build no apunta a $HOST" && exit 1)
-          echo "Build verificado: $HOST"
+          EXPECTED_URL="https://nczavdcqueebhhtkuasv.supabase.co"
+          test "$NEXT_PUBLIC_SUPABASE_URL" = "$EXPECTED_URL" || (echo "La URL configurada no es la del proyecto nuevo" && exit 1)
+          grep -rqF "$EXPECTED_URL" dist/client || (echo "El build no apunta al proyecto nuevo" && exit 1)
+          ! grep -rqF "uoglxwtritcsrglwimej" dist/client || (echo "El build contiene el proyecto antiguo" && exit 1)
+          ! grep -rqE "SUPABASE_SERVICE_ROLE_KEY|sb_secret_" dist/client || (echo "El navegador contiene una referencia administrativa" && exit 1)
+          echo "Build verificado: $EXPECTED_URL"
       - name: Verificar Secret administrativo
         env:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}

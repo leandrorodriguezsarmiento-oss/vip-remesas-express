@@ -8,10 +8,15 @@ export async function GET(req: NextRequest) {
   const redirect = url.searchParams.get("redirect") || "/dashboard";
   const res = NextResponse.redirect(new URL(redirect, url.origin));
   if (!code) return res;
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  const supabasePublishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim();
+  if (!supabaseUrl?.startsWith("https://") || !supabasePublishableKey) {
+    return new Response("Falta una configuración pública válida para Supabase", { status: 500 });
+  }
 
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+    supabaseUrl,
+    supabasePublishableKey,
     {
       cookies: {
         getAll: () => req.cookies.getAll(),

@@ -30,8 +30,8 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
 
 function createSupabaseClient() {
   // Valores públicos incorporados por Vite durante la compilación.
-  const SUPABASE_URL = import.meta.env.NEXT_PUBLIC_SUPABASE_URL;
-  const SUPABASE_PUBLISHABLE_KEY = import.meta.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+  const SUPABASE_URL = import.meta.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  const SUPABASE_PUBLISHABLE_KEY = import.meta.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim();
 
   if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
     const missing = [

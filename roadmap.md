@@ -13,3 +13,4 @@
 - [x] Verificar que la clave administrativa no llegue al navegador y que el build funcione.
 - [x] Identificar el origen exacto del error de clave administrativa en producción.
 - [x] Hacer que el despliegue configure y valide el Secret administrativo del Worker.
+- [ ] Unificar todos los clientes de producción con el proyecto nuevo y validar el build final.

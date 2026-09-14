@@ -132,8 +132,9 @@ export default defineConfig(({ command, mode }) => {
   const env = { ...loadEnv(mode, process.cwd(), ""), ...process.env };
   // These two NEXT_PUBLIC values are intentionally embedded in the browser bundle.
   // The service-role key is never referenced or defined here.
-  const publicSupabaseUrl = env.NEXT_PUBLIC_SUPABASE_URL;
-  const publicSupabaseKey = env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+  const publicSupabaseUrl = env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  const publicSupabaseKey = env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim();
+  const expectedSupabaseUrl = "https://nczavdcqueebhhtkuasv.supabase.co";
   if (command === "build") {
     const missing = [
       ...(!publicSupabaseUrl?.trim() ? ["NEXT_PUBLIC_SUPABASE_URL"] : []),
@@ -143,6 +144,11 @@ export default defineConfig(({ command, mode }) => {
       throw new Error(
         \`Faltan variables públicas de compilación: \${missing.join(", ")}. \` +
           "Configúralas como Variables de compilación en Cloudflare o como Variables del repositorio en GitHub.",
+      );
+    }
+    if (publicSupabaseUrl !== expectedSupabaseUrl) {
+      throw new Error(
+        \`NEXT_PUBLIC_SUPABASE_URL debe ser exactamente \${expectedSupabaseUrl}. Valor recibido: \${publicSupabaseUrl || "vacío"}.\`,
       );
     }
   }
@@ -199,7 +205,7 @@ export function brokeredPreviewStorage() {
 patch("src/integrations/supabase/client.ts", [
   [
     /  \/\/ Use import\.meta\.env for client-side \(Vite build-time replacement\)\n  \/\/ Fall back to process\.env for SSR \(server-side rendering\)\n  const SUPABASE_URL = import\.meta\.env\.VITE_SUPABASE_URL \|\| process\.env\.SUPABASE_URL;\n  const SUPABASE_PUBLISHABLE_KEY = import\.meta\.env\.VITE_SUPABASE_PUBLISHABLE_KEY \|\| process\.env\.SUPABASE_PUBLISHABLE_KEY;/,
-    `  // Valores públicos incorporados por Vite durante la compilación.\n  const SUPABASE_URL = import.meta.env.NEXT_PUBLIC_SUPABASE_URL;\n  const SUPABASE_PUBLISHABLE_KEY = import.meta.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;`,
+    `  // Valores públicos incorporados por Vite durante la compilación.\n  const SUPABASE_URL = import.meta.env.NEXT_PUBLIC_SUPABASE_URL?.trim();\n  const SUPABASE_PUBLISHABLE_KEY = import.meta.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim();`,
   ],
   [
     /const message = `Missing Supabase environment variable\(s\): \$\{missing\.join\(', '\)\}\.[^`]*`;/,
@@ -210,17 +216,20 @@ patch("src/integrations/supabase/client.ts", [
 // Los clientes del servidor comparten la URL pública. Las operaciones con RLS
 // usan la clave publicable; únicamente el cliente administrativo usa service role.
 patch("src/integrations/supabase/auth-middleware.ts", [
-  [/process\.env\.SUPABASE_URL/g, "process.env.NEXT_PUBLIC_SUPABASE_URL"],
-  [/process\.env\.SUPABASE_PUBLISHABLE_KEY/g, "process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"],
+  [/process\.env\.SUPABASE_URL/g, "import.meta.env.NEXT_PUBLIC_SUPABASE_URL"],
+  [/process\.env\.SUPABASE_PUBLISHABLE_KEY/g, "import.meta.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"],
   [/'SUPABASE_URL'/g, "'NEXT_PUBLIC_SUPABASE_URL'"],
   [/'SUPABASE_PUBLISHABLE_KEY'/g, "'NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY'"],
 ]);
 patch("src/integrations/supabase/client.server.ts", [
-  [/process\.env\.SUPABASE_URL/g, "process.env.NEXT_PUBLIC_SUPABASE_URL"],
+  [/process\.env\.SUPABASE_URL/g, "import.meta.env.NEXT_PUBLIC_SUPABASE_URL"],
   [/'SUPABASE_URL'/g, "'NEXT_PUBLIC_SUPABASE_URL'"],
 ]);
 patch("src/routes/api/public/push.dispatch.ts", [
   [/process\.env\.SUPABASE_PUBLISHABLE_KEY/g, "process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"],
+]);
+patch("supabase/config.toml", [
+  [/^project_id\s*=.*$/m, 'project_id = "nczavdcqueebhhtkuasv"'],
 ]);
 
 // 6. Reporte de errores propio
@@ -451,9 +460,12 @@ jobs:
         env:
           NEXT_PUBLIC_SUPABASE_URL: \${{ vars.NEXT_PUBLIC_SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL }}
         run: |
-          HOST=\$(echo "$NEXT_PUBLIC_SUPABASE_URL" | sed -E 's#https?://##; s#/.*##')
-          grep -rqF "$HOST" dist/client || (echo "El build no apunta a $HOST" && exit 1)
-          echo "Build verificado: $HOST"
+          EXPECTED_URL="https://nczavdcqueebhhtkuasv.supabase.co"
+          test "$NEXT_PUBLIC_SUPABASE_URL" = "$EXPECTED_URL" || (echo "La URL configurada no es la del proyecto nuevo" && exit 1)
+          grep -rqF "$EXPECTED_URL" dist/client || (echo "El build no apunta al proyecto nuevo" && exit 1)
+          ! grep -rqF "uoglxwtritcsrglwimej" dist/client || (echo "El build contiene el proyecto antiguo" && exit 1)
+          ! grep -rqE "SUPABASE_SERVICE_ROLE_KEY|sb_secret_" dist/client || (echo "El navegador contiene una referencia administrativa" && exit 1)
+          echo "Build verificado: $EXPECTED_URL"
       - name: Verificar Secret administrativo
         env:
           SUPABASE_SERVICE_ROLE_KEY: \${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
