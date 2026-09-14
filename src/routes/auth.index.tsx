@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable/index";
+
 import { registerAccount, resolveLoginIdentifier } from "@/lib/account.functions";
 
 import { Loader2 } from "lucide-react";
@@ -131,16 +131,18 @@ function AuthPage() {
   async function handleGoogle() {
     setLoading(true);
     try {
-      const result = await lovable.auth.signInWithOAuth("google", {
-        redirect_uri: window.location.origin,
+      const result = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}${nextPath ?? "/"}`,
+        },
       });
       if (result.error) {
         toast.error("No se pudo iniciar con Google");
         setLoading(false);
         return;
       }
-      if (result.redirected) return;
-      goNext();
+      return;
     } catch {
       toast.error("No se pudo iniciar con Google");
       setLoading(false);

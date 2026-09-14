@@ -184,18 +184,7 @@ patch("src/routes/__root.tsx", [
   [/reportLovableError\(/g, "reportAppError("],
 ]);
 
-// 7. Google OAuth directo contra Supabase (sin el broker de Lovable)
-patch("src/routes/auth.index.tsx", [
-  [/import \{ lovable \} from "@\/integrations\/lovable\/index";\n/, ""],
-  [
-    /const result = await lovable\.auth\.signInWithOAuth\("google", \{\s*redirect_uri: window\.location\.origin,\s*\}\);/,
-    `const result = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: { redirectTo: \`\${window.location.origin}/auth\` },
-      });`,
-  ],
-  [/if \(result\.redirected\) return;\n\s*goNext\(\);/, "return;"],
-]);
+// 7. Google OAuth ya usa Supabase directamente en el código fuente (sin broker externo).
 
 // 8. Sin URLs de lovable.app en el código de servidor
 for (const rel of ["src/lib/emailjs.server.ts", "src/lib/payments.functions.ts", "src/lib/recharge-payments.functions.ts"]) {
