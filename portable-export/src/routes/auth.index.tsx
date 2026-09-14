@@ -45,14 +45,11 @@ function onlyLetters(v: string): string {
   return v.replace(/[^a-zA-ZÀ-ÿ' ]/g, "");
 }
 
-
-
 function AuthPage() {
   const [tab, setTab] = useState<"login" | "signup">("login");
   const [loading, setLoading] = useState(false);
   const [showForgot, setShowForgot] = useState(false);
   const navigate = useNavigate();
-
 
   // login
   const [identifier, setIdentifier] = useState("");
@@ -64,9 +61,6 @@ function AuthPage() {
   const [sEmail, setSEmail] = useState("");
   const [sPassword, setSPassword] = useState("");
 
-
-
-
   const resolve = useServerFn(resolveLoginIdentifier);
   const register = useServerFn(registerAccount);
 
@@ -74,24 +68,52 @@ function AuthPage() {
   const nextPath = safeNext(nextParam);
 
   function goNext() {
-    if (nextPath) window.location.href = nextPath;
-    else navigate({ to: "/dashboard" });
+    if (nextPath) {
+      window.location.href = nextPath;
+    } else {
+      navigate({ to: "/dashboard" });
+    }
   }
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
-    if (identifier.trim().length < 3) return toast.error("Ingresa tu usuario o correo");
-    if (!password) return toast.error("Ingresa tu contraseña");
+
+    if (identifier.trim().length < 3) {
+      return toast.error("Ingresa tu usuario o correo");
+    }
+
+    if (!password) {
+      return toast.error("Ingresa tu contraseña");
+    }
+
     setLoading(true);
+
     try {
-      const { email } = await resolve({ data: { identifier } });
-      if (!email) throw new Error("No encontramos esa cuenta");
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) throw new Error("Usuario o contraseña incorrectos");
+      const { email } = await resolve({
+        data: { identifier },
+      });
+
+      if (!email) {
+        throw new Error("No encontramos esa cuenta");
+      }
+
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        throw new Error("Usuario o contraseña incorrectos");
+      }
+
       toast.success("¡Bienvenido de vuelta!");
       goNext();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "No se pudo iniciar sesión");
+      toast.error(
+        err instanceof Error
+          ? err.message
+          : "No se pudo iniciar sesión"
+      );
     } finally {
       setLoading(false);
     }
@@ -99,14 +121,20 @@ function AuthPage() {
 
   async function handleSignup(e: React.FormEvent) {
     e.preventDefault();
+
     const parsed = signupSchema.safeParse({
       fullName: sFullName,
       username: sUsername,
       email: sEmail,
       password: sPassword,
     });
-    if (!parsed.success) return toast.error(parsed.error.issues[0].message);
+
+    if (!parsed.success) {
+      return toast.error(parsed.error.issues[0].message);
+    }
+
     setLoading(true);
+
     try {
       const { email } = await register({
         data: {
@@ -117,12 +145,23 @@ function AuthPage() {
         },
       });
 
-      const { error } = await supabase.auth.signInWithPassword({ email, password: sPassword });
-      if (error) throw new Error(error.message);
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password: sPassword,
+      });
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
       toast.success("¡Cuenta creada! Ya puedes enviar remesas.");
       goNext();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "No se pudo crear la cuenta");
+      toast.error(
+        err instanceof Error
+          ? err.message
+          : "No se pudo crear la cuenta"
+      );
     } finally {
       setLoading(false);
     }
@@ -130,45 +169,83 @@ function AuthPage() {
 
   async function handleGoogle() {
     setLoading(true);
+
     try {
-      const result = await supabase.auth.signInWithOAuth({
+      const callbackUrl = `${window.location.origin}/auth/callback`;
+
+      const redirectTo = nextPath
+        ? `${callbackUrl}?next=${encodeURIComponent(nextPath)}`
+        : callbackUrl;
+
+      const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}${nextPath ?? "/"}`,
+          redirectTo,
+          queryParams: {
+            access_type: "offline",
+            prompt: "select_account",
+          },
         },
       });
-      if (result.error) {
-        toast.error("No se pudo iniciar con Google");
+
+      if (error) {
+        console.error("Google OAuth error:", error);
+        toast.error(
+          error.message || "No se pudo iniciar con Google"
+        );
         setLoading(false);
         return;
       }
-      return;
-    } catch {
-      toast.error("No se pudo iniciar con Google");
+    } catch (err) {
+      console.error("Google OAuth exception:", err);
+
+      toast.error(
+        err instanceof Error
+          ? err.message
+          : "No se pudo iniciar con Google"
+      );
+
       setLoading(false);
     }
   }
-  if (showForgot) return <ForgotPassword onBack={() => setShowForgot(false)} />;
+
+  if (showForgot) {
+    return <ForgotPassword onBack={() => setShowForgot(false)} />;
+  }
 
   return (
-
     <div className="min-h-screen bg-gradient-vip px-5 py-8">
       <div className="mx-auto max-w-md">
         <Link to="/" className="mb-8 flex items-center gap-2">
           <BrandMark />
-          <span className="font-display text-lg font-bold">VIP Remesas</span>
+          <span className="font-display text-lg font-bold">
+            VIP Remesas
+          </span>
         </Link>
 
         <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
           <div className="mb-6 grid grid-cols-2 rounded-lg bg-secondary p-1">
             <button
               onClick={() => setTab("login")}
-              className={`rounded-md px-4 py-2 text-sm font-medium transition ${tab === "login" ? "bg-gradient-gold text-primary-foreground shadow-gold" : "text-muted-foreground"}`}
-            >Entrar</button>
+              className={`rounded-md px-4 py-2 text-sm font-medium transition ${
+                tab === "login"
+                  ? "bg-gradient-gold text-primary-foreground shadow-gold"
+                  : "text-muted-foreground"
+              }`}
+            >
+              Entrar
+            </button>
+
             <button
               onClick={() => setTab("signup")}
-              className={`rounded-md px-4 py-2 text-sm font-medium transition ${tab === "signup" ? "bg-gradient-gold text-primary-foreground shadow-gold" : "text-muted-foreground"}`}
-            >Crear cuenta</button>
+              className={`rounded-md px-4 py-2 text-sm font-medium transition ${
+                tab === "signup"
+                  ? "bg-gradient-gold text-primary-foreground shadow-gold"
+                  : "text-muted-foreground"
+              }`}
+            >
+              Crear cuenta
+            </button>
           </div>
 
           {tab === "login" ? (
@@ -180,6 +257,7 @@ function AuthPage() {
                 placeholder="joaosilva / tu@correo.com"
                 autoComplete="username"
               />
+
               <Field
                 label="Contraseña"
                 type="password"
@@ -188,6 +266,7 @@ function AuthPage() {
                 placeholder="••••••••"
                 autoComplete="current-password"
               />
+
               <button
                 type="button"
                 onClick={() => setShowForgot(true)}
@@ -195,41 +274,96 @@ function AuthPage() {
               >
                 ¿Olvidaste tu contraseña?
               </button>
-              <p className="text-xs text-muted-foreground">
-                Tu sesión queda guardada en este dispositivo: la próxima vez entras directo.
-              </p>
-              <SubmitButton loading={loading}>Entrar</SubmitButton>
-            </form>
 
+              <p className="text-xs text-muted-foreground">
+                Tu sesión queda guardada en este dispositivo: la próxima
+                vez entras directo.
+              </p>
+
+              <SubmitButton loading={loading}>
+                Entrar
+              </SubmitButton>
+            </form>
           ) : (
             <form onSubmit={handleSignup} className="space-y-4">
-              <Field label="Nombre completo" value={sFullName} onChange={(v) => setSFullName(onlyLetters(v))} placeholder="João da Silva" />
-              <Field label="Nombre de usuario" value={sUsername} onChange={setSUsername} placeholder="joaosilva" autoComplete="username" />
-              <Field label="Correo electrónico" type="email" value={sEmail} onChange={(v) => setSEmail(v.trim())} placeholder="tu@correo.com" autoComplete="email" />
-              <Field label="Contraseña" type="password" value={sPassword} onChange={setSPassword} placeholder="Mínimo 6 caracteres" autoComplete="new-password" />
+              <Field
+                label="Nombre completo"
+                value={sFullName}
+                onChange={(v) => setSFullName(onlyLetters(v))}
+                placeholder="João da Silva"
+              />
+
+              <Field
+                label="Nombre de usuario"
+                value={sUsername}
+                onChange={setSUsername}
+                placeholder="joaosilva"
+                autoComplete="username"
+              />
+
+              <Field
+                label="Correo electrónico"
+                type="email"
+                value={sEmail}
+                onChange={(v) => setSEmail(v.trim())}
+                placeholder="tu@correo.com"
+                autoComplete="email"
+              />
+
+              <Field
+                label="Contraseña"
+                type="password"
+                value={sPassword}
+                onChange={setSPassword}
+                placeholder="Mínimo 6 caracteres"
+                autoComplete="new-password"
+              />
+
               <p className="text-xs text-muted-foreground">
                 Entras con tu usuario o correo y contraseña.
               </p>
 
-              <SubmitButton loading={loading}>Crear cuenta VIP</SubmitButton>
+              <SubmitButton loading={loading}>
+                Crear cuenta VIP
+              </SubmitButton>
             </form>
           )}
 
           <div className="my-5 flex items-center gap-3 text-xs text-muted-foreground">
-            <div className="h-px flex-1 bg-border" /> o continúa con <div className="h-px flex-1 bg-border" />
+            <div className="h-px flex-1 bg-border" />
+            o continúa con
+            <div className="h-px flex-1 bg-border" />
           </div>
+
           <button
             type="button"
             onClick={handleGoogle}
             disabled={loading}
             className="flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-background px-4 py-3 text-sm font-medium transition hover:border-gold disabled:opacity-70"
           >
-            <svg className="h-4 w-4" viewBox="0 0 24 24" aria-hidden="true">
-              <path fill="#EA4335" d="M12 5.04c1.9 0 3.6.65 4.95 1.93l3.69-3.69C18.32 1.19 15.4 0 12 0 7.31 0 3.26 2.69 1.28 6.61l4.3 3.34C6.6 6.98 9.05 5.04 12 5.04z" />
-              <path fill="#4285F4" d="M23.49 12.27c0-.79-.07-1.55-.2-2.27H12v4.51h6.47c-.28 1.4-1.12 2.59-2.38 3.4l3.65 2.84c2.14-1.97 3.75-4.9 3.75-8.48z" />
-              <path fill="#FBBC05" d="M5.58 14.35a7.14 7.14 0 010-4.7L1.28 6.31A11.98 11.98 0 000 12c0 1.94.46 3.77 1.28 5.39l4.3-3.04z" />
-              <path fill="#34A853" d="M12 24c3.24 0 5.96-1.08 7.94-2.92l-3.65-2.84c-1.02.68-2.31 1.08-4.29 1.08-2.95 0-5.4-1.94-6.42-4.61l-4.3 3.04C3.26 21.31 7.31 24 12 24z" />
+            <svg
+              className="h-4 w-4"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <path
+                fill="#EA4335"
+                d="M12 5.04c1.9 0 3.6.65 4.95 1.93l3.69-3.69C18.32 1.19 15.4 0 12 0 7.31 0 3.26 2.69 1.28 6.61l4.3 3.34C6.6 6.98 9.05 5.04 12 5.04z"
+              />
+              <path
+                fill="#4285F4"
+                d="M23.49 12.27c0-.79-.07-1.55-.2-2.27H12v4.51h6.47c-.28 1.4-1.12 2.59-2.38 3.4l3.65 2.84c2.14-1.97 3.75-4.9 3.75-8.48z"
+              />
+              <path
+                fill="#FBBC05"
+                d="M5.58 14.35a7.14 7.14 0 010-4.7L1.28 6.31A11.98 11.98 0 000 12c0 1.94.46 3.77 1.28 5.39l4.3-3.04z"
+              />
+              <path
+                fill="#34A853"
+                d="M12 24c3.24 0 5.96-1.08 7.94-2.92l-3.65-2.84c-1.02.68-2.31 1.08-4.29 1.08-2.95 0-5.4-1.94-6.42-4.61l-4.3 3.04C3.26 21.31 7.31 24 12 24z"
+              />
             </svg>
+
             Continuar con Google
           </button>
         </div>
@@ -242,28 +376,55 @@ function AuthPage() {
   );
 }
 
-function Field({ label, value, onChange, type = "text", placeholder, autoComplete, inputMode }: {
-  label: string; value: string; onChange: (v: string) => void; type?: string; placeholder?: string;
-  autoComplete?: string; inputMode?: "text" | "tel" | "numeric" | "email";
+function Field({
+  label,
+  value,
+  onChange,
+  type = "text",
+  placeholder,
+  autoComplete,
+  inputMode,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  type?: string;
+  placeholder?: string;
+  autoComplete?: string;
+  inputMode?: "text" | "tel" | "numeric" | "email";
 }) {
   return (
     <label className="block">
-      <span className="mb-1.5 block text-xs font-medium text-muted-foreground">{label}</span>
+      <span className="mb-1.5 block text-xs font-medium text-muted-foreground">
+        {label}
+      </span>
+
       <input
-        type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
         autoComplete={autoComplete}
         inputMode={inputMode}
         className="w-full rounded-lg border border-border bg-background px-4 py-3 text-sm outline-none transition focus:border-gold"
       />
-
     </label>
   );
 }
 
-function SubmitButton({ children, loading }: { children: React.ReactNode; loading?: boolean }) {
+function SubmitButton({
+  children,
+  loading,
+}: {
+  children: React.ReactNode;
+  loading?: boolean;
+}) {
   return (
-    <button type="submit" disabled={loading}
-      className="flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-gold px-4 py-3 text-sm font-semibold text-primary-foreground shadow-gold disabled:opacity-70">
+    <button
+      type="submit"
+      disabled={loading}
+      className="flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-gold px-4 py-3 text-sm font-semibold text-primary-foreground shadow-gold disabled:opacity-70"
+    >
       {loading && <Loader2 className="h-4 w-4 animate-spin" />}
       {children}
     </button>
@@ -278,16 +439,35 @@ function ForgotPassword({ onBack }: { onBack: () => void }) {
 
   async function send(e: React.FormEvent) {
     e.preventDefault();
+
     const parsed = z.string().trim().email().safeParse(email);
-    if (!parsed.success) return toast.error("Escribe un correo válido");
+
+    if (!parsed.success) {
+      return toast.error("Escribe un correo válido");
+    }
+
     setLoading(true);
-    const { error } = await supabase.auth.resetPasswordForEmail(parsed.data, {
-      redirectTo: `${window.location.origin}/reset-password`,
-    });
+
+    const { error } = await supabase.auth.resetPasswordForEmail(
+      parsed.data,
+      {
+        redirectTo: `${window.location.origin}/reset-password`,
+      }
+    );
+
     setLoading(false);
-    if (error) return toast.error("No se pudo enviar el correo. Intenta de nuevo.");
+
+    if (error) {
+      return toast.error(
+        "No se pudo enviar el correo. Intenta de nuevo."
+      );
+    }
+
     setSent(true);
-    toast.success("Te enviamos un enlace para crear una contraseña nueva.");
+
+    toast.success(
+      "Te enviamos un enlace para crear una contraseña nueva."
+    );
   }
 
   return (
@@ -295,25 +475,52 @@ function ForgotPassword({ onBack }: { onBack: () => void }) {
       <div className="mx-auto max-w-md">
         <div className="mb-8 flex items-center gap-2">
           <BrandMark />
-          <span className="font-display text-lg font-bold">VIP Remesas</span>
+          <span className="font-display text-lg font-bold">
+            VIP Remesas
+          </span>
         </div>
+
         <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
-          <h1 className="font-display text-2xl font-extrabold">Recuperar contraseña</h1>
+          <h1 className="font-display text-2xl font-extrabold">
+            Recuperar contraseña
+          </h1>
+
           {sent ? (
             <div className="mt-4 space-y-4">
               <p className="text-sm font-semibold text-muted-foreground">
-                Revisa tu correo <span className="text-gold">{email}</span> y abre el enlace para crear tu
-                contraseña nueva.
+                Revisa tu correo{" "}
+                <span className="text-gold">{email}</span> y abre el
+                enlace para crear tu contraseña nueva.
               </p>
-              <button type="button" onClick={onBack} className="w-full rounded-lg border border-border px-4 py-3 text-sm font-bold">
+
+              <button
+                type="button"
+                onClick={onBack}
+                className="w-full rounded-lg border border-border px-4 py-3 text-sm font-bold"
+              >
                 Volver a entrar
               </button>
             </div>
           ) : (
             <form onSubmit={send} className="mt-5 space-y-4">
-              <Field label="Tu correo registrado" type="email" value={email} onChange={(v) => setEmail(v.trim())} placeholder="tu@correo.com" autoComplete="email" />
-              <SubmitButton loading={loading}>Enviar enlace</SubmitButton>
-              <button type="button" onClick={onBack} className="w-full text-center text-sm text-muted-foreground">
+              <Field
+                label="Tu correo registrado"
+                type="email"
+                value={email}
+                onChange={(v) => setEmail(v.trim())}
+                placeholder="tu@correo.com"
+                autoComplete="email"
+              />
+
+              <SubmitButton loading={loading}>
+                Enviar enlace
+              </SubmitButton>
+
+              <button
+                type="button"
+                onClick={onBack}
+                className="w-full text-center text-sm text-muted-foreground"
+              >
                 Volver
               </button>
             </form>
