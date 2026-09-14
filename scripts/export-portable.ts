@@ -132,9 +132,9 @@ export default defineConfig(({ command, mode }) => {
   const env = { ...loadEnv(mode, process.cwd(), ""), ...process.env };
   // Cloudflare Build Variables often use the server-side names. Only these
   // two values are public, so safely expose them to the browser bundle.
-  const publicSupabaseUrl = env.VITE_SUPABASE_URL || env.SUPABASE_URL;
+  const publicSupabaseUrl = env.SUPABASE_URL || env.VITE_SUPABASE_URL;
   const publicSupabaseKey =
-    env.VITE_SUPABASE_PUBLISHABLE_KEY || env.SUPABASE_PUBLISHABLE_KEY;
+    env.SUPABASE_PUBLISHABLE_KEY || env.VITE_SUPABASE_PUBLISHABLE_KEY;
   if (command === "build") {
     const missing = [
       ...(!publicSupabaseUrl?.trim() ? ["SUPABASE_URL"] : []),
