@@ -14,8 +14,21 @@ import featTasa from "@/assets/feat-tasa.jpg";
 export const Route = createFileRoute("/")({
   ssr: false,
   beforeLoad: async () => {
-    const { data } = await supabase.auth.getSession();
-    if (data.session) throw redirect({ to: "/dashboard" });
+    // Authentication must never prevent the public landing page from rendering.
+    // A stale/corrupt browser session or a transient Supabase failure should not
+    // turn the whole route into TanStack's generic error boundary.
+    try {
+      const { data, error } = await supabase.auth.getSession();
+      if (!error && data.session) {
+        throw redirect({ to: "/dashboard" });
+      }
+    } catch (error) {
+      // TanStack Router redirects are control flow and must be re-thrown.
+      if (error && typeof error === "object" && "isRedirect" in error && (error as { isRedirect?: boolean }).isRedirect) {
+        throw error;
+      }
+      console.warn("[Auth] Public landing session check failed; continuing as signed out.", error);
+    }
   },
   component: Landing,
   head: () => ({
@@ -79,13 +92,10 @@ function Landing() {
           Mira las tasas de hoy y las promos de recarga. Crea tu cuenta solo cuando quieras enviar.
         </p>
 
-        {/* Banners (rotan cada 2 s) */}
         <div className="mt-6">
           <BannerCarousel />
         </div>
 
-
-        {/* Tasas públicas */}
         <section className="mt-8">
           <div className="mb-2 flex items-center justify-between">
             <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Tasas de hoy</h2>
@@ -135,12 +145,10 @@ function Landing() {
                   </div>
                 </div>
               );
-
             })}
           </div>
         </section>
 
-        {/* Recargas públicas */}
         {promos.data && promos.data.length > 0 && (
           <section className="mt-8">
             <div className="mb-2 flex items-center justify-between">
@@ -162,18 +170,10 @@ function Landing() {
         )}
 
         <div className="mt-10 space-y-3">
-          <Link
-            to="/auth"
-            search={{ next: undefined }}
-            className="block w-full rounded-xl bg-gradient-gold px-6 py-4 text-center text-base font-bold text-primary-foreground shadow-gold"
-          >
+          <Link to="/auth" search={{ next: undefined }} className="block w-full rounded-xl bg-gradient-gold px-6 py-4 text-center text-base font-bold text-primary-foreground shadow-gold">
             Crear cuenta gratis
           </Link>
-          <Link
-            to="/auth"
-            search={{ next: undefined }}
-            className="block w-full rounded-xl border border-gold/50 bg-card/50 px-6 py-4 text-center text-base font-semibold text-foreground"
-          >
+          <Link to="/auth" search={{ next: undefined }} className="block w-full rounded-xl border border-gold/50 bg-card/50 px-6 py-4 text-center text-base font-semibold text-foreground">
             Ya tengo cuenta
           </Link>
         </div>
@@ -185,32 +185,16 @@ function Landing() {
             { icon: Globe2, title: "4 orígenes", desc: "BR · MX · EU · US", img: featOrigenes, grad: "bg-gradient-violet" },
             { icon: Sparkles, title: "Tasa VIP", desc: "Mejor cambio", img: featTasa, grad: "bg-gradient-gold" },
           ].map(({ icon: Icon, title, desc, img, grad }, i) => (
-            <div
-              key={title}
-              style={{ animationDelay: `${i * 90}ms` }}
-              className="animate-rise group relative overflow-hidden rounded-2xl border border-gold/30 bg-card p-4 shadow-card transition-transform hover:-translate-y-1 hover:shadow-glow"
-            >
-              <img
-                src={img}
-                alt=""
-                aria-hidden
-                loading="lazy"
-                width={512}
-                height={512}
-                className="pointer-events-none absolute -bottom-4 -right-4 h-24 w-24 object-contain opacity-25 transition-transform duration-500 group-hover:scale-110 group-hover:opacity-40 animate-float"
-              />
-              <span className={`mb-2 grid h-9 w-9 place-items-center rounded-xl text-white shadow-glow ${grad}`}>
-                <Icon className="h-4.5 w-4.5" />
-              </span>
+            <div key={title} style={{ animationDelay: `${i * 90}ms` }} className="animate-rise group relative overflow-hidden rounded-2xl border border-gold/30 bg-card p-4 shadow-card transition-transform hover:-translate-y-1 hover:shadow-glow">
+              <img src={img} alt="" aria-hidden loading="lazy" width={512} height={512} className="pointer-events-none absolute -bottom-4 -right-4 h-24 w-24 object-contain opacity-25 transition-transform duration-500 group-hover:scale-110 group-hover:opacity-40 animate-float" />
+              <span className={`mb-2 grid h-9 w-9 place-items-center rounded-xl text-white shadow-glow ${grad}`}><Icon className="h-4.5 w-4.5" /></span>
               <div className="relative text-sm font-extrabold">{title}</div>
               <div className="relative text-xs font-semibold text-muted-foreground">{desc}</div>
             </div>
           ))}
         </div>
 
-        <p className="mt-10 text-center text-[11px] font-bold text-muted-foreground/60">
-          Hecho por <span className="text-gold">Aranch</span>
-        </p>
+        <p className="mt-10 text-center text-[11px] font-bold text-muted-foreground/60">Hecho por <span className="text-gold">Aranch</span></p>
       </main>
     </div>
   );
