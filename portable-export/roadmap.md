@@ -6,3 +6,6 @@
 - [x] Revisar notificaciones, tiempo real y adaptación de pantalla.
 - [x] Ejecutar lint, tipos, pruebas de navegador y compilación.
 - [x] Entregar el informe final con bloqueos externos explícitos.
+- [x] Corregir la inyección pública y del servidor para Cloudflare en la exportación portable.
+- [x] Validar que producción no compile sin la configuración pública obligatoria.
+- [x] Documentar Variables y Secrets requeridos para el despliegue portable.
