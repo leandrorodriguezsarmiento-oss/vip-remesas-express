@@ -8,15 +8,14 @@ import tsConfigPaths from "vite-tsconfig-paths";
 export default defineConfig(({ command, mode }) => {
   // Explicit build variables must override any stale values loaded from files.
   const env = { ...loadEnv(mode, process.cwd(), ""), ...process.env };
-  // Cloudflare Build Variables often use the server-side names. Only these
-  // two values are public, so safely expose them to the browser bundle.
-  const publicSupabaseUrl = env.SUPABASE_URL || env.VITE_SUPABASE_URL;
-  const publicSupabaseKey =
-    env.SUPABASE_PUBLISHABLE_KEY || env.VITE_SUPABASE_PUBLISHABLE_KEY;
+  // These two NEXT_PUBLIC values are intentionally embedded in the browser bundle.
+  // The service-role key is never referenced or defined here.
+  const publicSupabaseUrl = env.NEXT_PUBLIC_SUPABASE_URL;
+  const publicSupabaseKey = env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
   if (command === "build") {
     const missing = [
-      ...(!publicSupabaseUrl?.trim() ? ["SUPABASE_URL"] : []),
-      ...(!publicSupabaseKey?.trim() ? ["SUPABASE_PUBLISHABLE_KEY"] : []),
+      ...(!publicSupabaseUrl?.trim() ? ["NEXT_PUBLIC_SUPABASE_URL"] : []),
+      ...(!publicSupabaseKey?.trim() ? ["NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"] : []),
     ];
     if (missing.length > 0) {
       throw new Error(
@@ -29,8 +28,8 @@ export default defineConfig(({ command, mode }) => {
   return {
     server: { port: 3000, host: true },
     define: {
-      "import.meta.env.VITE_SUPABASE_URL": JSON.stringify(publicSupabaseUrl),
-      "import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY": JSON.stringify(publicSupabaseKey),
+      "import.meta.env.NEXT_PUBLIC_SUPABASE_URL": JSON.stringify(publicSupabaseUrl),
+      "import.meta.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY": JSON.stringify(publicSupabaseKey),
     },
     plugins: [
       tsConfigPaths(),
