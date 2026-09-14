@@ -10,8 +10,9 @@ export default defineConfig(({ command, mode }) => {
   const env = { ...loadEnv(mode, process.cwd(), ""), ...process.env };
   // These two NEXT_PUBLIC values are intentionally embedded in the browser bundle.
   // The service-role key is never referenced or defined here.
-  const publicSupabaseUrl = env.NEXT_PUBLIC_SUPABASE_URL;
-  const publicSupabaseKey = env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+  const publicSupabaseUrl = env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  const publicSupabaseKey = env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim();
+  const expectedSupabaseUrl = "https://nczavdcqueebhhtkuasv.supabase.co";
   if (command === "build") {
     const missing = [
       ...(!publicSupabaseUrl?.trim() ? ["NEXT_PUBLIC_SUPABASE_URL"] : []),
@@ -21,6 +22,11 @@ export default defineConfig(({ command, mode }) => {
       throw new Error(
         `Faltan variables públicas de compilación: ${missing.join(", ")}. ` +
           "Configúralas como Variables de compilación en Cloudflare o como Variables del repositorio en GitHub.",
+      );
+    }
+    if (publicSupabaseUrl !== expectedSupabaseUrl) {
+      throw new Error(
+        `NEXT_PUBLIC_SUPABASE_URL debe ser exactamente ${expectedSupabaseUrl}. Valor recibido: ${publicSupabaseUrl || "vacío"}.`,
       );
     }
   }

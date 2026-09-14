@@ -3,71 +3,145 @@ name: Deploy VIPRemesas (Cloudflare Workers)
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches:
+      - main
 
 concurrency:
   group: deploy-production
   cancel-in-progress: true
 
 env:
-  NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL }}
-  NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ vars.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
-  VITE_VAPID_PUBLIC_KEY: ${{ vars.VITE_VAPID_PUBLIC_KEY || secrets.VITE_VAPID_PUBLIC_KEY }}
-  VITE_PIX_KEY: ${{ vars.VITE_PIX_KEY || secrets.VITE_PIX_KEY }}
+  NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
+  NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ vars.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
+  VITE_VAPID_PUBLIC_KEY: ${{ vars.VITE_VAPID_PUBLIC_KEY }}
+  VITE_PIX_KEY: ${{ vars.VITE_PIX_KEY }}
 
 jobs:
   deploy:
+    name: Build and Deploy VIPRemesas
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
 
-      # La app de producción vive en portable-export/ cuando el repositorio
-      # incluye esa carpeta; si el repositorio ya es la copia portable, es la raíz.
+    steps:
+      - name: Descargar código
+        uses: actions/checkout@v4
+
       - name: Detectar carpeta de la aplicación
         run: |
           if [ -f portable-export/wrangler.jsonc ]; then
             echo "APP_DIR=portable-export" >> "$GITHUB_ENV"
+            echo "Aplicación encontrada en portable-export/"
           elif [ -f wrangler.jsonc ]; then
             echo "APP_DIR=." >> "$GITHUB_ENV"
+            echo "Aplicación encontrada en la raíz"
           else
-            echo "No encuentro wrangler.jsonc ni en la raíz ni en portable-export/." && exit 1
+            echo "ERROR: No encuentro wrangler.jsonc"
+            exit 1
           fi
 
-      - uses: oven-sh/setup-bun@v2
+      - name: Configurar Bun
+        uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
 
-      - name: Verificar configuración pública
+      - name: Verificar variables públicas
         run: |
-          test -n "$NEXT_PUBLIC_SUPABASE_URL" || (echo "Falta NEXT_PUBLIC_SUPABASE_URL en Actions > Variables" && exit 1)
-          test -n "$NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY" || (echo "Falta NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY en Actions > Variables" && exit 1)
+          if [ -z "$NEXT_PUBLIC_SUPABASE_URL" ]; then
+            echo "ERROR: Falta NEXT_PUBLIC_SUPABASE_URL"
+            exit 1
+          fi
 
-      - name: Verificar Secret administrativo
+          if [ -z "$NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY" ]; then
+            echo "ERROR: Falta NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"
+            exit 1
+          fi
+
+          if [ "$NEXT_PUBLIC_SUPABASE_URL" != "https://nczavdcqueebhhtkuasv.supabase.co" ]; then
+            echo "ERROR: NEXT_PUBLIC_SUPABASE_URL no apunta al proyecto nuevo."
+            exit 1
+          fi
+
+          echo "Variables públicas de Supabase encontradas."
+
+      - name: Verificar Secrets
+        env:
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if [ -z "$SUPABASE_SERVICE_ROLE_KEY" ]; then
+            echo "ERROR: Falta SUPABASE_SERVICE_ROLE_KEY"
+            exit 1
+          fi
+
+          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
+            echo "ERROR: Falta CLOUDFLARE_API_TOKEN"
+            exit 1
+          fi
+
+          if [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "ERROR: Falta CLOUDFLARE_ACCOUNT_ID"
+            exit 1
+          fi
+
+          echo "Secrets necesarios encontrados."
+
+      - name: Instalar dependencias
+        run: |
+          cd "$APP_DIR"
+          bun install
+
+      - name: Compilar producción
         env:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
-          test -n "$SUPABASE_SERVICE_ROLE_KEY" || (echo "Falta SUPABASE_SERVICE_ROLE_KEY en Actions > Secrets" && exit 1)
-          test -n "${{ secrets.CLOUDFLARE_API_TOKEN }}" || (echo "Falta CLOUDFLARE_API_TOKEN en Actions > Secrets" && exit 1)
-          test -n "${{ secrets.CLOUDFLARE_ACCOUNT_ID }}" || (echo "Falta CLOUDFLARE_ACCOUNT_ID en Actions > Secrets" && exit 1)
+          cd "$APP_DIR"
+          bun run build
 
-      - name: Instalar dependencias
-        run: cd "$APP_DIR" && bun install
-
-      - name: Compilar producción
-        run: cd "$APP_DIR" && bun run build
-
-      - name: Comprobar que el build usa el proyecto Supabase correcto
+      - name: Verificar proyecto Supabase
         run: |
           cd "$APP_DIR"
-          HOST=$(echo "$NEXT_PUBLIC_SUPABASE_URL" | sed -E 's#https?://##; s#/.*##')
-          grep -rqF "$HOST" dist/client || (echo "El build no apunta a $HOST" && exit 1)
+
+          EXPECTED_URL="https://nczavdcqueebhhtkuasv.supabase.co"
+
+          echo "Proyecto Supabase esperado: $HOST"
+
+          if [ ! -d "dist/client" ]; then
+            echo "ERROR: No existe dist/client"
+            exit 1
+          fi
+
           if grep -rqF "uoglxwtritcsrglwimej" dist/client; then
-            echo "El build todavía contiene el proyecto antiguo uoglxwtritcsrglwimej" && exit 1
+            echo "ERROR: El build todavía contiene el proyecto Supabase antiguo."
+            exit 1
           fi
-          if grep -rqE "SUPABASE_SERVICE_ROLE_KEY|sb_secret_" dist/client; then
-            echo "La clave administrativa no puede aparecer en el navegador" && exit 1
+
+          if grep -rqF "$EXPECTED_URL" dist/client; then
+            echo "Proyecto Supabase correcto encontrado."
+          else
+            echo "ERROR: El navegador no contiene la URL del proyecto nuevo."
+            exit 1
           fi
-          echo "Build verificado: $HOST"
+
+      - name: Verificar que no se exponga la clave administrativa
+        env:
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          cd "$APP_DIR"
+
+          echo "Comprobando que la clave administrativa real no esté en el navegador..."
+
+          if [ -z "$SUPABASE_SERVICE_ROLE_KEY" ]; then
+            echo "ERROR: SUPABASE_SERVICE_ROLE_KEY no está disponible."
+            exit 1
+          fi
+
+          if grep -rqF "$SUPABASE_SERVICE_ROLE_KEY" dist/client; then
+            echo "ERROR CRÍTICO: La clave administrativa real aparece en dist/client."
+            echo "El despliegue fue detenido por seguridad."
+            exit 1
+          fi
+
+          echo "Comprobación de seguridad completada."
 
       - name: Publicar en Cloudflare
         uses: cloudflare/wrangler-action@v3
