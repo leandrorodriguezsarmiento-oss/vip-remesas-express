@@ -96,10 +96,10 @@ export const registerAccount = createServerFn({ method: "POST" })
       email_confirm: true,
       user_metadata: {
         full_name: data.fullName.trim(),
-        phone: data.phone.trim(),
+        phone: data.phone?.trim() ?? "",
         username,
         cpf,
-        country: data.country,
+        country: data.country ?? "BR",
         contact_email: contactEmail,
       },
     });
