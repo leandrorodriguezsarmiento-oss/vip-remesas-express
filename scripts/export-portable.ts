@@ -129,19 +129,30 @@ import tsConfigPaths from "vite-tsconfig-paths";
 
 export default defineConfig(({ command, mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
+  // Cloudflare Build Variables often use the server-side names. Only these
+  // two values are public, so safely expose them to the browser bundle.
+  const publicSupabaseUrl = env.VITE_SUPABASE_URL || env.SUPABASE_URL;
+  const publicSupabaseKey =
+    env.VITE_SUPABASE_PUBLISHABLE_KEY || env.SUPABASE_PUBLISHABLE_KEY;
   if (command === "build") {
-    const required = ["VITE_SUPABASE_URL", "VITE_SUPABASE_PUBLISHABLE_KEY"];
-    const missing = required.filter((name) => !env[name]?.trim());
+    const missing = [
+      ...(!publicSupabaseUrl?.trim() ? ["SUPABASE_URL"] : []),
+      ...(!publicSupabaseKey?.trim() ? ["SUPABASE_PUBLISHABLE_KEY"] : []),
+    ];
     if (missing.length > 0) {
       throw new Error(
         \`Faltan variables públicas de compilación: \${missing.join(", ")}. \` +
-          "Configúralas como Variables del repositorio en GitHub o expórtalas antes de bun run build.",
+          "Configúralas como Variables de compilación en Cloudflare o como Variables del repositorio en GitHub.",
       );
     }
   }
 
   return {
     server: { port: 3000, host: true },
+    define: {
+      "import.meta.env.VITE_SUPABASE_URL": JSON.stringify(publicSupabaseUrl),
+      "import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY": JSON.stringify(publicSupabaseKey),
+    },
     plugins: [
       tsConfigPaths(),
       tailwindcss(),
