@@ -235,30 +235,11 @@ function AuthPage() {
           ) : (
             <form onSubmit={handleSignup} className="space-y-4">
               <Field label="Nombre completo" value={sFullName} onChange={(v) => setSFullName(onlyLetters(v))} placeholder="João da Silva" />
-              <label className="block">
-                <span className="mb-1.5 block text-xs font-medium text-muted-foreground">País</span>
-                <select
-                  value={sCountry}
-                  onChange={(e) => changeCountry(e.target.value)}
-                  className="w-full rounded-lg border border-border bg-background px-4 py-3 text-sm outline-none focus:border-gold"
-                >
-                  {COUNTRIES.map((c) => (
-                    <option key={c.code} value={c.code}>{c.name}</option>
-                  ))}
-                </select>
-              </label>
               <Field label="Nombre de usuario" value={sUsername} onChange={setSUsername} placeholder="joaosilva" autoComplete="username" />
-              <Field
-                label="Teléfono"
-                value={sPhone}
-                onChange={(v) => setSPhone(formatPhone(v, sCountry))}
-                placeholder="+55 11900000000"
-                inputMode="tel"
-              />
               <Field label="Correo electrónico" type="email" value={sEmail} onChange={(v) => setSEmail(v.trim())} placeholder="tu@correo.com" autoComplete="email" />
               <Field label="Contraseña" type="password" value={sPassword} onChange={setSPassword} placeholder="Mínimo 6 caracteres" autoComplete="new-password" />
               <p className="text-xs text-muted-foreground">
-                Entras con tu usuario, teléfono o correo y contraseña.
+                Entras con tu usuario o correo y contraseña.
               </p>
 
               <SubmitButton loading={loading}>Crear cuenta VIP</SubmitButton>
