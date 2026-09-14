@@ -6,10 +6,10 @@ import { z } from "zod";
 const registerSchema = z.object({
   fullName: z.string().trim().min(2).max(80),
   username: z.string().trim().min(3).max(24).regex(/^[a-zA-Z0-9._-]+$/),
-  phone: z.string().trim().min(8).max(24),
+  phone: z.string().trim().max(24).optional(),
   email: z.string().trim().email().max(255),
   cpf: z.string().trim().optional(),
-  country: z.string().trim().min(2).max(4),
+  country: z.string().trim().min(2).max(4).optional(),
   password: z.string().min(6).max(72),
 });
 
