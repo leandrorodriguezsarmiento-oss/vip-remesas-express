@@ -484,14 +484,11 @@ También se publica solo en cada push a \`main\` (\`.github/workflows/deploy.yml
 con los secrets \`CLOUDFLARE_API_TOKEN\` y \`CLOUDFLARE_ACCOUNT_ID\`.
 
 ## 4. Variables públicas de compilación
-La URL y la clave publicable quedan dentro del JavaScript del navegador. La
-compilación acepta los nombres \`SUPABASE_*\` que usa Cloudflare o sus alias
-\`VITE_SUPABASE_*\`. En GitHub, créalas en **Settings > Secrets and variables >
-Actions > Variables**:
+La URL y la clave publicable quedan dentro del JavaScript del navegador. En
+GitHub, créalas en **Settings > Secrets and variables > Actions > Variables**:
 
-- \`SUPABASE_URL\` o \`VITE_SUPABASE_URL\` (obligatoria)
-- \`SUPABASE_PUBLISHABLE_KEY\` o \`VITE_SUPABASE_PUBLISHABLE_KEY\` (obligatoria; clave publicable/anon)
-- \`VITE_SUPABASE_PROJECT_ID\`
+- \`NEXT_PUBLIC_SUPABASE_URL\` (obligatoria)
+- \`NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY\` (obligatoria; clave publicable)
 - \`VITE_VAPID_PUBLIC_KEY\`
 - \`VITE_PIX_KEY\`
 
@@ -502,8 +499,8 @@ despliegue manual, expórtalas antes de ejecutar \`bun run build\`.
 En **Workers & Pages > vip-remesas-express > Settings > Variables and Secrets**,
 configura como **Variables**:
 
-- \`SUPABASE_URL\`
-- \`SUPABASE_PUBLISHABLE_KEY\`
+- \`NEXT_PUBLIC_SUPABASE_URL\`
+- \`NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY\`
 - \`PUBLIC_SITE_URL=https://vipremesas.com\`
 - \`EMAILJS_SERVICE_ID\`, \`EMAILJS_TEMPLATE_ID\`, \`EMAILJS_PUBLIC_KEY\`, \`EMAILJS_ORIGIN\`
 - \`VAPID_PUBLIC_KEY\`, \`VAPID_SUBJECT\`
@@ -529,8 +526,8 @@ bunx wrangler secret put SUPABASE_SERVICE_ROLE_KEY
 \`\`\`
 
 El despliegue usa \`--keep-vars\` para conservar la configuración del Worker.
-\`SUPABASE_URL\` y \`SUPABASE_PUBLISHABLE_KEY\` deben existir como Variables del
-Worker y también con prefijo \`VITE_\` durante el build. Son valores públicos;
+\`NEXT_PUBLIC_SUPABASE_URL\` y \`NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY\` deben
+existir como Variables del Worker y durante el build. Son valores públicos;
 la clave administrativa sólo existe como \`SUPABASE_SERVICE_ROLE_KEY\` Secret.
 
 ## 6. Configurar autenticación para vipremesas.com
@@ -648,8 +645,8 @@ patch("README-DESPLIEGUE.md", [
     /## 6\. Play Store \(TWA\)/,
     `## 6. GitHub y actualizaciones
 - Sube esta carpeta a tu repositorio y crea la rama \`main\`.
-- Variables del repo: \`VITE_SUPABASE_URL\`, \`VITE_SUPABASE_PUBLISHABLE_KEY\`,
-  \`VITE_SUPABASE_PROJECT_ID\`, \`VITE_VAPID_PUBLIC_KEY\`, \`VITE_PIX_KEY\`.
+- Variables del repo: \`NEXT_PUBLIC_SUPABASE_URL\`,
+  \`NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY\`, \`VITE_VAPID_PUBLIC_KEY\`, \`VITE_PIX_KEY\`.
 - Variables y Secrets del Worker se configuran en Cloudflare; el despliegue usa
   \`--keep-vars\` para conservarlos.
 - Cada push a \`main\` compila (\`ci.yml\`) y publica en Cloudflare Workers (\`deploy.yml\`).
