@@ -3,10 +3,15 @@ import { NextResponse, type NextRequest } from "next/server";
 
 // Refresca la sesión de Supabase en cada request y protege /dashboard, /send, etc.
 export async function middleware(req: NextRequest) {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  const supabasePublishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim();
+  if (!supabaseUrl?.startsWith("https://") || !supabasePublishableKey) {
+    throw new Error("Falta una configuración pública válida para Supabase");
+  }
   const res = NextResponse.next({ request: req });
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+    supabaseUrl,
+    supabasePublishableKey,
     {
       cookies: {
         getAll: () => req.cookies.getAll(),

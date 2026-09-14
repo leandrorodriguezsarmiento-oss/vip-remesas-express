@@ -228,6 +228,9 @@ patch("src/integrations/supabase/client.server.ts", [
 patch("src/routes/api/public/push.dispatch.ts", [
   [/process\.env\.SUPABASE_PUBLISHABLE_KEY/g, "process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"],
 ]);
+patch("supabase/config.toml", [
+  [/^project_id\s*=.*$/m, 'project_id = "nczavdcqueebhhtkuasv"'],
+]);
 
 // 6. Reporte de errores propio
 write(
