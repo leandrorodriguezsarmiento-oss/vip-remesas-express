@@ -6,7 +6,8 @@ import tailwindcss from "@tailwindcss/vite";
 import tsConfigPaths from "vite-tsconfig-paths";
 
 export default defineConfig(({ command, mode }) => {
-  const env = loadEnv(mode, process.cwd(), "");
+  // Explicit build variables must override any stale values loaded from files.
+  const env = { ...loadEnv(mode, process.cwd(), ""), ...process.env };
   // Cloudflare Build Variables often use the server-side names. Only these
   // two values are public, so safely expose them to the browser bundle.
   const publicSupabaseUrl = env.VITE_SUPABASE_URL || env.SUPABASE_URL;
