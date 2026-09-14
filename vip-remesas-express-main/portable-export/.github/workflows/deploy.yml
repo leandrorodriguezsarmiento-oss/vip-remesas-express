@@ -1,0 +1,58 @@
+name: Deploy Cloudflare Workers
+
+# Actualizar la web en producción: haz push a main (o lánzalo a mano).
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - name: Verificar configuración pública
+        run: |
+          test -n "$NEXT_PUBLIC_SUPABASE_URL" || (echo "Falta NEXT_PUBLIC_SUPABASE_URL en Actions > Variables" && exit 1)
+          test -n "$NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY" || (echo "Falta NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY en Actions > Variables" && exit 1)
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ vars.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
+      - run: bun run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ vars.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
+          VITE_VAPID_PUBLIC_KEY: ${{ vars.VITE_VAPID_PUBLIC_KEY || secrets.VITE_VAPID_PUBLIC_KEY }}
+          VITE_PIX_KEY: ${{ vars.VITE_PIX_KEY || secrets.VITE_PIX_KEY }}
+      - name: Comprobar que el build usa el proyecto correcto
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL }}
+        run: |
+          EXPECTED_URL="https://nczavdcqueebhhtkuasv.supabase.co"
+          test "$NEXT_PUBLIC_SUPABASE_URL" = "$EXPECTED_URL" || (echo "La URL configurada no es la del proyecto nuevo" && exit 1)
+          grep -rqF "$EXPECTED_URL" dist/client || (echo "El build no apunta al proyecto nuevo" && exit 1)
+          ! grep -rqF "uoglxwtritcsrglwimej" dist/client || (echo "El build contiene el proyecto antiguo" && exit 1)
+          ! grep -rqE "SUPABASE_SERVICE_ROLE_KEY|sb_secret_" dist/client || (echo "El navegador contiene una referencia administrativa" && exit 1)
+          echo "Build verificado: $EXPECTED_URL"
+      - name: Verificar Secret administrativo
+        env:
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: test -n "$SUPABASE_SERVICE_ROLE_KEY" || (echo "Falta SUPABASE_SERVICE_ROLE_KEY en Actions > Secrets" && exit 1)
+      - name: Publicar en Cloudflare
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: deploy -c dist/server/wrangler.json --keep-vars
+          secrets: |
+            SUPABASE_SERVICE_ROLE_KEY
+        env:
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
