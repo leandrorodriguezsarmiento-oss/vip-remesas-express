@@ -191,7 +191,7 @@ patch("src/integrations/supabase/client.ts", [
     `  // Valores públicos incorporados por Vite durante la compilación.\n  const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;\n  const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;`,
   ],
   [
-    /const message = `Missing Supabase environment variable\(s\): \$\{missing\.join\(', '\)\}\. Revisa tu archivo \.env\.`;/,
+    /const message = `Missing Supabase environment variable\(s\): \$\{missing\.join\(', '\)\}\.[^`]*`;/,
     "const message = `Faltan variables públicas de compilación: ${missing.map((name) => `VITE_${name}`).join(', ')}.`;",
   ],
 ]);
