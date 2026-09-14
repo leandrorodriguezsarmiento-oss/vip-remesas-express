@@ -73,6 +73,54 @@ async function hashNonce(nonce: string): Promise<string> {
     .join('');
 }
 
+async function signInWithGoogleIdToken(redirectTo?: string): Promise<void> {
+  await loadGoogleIdentityScript();
+  const nonce = createNonce();
+  const hashedNonce = await hashNonce(nonce);
+
+  await new Promise<void>((resolve, reject) => {
+    let settled = false;
+    const finish = (fn: () => void) => {
+      if (settled) return;
+      settled = true;
+      fn();
+    };
+
+    window.google!.accounts.id.initialize({
+      client_id: GOOGLE_CLIENT_ID,
+      nonce: hashedNonce,
+      use_fedcm_for_prompt: true,
+      callback: async (response) => {
+        try {
+          if (!response?.credential) throw new Error('Google no devolvió una credencial válida.');
+
+          const { error } = await supabase.auth.signInWithIdToken({
+            provider: 'google',
+            token: response.credential,
+            nonce,
+          });
+          if (error) throw error;
+
+          const next = redirectTo ? new URL(redirectTo, window.location.origin).searchParams.get('next') : null;
+          window.location.replace(
+            next && next.startsWith('/') && !next.startsWith('//') ? next : '/dashboard',
+          );
+          finish(resolve);
+        } catch (error) {
+          console.error('Google ID token authentication error:', error);
+          finish(() => reject(error instanceof Error ? error : new Error('No se pudo iniciar con Google.')));
+        }
+      },
+    });
+
+    window.google!.accounts.id.prompt((notification) => {
+      if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+        finish(() => reject(new Error('Google no pudo mostrar la ventana de inicio de sesión.')));
+      }
+    });
+  });
+}
+
 function isNewSupabaseApiKey(value: string): boolean {
   return value.startsWith('sb_publishable_') || value.startsWith('sb_secret_');
 }
@@ -123,91 +171,39 @@ function createSupabaseClient() {
     },
   });
 
-  const auth = client.auth as typeof client.auth & {
-    __vipGooglePatched?: boolean;
-  };
+  const originalAuth = client.auth;
+  const authProxy = new Proxy(originalAuth, {
+    get(target, prop, receiver) {
+      if (prop === 'signInWithOAuth') {
+        return async (credentials: Parameters<typeof target.signInWithOAuth>[0]) => {
+          if (credentials.provider !== 'google' || typeof window === 'undefined') {
+            return target.signInWithOAuth(credentials);
+          }
 
-  if (!auth.__vipGooglePatched) {
-    const originalSignInWithOAuth = auth.signInWithOAuth.bind(auth);
-
-    const patchedSignInWithOAuth = async (
-      credentials: Parameters<typeof client.auth.signInWithOAuth>[0],
-    ) => {
-      if (credentials.provider !== 'google' || typeof window === 'undefined') {
-        return originalSignInWithOAuth(credentials);
+          try {
+            await signInWithGoogleIdToken(credentials.options?.redirectTo);
+            return {
+              data: { provider: 'google', url: null },
+              error: null,
+            } as Awaited<ReturnType<typeof target.signInWithOAuth>>;
+          } catch (error) {
+            return {
+              data: { provider: 'google', url: null },
+              error: error instanceof Error ? error : new Error('No se pudo iniciar con Google.'),
+            } as Awaited<ReturnType<typeof target.signInWithOAuth>>;
+          }
+        };
       }
+      return Reflect.get(target, prop, receiver);
+    },
+  });
 
-      try {
-        await loadGoogleIdentityScript();
-        const nonce = createNonce();
-        const hashedNonce = await hashNonce(nonce);
-
-        await new Promise<void>((resolve, reject) => {
-          let settled = false;
-          const finish = (fn: () => void) => {
-            if (settled) return;
-            settled = true;
-            fn();
-          };
-
-          window.google!.accounts.id.initialize({
-            client_id: GOOGLE_CLIENT_ID,
-            nonce: hashedNonce,
-            use_fedcm_for_prompt: true,
-            callback: async (response) => {
-              try {
-                const { error } = await client.auth.signInWithIdToken({
-                  provider: 'google',
-                  token: response.credential,
-                  nonce,
-                });
-                if (error) throw error;
-
-                const redirectTo = credentials.options?.redirectTo;
-                if (redirectTo) {
-                  const url = new URL(redirectTo, window.location.origin);
-                  const next = url.searchParams.get('next');
-                  window.location.replace(
-                    next && next.startsWith('/') && !next.startsWith('//') ? next : '/dashboard',
-                  );
-                } else {
-                  window.location.replace('/dashboard');
-                }
-
-                finish(resolve);
-              } catch (error) {
-                console.error('Google ID token authentication error:', error);
-                finish(() =>
-                  reject(error instanceof Error ? error : new Error('No se pudo iniciar con Google.')),
-                );
-              }
-            },
-          });
-
-          window.google!.accounts.id.prompt((notification) => {
-            if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-              finish(() => reject(new Error('Google no pudo mostrar la ventana de inicio de sesión.')));
-            }
-          });
-        });
-
-        return {
-          data: { provider: 'google', url: null },
-          error: null,
-        } as Awaited<ReturnType<typeof client.auth.signInWithOAuth>>;
-      } catch (error) {
-        return {
-          data: { provider: 'google', url: null },
-          error: error as Error,
-        } as Awaited<ReturnType<typeof client.auth.signInWithOAuth>>;
-      }
-    };
-
-    auth.signInWithOAuth = patchedSignInWithOAuth as typeof auth.signInWithOAuth;
-    auth.__vipGooglePatched = true;
-  }
-
-  return client;
+  return new Proxy(client, {
+    get(target, prop, receiver) {
+      if (prop === 'auth') return authProxy;
+      return Reflect.get(target, prop, receiver);
+    },
+  });
 }
 
 let _supabase: ReturnType<typeof createSupabaseClient> | undefined;
