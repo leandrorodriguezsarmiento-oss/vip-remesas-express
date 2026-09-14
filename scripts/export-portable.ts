@@ -128,20 +128,32 @@ import tailwindcss from "@tailwindcss/vite";
 import tsConfigPaths from "vite-tsconfig-paths";
 
 export default defineConfig(({ command, mode }) => {
-  const env = loadEnv(mode, process.cwd(), "");
+  // Explicit build variables must override any stale values loaded from files.
+  const env = { ...loadEnv(mode, process.cwd(), ""), ...process.env };
+  // Cloudflare Build Variables often use the server-side names. Only these
+  // two values are public, so safely expose them to the browser bundle.
+  const publicSupabaseUrl = env.SUPABASE_URL || env.VITE_SUPABASE_URL;
+  const publicSupabaseKey =
+    env.SUPABASE_PUBLISHABLE_KEY || env.VITE_SUPABASE_PUBLISHABLE_KEY;
   if (command === "build") {
-    const required = ["VITE_SUPABASE_URL", "VITE_SUPABASE_PUBLISHABLE_KEY"];
-    const missing = required.filter((name) => !env[name]?.trim());
+    const missing = [
+      ...(!publicSupabaseUrl?.trim() ? ["SUPABASE_URL"] : []),
+      ...(!publicSupabaseKey?.trim() ? ["SUPABASE_PUBLISHABLE_KEY"] : []),
+    ];
     if (missing.length > 0) {
       throw new Error(
         \`Faltan variables públicas de compilación: \${missing.join(", ")}. \` +
-          "Configúralas como Variables del repositorio en GitHub o expórtalas antes de bun run build.",
+          "Configúralas como Variables de compilación en Cloudflare o como Variables del repositorio en GitHub.",
       );
     }
   }
 
   return {
     server: { port: 3000, host: true },
+    define: {
+      "import.meta.env.VITE_SUPABASE_URL": JSON.stringify(publicSupabaseUrl),
+      "import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY": JSON.stringify(publicSupabaseKey),
+    },
     plugins: [
       tsConfigPaths(),
       tailwindcss(),
@@ -413,15 +425,15 @@ jobs:
       - run: bun install --frozen-lockfile
       - name: Verificar configuración pública
         run: |
-          test -n "$VITE_SUPABASE_URL" || (echo "Falta VITE_SUPABASE_URL en Actions > Variables" && exit 1)
-          test -n "$VITE_SUPABASE_PUBLISHABLE_KEY" || (echo "Falta VITE_SUPABASE_PUBLISHABLE_KEY en Actions > Variables" && exit 1)
+          test -n "$SUPABASE_URL" || (echo "Falta SUPABASE_URL o VITE_SUPABASE_URL en Actions > Variables" && exit 1)
+          test -n "$SUPABASE_PUBLISHABLE_KEY" || (echo "Falta SUPABASE_PUBLISHABLE_KEY o VITE_SUPABASE_PUBLISHABLE_KEY en Actions > Variables" && exit 1)
         env:
-          VITE_SUPABASE_URL: \${{ vars.VITE_SUPABASE_URL || secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_PUBLISHABLE_KEY: \${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY || secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+          SUPABASE_URL: \${{ vars.VITE_SUPABASE_URL || secrets.VITE_SUPABASE_URL || vars.SUPABASE_URL || secrets.SUPABASE_URL }}
+          SUPABASE_PUBLISHABLE_KEY: \${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY || secrets.VITE_SUPABASE_PUBLISHABLE_KEY || vars.SUPABASE_PUBLISHABLE_KEY || secrets.SUPABASE_PUBLISHABLE_KEY }}
       - run: bun run build
         env:
-          VITE_SUPABASE_URL: \${{ vars.VITE_SUPABASE_URL || secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_PUBLISHABLE_KEY: \${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY || secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+          SUPABASE_URL: \${{ vars.VITE_SUPABASE_URL || secrets.VITE_SUPABASE_URL || vars.SUPABASE_URL || secrets.SUPABASE_URL }}
+          SUPABASE_PUBLISHABLE_KEY: \${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY || secrets.VITE_SUPABASE_PUBLISHABLE_KEY || vars.SUPABASE_PUBLISHABLE_KEY || secrets.SUPABASE_PUBLISHABLE_KEY }}
           VITE_SUPABASE_PROJECT_ID: \${{ vars.VITE_SUPABASE_PROJECT_ID || secrets.VITE_SUPABASE_PROJECT_ID }}
           VITE_VAPID_PUBLIC_KEY: \${{ vars.VITE_VAPID_PUBLIC_KEY || secrets.VITE_VAPID_PUBLIC_KEY }}
           VITE_PIX_KEY: \${{ vars.VITE_PIX_KEY || secrets.VITE_PIX_KEY }}
@@ -465,11 +477,13 @@ También se publica solo en cada push a \`main\` (\`.github/workflows/deploy.yml
 con los secrets \`CLOUDFLARE_API_TOKEN\` y \`CLOUDFLARE_ACCOUNT_ID\`.
 
 ## 4. Variables públicas de compilación
-Las \`VITE_*\` quedan dentro del JavaScript del navegador. En GitHub, créalas
-en **Settings > Secrets and variables > Actions > Variables**:
+La URL y la clave publicable quedan dentro del JavaScript del navegador. La
+compilación acepta los nombres \`SUPABASE_*\` que usa Cloudflare o sus alias
+\`VITE_SUPABASE_*\`. En GitHub, créalas en **Settings > Secrets and variables >
+Actions > Variables**:
 
-- \`VITE_SUPABASE_URL\` (obligatoria)
-- \`VITE_SUPABASE_PUBLISHABLE_KEY\` (obligatoria; clave publicable/anon)
+- \`SUPABASE_URL\` o \`VITE_SUPABASE_URL\` (obligatoria)
+- \`SUPABASE_PUBLISHABLE_KEY\` o \`VITE_SUPABASE_PUBLISHABLE_KEY\` (obligatoria; clave publicable/anon)
 - \`VITE_SUPABASE_PROJECT_ID\`
 - \`VITE_VAPID_PUBLIC_KEY\`
 - \`VITE_PIX_KEY\`
