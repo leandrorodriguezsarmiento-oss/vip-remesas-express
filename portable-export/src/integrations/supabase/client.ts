@@ -27,7 +27,6 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
   };
 }
 
-
 function createSupabaseClient() {
   // Valores públicos incorporados por Vite durante la compilación.
   const SUPABASE_URL = import.meta.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
@@ -51,7 +50,9 @@ function createSupabaseClient() {
       storage: brokeredPreviewStorage(),
       persistSession: true,
       autoRefreshToken: true,
-    }
+      flowType: 'pkce',
+      detectSessionInUrl: true,
+    },
   });
 }
 
@@ -65,4 +66,3 @@ export const supabase = new Proxy({} as ReturnType<typeof createSupabaseClient>,
     return Reflect.get(_supabase, prop, receiver);
   },
 });
-
