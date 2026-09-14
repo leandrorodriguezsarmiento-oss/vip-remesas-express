@@ -59,7 +59,7 @@ export const registerAccount = createServerFn({ method: "POST" })
     const contactEmail = data.email.trim().toLowerCase();
 
     if (username.length < 3) throw new Error("Nombre de usuario inválido");
-    if (phone.length < 8) throw new Error("Teléfono inválido");
+    if (phone && phone.length < 8) throw new Error("Teléfono inválido");
     if (cpf && cpf.length !== 11) throw new Error("El CPF debe tener 11 dígitos");
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
