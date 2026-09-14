@@ -90,7 +90,7 @@ patch("src/routes/auth.index.tsx", [[/\(enlace seguro de Lovable Cloud\)/, "(enl
   let rt = readFileSync(rtPath, "utf8");
   rt = rt.replace(/^import .*Dotlovable.*\n/m, "");
   rt = rt.replace(/const DotlovableOauthConsentRoute[\s\S]*?\}\)\n/, "");
-  rt = rt.replace(/^ *'\/\.lovable\/oauth\/consent': \{[\s\S]*?\n *`\}\n/gm, "");
+  rt = rt.replace(/^ *'\/\.lovable\/oauth\/consent': \{[\s\S]*?\n *\}\n/gm, "");
   rt = rt.replace(/^.*(?:Dotlovable|\.lovable\/oauth\/consent).*$\n/gm, "");
   writeFileSync(rtPath, rt);
 }
