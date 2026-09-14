@@ -130,15 +130,14 @@ import tsConfigPaths from "vite-tsconfig-paths";
 export default defineConfig(({ command, mode }) => {
   // Explicit build variables must override any stale values loaded from files.
   const env = { ...loadEnv(mode, process.cwd(), ""), ...process.env };
-  // Cloudflare Build Variables often use the server-side names. Only these
-  // two values are public, so safely expose them to the browser bundle.
-  const publicSupabaseUrl = env.SUPABASE_URL || env.VITE_SUPABASE_URL;
-  const publicSupabaseKey =
-    env.SUPABASE_PUBLISHABLE_KEY || env.VITE_SUPABASE_PUBLISHABLE_KEY;
+  // These two NEXT_PUBLIC values are intentionally embedded in the browser bundle.
+  // The service-role key is never referenced or defined here.
+  const publicSupabaseUrl = env.NEXT_PUBLIC_SUPABASE_URL;
+  const publicSupabaseKey = env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
   if (command === "build") {
     const missing = [
-      ...(!publicSupabaseUrl?.trim() ? ["SUPABASE_URL"] : []),
-      ...(!publicSupabaseKey?.trim() ? ["SUPABASE_PUBLISHABLE_KEY"] : []),
+      ...(!publicSupabaseUrl?.trim() ? ["NEXT_PUBLIC_SUPABASE_URL"] : []),
+      ...(!publicSupabaseKey?.trim() ? ["NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"] : []),
     ];
     if (missing.length > 0) {
       throw new Error(
@@ -151,8 +150,8 @@ export default defineConfig(({ command, mode }) => {
   return {
     server: { port: 3000, host: true },
     define: {
-      "import.meta.env.VITE_SUPABASE_URL": JSON.stringify(publicSupabaseUrl),
-      "import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY": JSON.stringify(publicSupabaseKey),
+      "import.meta.env.NEXT_PUBLIC_SUPABASE_URL": JSON.stringify(publicSupabaseUrl),
+      "import.meta.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY": JSON.stringify(publicSupabaseKey),
     },
     plugins: [
       tsConfigPaths(),
@@ -200,12 +199,28 @@ export function brokeredPreviewStorage() {
 patch("src/integrations/supabase/client.ts", [
   [
     /  \/\/ Use import\.meta\.env for client-side \(Vite build-time replacement\)\n  \/\/ Fall back to process\.env for SSR \(server-side rendering\)\n  const SUPABASE_URL = import\.meta\.env\.VITE_SUPABASE_URL \|\| process\.env\.SUPABASE_URL;\n  const SUPABASE_PUBLISHABLE_KEY = import\.meta\.env\.VITE_SUPABASE_PUBLISHABLE_KEY \|\| process\.env\.SUPABASE_PUBLISHABLE_KEY;/,
-    `  // Valores públicos incorporados por Vite durante la compilación.\n  const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;\n  const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;`,
+    `  // Valores públicos incorporados por Vite durante la compilación.\n  const SUPABASE_URL = import.meta.env.NEXT_PUBLIC_SUPABASE_URL;\n  const SUPABASE_PUBLISHABLE_KEY = import.meta.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;`,
   ],
   [
     /const message = `Missing Supabase environment variable\(s\): \$\{missing\.join\(', '\)\}\.[^`]*`;/,
-    "const message = `Faltan variables públicas de compilación: ${missing.map((name) => `VITE_${name}`).join(', ')}.`;",
+    "const message = `Faltan variables públicas de compilación: ${missing.map((name) => `NEXT_PUBLIC_${name}`).join(', ')}.`;",
   ],
+]);
+
+// Los clientes del servidor comparten la URL pública. Las operaciones con RLS
+// usan la clave publicable; únicamente el cliente administrativo usa service role.
+patch("src/integrations/supabase/auth-middleware.ts", [
+  [/process\.env\.SUPABASE_URL/g, "process.env.NEXT_PUBLIC_SUPABASE_URL"],
+  [/process\.env\.SUPABASE_PUBLISHABLE_KEY/g, "process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"],
+  [/'SUPABASE_URL'/g, "'NEXT_PUBLIC_SUPABASE_URL'"],
+  [/'SUPABASE_PUBLISHABLE_KEY'/g, "'NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY'"],
+]);
+patch("src/integrations/supabase/client.server.ts", [
+  [/process\.env\.SUPABASE_URL/g, "process.env.NEXT_PUBLIC_SUPABASE_URL"],
+  [/'SUPABASE_URL'/g, "'NEXT_PUBLIC_SUPABASE_URL'"],
+]);
+patch("src/routes/api/public/push.dispatch.ts", [
+  [/process\.env\.SUPABASE_PUBLISHABLE_KEY/g, "process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"],
 ]);
 
 // 6. Reporte de errores propio
@@ -246,15 +261,12 @@ patch("src/lib/cv-translate.functions.ts", [
 write(
   ".env.example",
   `# --- Cliente (se envían al navegador: SOLO información pública) ---
-VITE_SUPABASE_URL=https://TU-PROYECTO.supabase.co
-VITE_SUPABASE_PUBLISHABLE_KEY=
-VITE_SUPABASE_PROJECT_ID=
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
 VITE_VAPID_PUBLIC_KEY=
 VITE_PIX_KEY=
 
-# --- Servidor (secretos: nunca con prefijo VITE_) ---
-SUPABASE_URL=https://TU-PROYECTO.supabase.co
-SUPABASE_PUBLISHABLE_KEY=
+# --- Servidor (secreto: nunca con prefijo NEXT_PUBLIC_) ---
 SUPABASE_SERVICE_ROLE_KEY=
 PUBLIC_SITE_URL=https://vipremesas.com
 
@@ -386,17 +398,16 @@ jobs:
         run: bunx tsc --noEmit
       - name: Verificar configuración pública
         run: |
-          test -n "$VITE_SUPABASE_URL" || (echo "Falta VITE_SUPABASE_URL en Actions > Variables" && exit 1)
-          test -n "$VITE_SUPABASE_PUBLISHABLE_KEY" || (echo "Falta VITE_SUPABASE_PUBLISHABLE_KEY en Actions > Variables" && exit 1)
+          test -n "$NEXT_PUBLIC_SUPABASE_URL" || (echo "Falta NEXT_PUBLIC_SUPABASE_URL en Actions > Variables" && exit 1)
+          test -n "$NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY" || (echo "Falta NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY en Actions > Variables" && exit 1)
         env:
-          VITE_SUPABASE_URL: \${{ vars.VITE_SUPABASE_URL || secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_PUBLISHABLE_KEY: \${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY || secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+          NEXT_PUBLIC_SUPABASE_URL: \${{ vars.NEXT_PUBLIC_SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: \${{ vars.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
       - name: Build
         run: bun run build
         env:
-          VITE_SUPABASE_URL: \${{ vars.VITE_SUPABASE_URL || secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_PUBLISHABLE_KEY: \${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY || secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
-          VITE_SUPABASE_PROJECT_ID: \${{ vars.VITE_SUPABASE_PROJECT_ID || secrets.VITE_SUPABASE_PROJECT_ID }}
+          NEXT_PUBLIC_SUPABASE_URL: \${{ vars.NEXT_PUBLIC_SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: \${{ vars.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
 `,
 );
 
@@ -425,16 +436,15 @@ jobs:
       - run: bun install --frozen-lockfile
       - name: Verificar configuración pública
         run: |
-          test -n "$SUPABASE_URL" || (echo "Falta SUPABASE_URL o VITE_SUPABASE_URL en Actions > Variables" && exit 1)
-          test -n "$SUPABASE_PUBLISHABLE_KEY" || (echo "Falta SUPABASE_PUBLISHABLE_KEY o VITE_SUPABASE_PUBLISHABLE_KEY en Actions > Variables" && exit 1)
+          test -n "$NEXT_PUBLIC_SUPABASE_URL" || (echo "Falta NEXT_PUBLIC_SUPABASE_URL en Actions > Variables" && exit 1)
+          test -n "$NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY" || (echo "Falta NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY en Actions > Variables" && exit 1)
         env:
-          SUPABASE_URL: \${{ vars.VITE_SUPABASE_URL || secrets.VITE_SUPABASE_URL || vars.SUPABASE_URL || secrets.SUPABASE_URL }}
-          SUPABASE_PUBLISHABLE_KEY: \${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY || secrets.VITE_SUPABASE_PUBLISHABLE_KEY || vars.SUPABASE_PUBLISHABLE_KEY || secrets.SUPABASE_PUBLISHABLE_KEY }}
+          NEXT_PUBLIC_SUPABASE_URL: \${{ vars.NEXT_PUBLIC_SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: \${{ vars.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
       - run: bun run build
         env:
-          SUPABASE_URL: \${{ vars.VITE_SUPABASE_URL || secrets.VITE_SUPABASE_URL || vars.SUPABASE_URL || secrets.SUPABASE_URL }}
-          SUPABASE_PUBLISHABLE_KEY: \${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY || secrets.VITE_SUPABASE_PUBLISHABLE_KEY || vars.SUPABASE_PUBLISHABLE_KEY || secrets.SUPABASE_PUBLISHABLE_KEY }}
-          VITE_SUPABASE_PROJECT_ID: \${{ vars.VITE_SUPABASE_PROJECT_ID || secrets.VITE_SUPABASE_PROJECT_ID }}
+          NEXT_PUBLIC_SUPABASE_URL: \${{ vars.NEXT_PUBLIC_SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: \${{ vars.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
           VITE_VAPID_PUBLIC_KEY: \${{ vars.VITE_VAPID_PUBLIC_KEY || secrets.VITE_VAPID_PUBLIC_KEY }}
           VITE_PIX_KEY: \${{ vars.VITE_PIX_KEY || secrets.VITE_PIX_KEY }}
       - name: Publicar en Cloudflare
@@ -477,14 +487,11 @@ También se publica solo en cada push a \`main\` (\`.github/workflows/deploy.yml
 con los secrets \`CLOUDFLARE_API_TOKEN\` y \`CLOUDFLARE_ACCOUNT_ID\`.
 
 ## 4. Variables públicas de compilación
-La URL y la clave publicable quedan dentro del JavaScript del navegador. La
-compilación acepta los nombres \`SUPABASE_*\` que usa Cloudflare o sus alias
-\`VITE_SUPABASE_*\`. En GitHub, créalas en **Settings > Secrets and variables >
-Actions > Variables**:
+La URL y la clave publicable quedan dentro del JavaScript del navegador. En
+GitHub, créalas en **Settings > Secrets and variables > Actions > Variables**:
 
-- \`SUPABASE_URL\` o \`VITE_SUPABASE_URL\` (obligatoria)
-- \`SUPABASE_PUBLISHABLE_KEY\` o \`VITE_SUPABASE_PUBLISHABLE_KEY\` (obligatoria; clave publicable/anon)
-- \`VITE_SUPABASE_PROJECT_ID\`
+- \`NEXT_PUBLIC_SUPABASE_URL\` (obligatoria)
+- \`NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY\` (obligatoria; clave publicable)
 - \`VITE_VAPID_PUBLIC_KEY\`
 - \`VITE_PIX_KEY\`
 
@@ -495,8 +502,8 @@ despliegue manual, expórtalas antes de ejecutar \`bun run build\`.
 En **Workers & Pages > vip-remesas-express > Settings > Variables and Secrets**,
 configura como **Variables**:
 
-- \`SUPABASE_URL\`
-- \`SUPABASE_PUBLISHABLE_KEY\`
+- \`NEXT_PUBLIC_SUPABASE_URL\`
+- \`NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY\`
 - \`PUBLIC_SITE_URL=https://vipremesas.com\`
 - \`EMAILJS_SERVICE_ID\`, \`EMAILJS_TEMPLATE_ID\`, \`EMAILJS_PUBLIC_KEY\`, \`EMAILJS_ORIGIN\`
 - \`VAPID_PUBLIC_KEY\`, \`VAPID_SUBJECT\`
@@ -522,8 +529,8 @@ bunx wrangler secret put SUPABASE_SERVICE_ROLE_KEY
 \`\`\`
 
 El despliegue usa \`--keep-vars\` para conservar la configuración del Worker.
-\`SUPABASE_URL\` y \`SUPABASE_PUBLISHABLE_KEY\` deben existir como Variables del
-Worker y también con prefijo \`VITE_\` durante el build. Son valores públicos;
+\`NEXT_PUBLIC_SUPABASE_URL\` y \`NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY\` deben
+existir como Variables del Worker y durante el build. Son valores públicos;
 la clave administrativa sólo existe como \`SUPABASE_SERVICE_ROLE_KEY\` Secret.
 
 ## 6. Configurar autenticación para vipremesas.com
@@ -641,8 +648,8 @@ patch("README-DESPLIEGUE.md", [
     /## 6\. Play Store \(TWA\)/,
     `## 6. GitHub y actualizaciones
 - Sube esta carpeta a tu repositorio y crea la rama \`main\`.
-- Variables del repo: \`VITE_SUPABASE_URL\`, \`VITE_SUPABASE_PUBLISHABLE_KEY\`,
-  \`VITE_SUPABASE_PROJECT_ID\`, \`VITE_VAPID_PUBLIC_KEY\`, \`VITE_PIX_KEY\`.
+- Variables del repo: \`NEXT_PUBLIC_SUPABASE_URL\`,
+  \`NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY\`, \`VITE_VAPID_PUBLIC_KEY\`, \`VITE_PIX_KEY\`.
 - Variables y Secrets del Worker se configuran en Cloudflare; el despliegue usa
   \`--keep-vars\` para conservarlos.
 - Cada push a \`main\` compila (\`ci.yml\`) y publica en Cloudflare Workers (\`deploy.yml\`).

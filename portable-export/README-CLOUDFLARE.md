@@ -26,12 +26,11 @@ También se publica solo en cada push a `main` (`.github/workflows/deploy.yml`)
 con los secrets `CLOUDFLARE_API_TOKEN` y `CLOUDFLARE_ACCOUNT_ID`.
 
 ## 4. Variables públicas de compilación
-Las `VITE_*` quedan dentro del JavaScript del navegador. En GitHub, créalas
-en **Settings > Secrets and variables > Actions > Variables**:
+La URL y la clave publicable quedan dentro del JavaScript del navegador. En
+GitHub, créalas en **Settings > Secrets and variables > Actions > Variables**:
 
-- `VITE_SUPABASE_URL` (obligatoria)
-- `VITE_SUPABASE_PUBLISHABLE_KEY` (obligatoria; clave publicable/anon)
-- `VITE_SUPABASE_PROJECT_ID`
+- `NEXT_PUBLIC_SUPABASE_URL` (obligatoria)
+- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (obligatoria; clave publicable)
 - `VITE_VAPID_PUBLIC_KEY`
 - `VITE_PIX_KEY`
 
@@ -42,8 +41,8 @@ despliegue manual, expórtalas antes de ejecutar `bun run build`.
 En **Workers & Pages > vip-remesas-express > Settings > Variables and Secrets**,
 configura como **Variables**:
 
-- `SUPABASE_URL`
-- `SUPABASE_PUBLISHABLE_KEY`
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
 - `PUBLIC_SITE_URL=https://vipremesas.com`
 - `EMAILJS_SERVICE_ID`, `EMAILJS_TEMPLATE_ID`, `EMAILJS_PUBLIC_KEY`, `EMAILJS_ORIGIN`
 - `VAPID_PUBLIC_KEY`, `VAPID_SUBJECT`
@@ -69,8 +68,8 @@ bunx wrangler secret put SUPABASE_SERVICE_ROLE_KEY
 ```
 
 El despliegue usa `--keep-vars` para conservar la configuración del Worker.
-`SUPABASE_URL` y `SUPABASE_PUBLISHABLE_KEY` deben existir como Variables del
-Worker y también con prefijo `VITE_` durante el build. Son valores públicos;
+`NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` deben
+existir como Variables del Worker y durante el build. Son valores públicos;
 la clave administrativa sólo existe como `SUPABASE_SERVICE_ROLE_KEY` Secret.
 
 ## 6. Configurar autenticación para vipremesas.com
