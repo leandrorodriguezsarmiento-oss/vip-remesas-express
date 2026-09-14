@@ -45,28 +45,6 @@ function onlyLetters(v: string): string {
   return v.replace(/[^a-zA-ZÀ-ÿ' ]/g, "");
 }
 
-/** Sólo dígitos, conservando un + inicial. */
-function onlyDigits(v: string, keepPlus = false): string {
-  const plus = keepPlus && v.trim().startsWith("+");
-  const digits = v.replace(/\D/g, "");
-  return plus ? `+${digits}` : digits;
-}
-
-
-/** Teléfono: prefijo del país + cantidad exacta de dígitos permitida. */
-const PHONE_RULES: Record<string, { prefix: string; max: number }> = {
-  BR: { prefix: "+55", max: 12 },
-  MX: { prefix: "+52", max: 10 },
-  US: { prefix: "+1", max: 10 },
-  CU: { prefix: "+53", max: 8 },
-};
-
-function formatPhone(v: string, country: string): string {
-  const rule = PHONE_RULES[country] ?? { prefix: "+", max: 15 };
-  const bare = rule.prefix.slice(1);
-  const digits = onlyDigits(v).replace(new RegExp(`^${bare}`), "").slice(0, rule.max);
-  return digits ? `${rule.prefix} ${digits}` : `${rule.prefix} `;
-}
 
 
 function AuthPage() {
