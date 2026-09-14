@@ -453,6 +453,19 @@ jobs:
           apiToken: \${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: \${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: deploy -c dist/server/wrangler.json --keep-vars
+        env:
+          # Wrangler sólo recibe secretos de GitHub si se pasan explícitamente.
+          # --keep-vars conserva variables existentes, pero no crea este Secret.
+          CLOUDFLARE_SUPABASE_SERVICE_ROLE_KEY: \${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      - name: Verificar Secret administrativo del Worker
+        env:
+          CF_API_TOKEN: \${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT_ID: \${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          SERVICE_ROLE_KEY: \${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          test -n "$SERVICE_ROLE_KEY" || (echo "Falta SUPABASE_SERVICE_ROLE_KEY en Actions > Secrets" && exit 1)
+          printf '%s' "$SERVICE_ROLE_KEY" | bunx wrangler secret put SUPABASE_SERVICE_ROLE_KEY \
+            --config dist/server/wrangler.json
 `,
 );
 
