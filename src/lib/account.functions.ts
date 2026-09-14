@@ -66,7 +66,7 @@ export const registerAccount = createServerFn({ method: "POST" })
 
     const aliases = [
       { alias: username, kind: "username" as const },
-      { alias: phone, kind: "phone" as const },
+      ...(phone ? [{ alias: phone, kind: "phone" as const }] : []),
       { alias: contactEmail, kind: "email" as const },
       ...(cpf ? [{ alias: cpf, kind: "cpf" as const }] : []),
     ];
