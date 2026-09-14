@@ -130,8 +130,6 @@ const Char91DotmcpChar93InvokeToolToolRoute =
     path: '/.mcp/invoke-tool/$tool',
     getParentRoute: () => rootRouteImport,
   } as any)
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ApiPublicRecargasWebhookRoute =
   ApiPublicRecargasWebhookRouteImport.update({
     id: '/api/public/recargas/webhook',
