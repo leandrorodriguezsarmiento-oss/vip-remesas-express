@@ -131,16 +131,18 @@ function AuthPage() {
   async function handleGoogle() {
     setLoading(true);
     try {
-      const result = await lovable.auth.signInWithOAuth("google", {
-        redirect_uri: window.location.origin,
+      const result = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}${nextPath ?? "/"}`,
+        },
       });
       if (result.error) {
         toast.error("No se pudo iniciar con Google");
         setLoading(false);
         return;
       }
-      if (result.redirected) return;
-      goNext();
+      return;
     } catch {
       toast.error("No se pudo iniciar con Google");
       setLoading(false);
