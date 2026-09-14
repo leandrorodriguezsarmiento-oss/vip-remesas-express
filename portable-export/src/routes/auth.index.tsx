@@ -2,8 +2,9 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
+
 import { registerAccount, resolveLoginIdentifier } from "@/lib/account.functions";
-import { COUNTRIES } from "@/lib/alias";
+
 import { Loader2 } from "lucide-react";
 import { BrandMark } from "@/components/BrandMark";
 import { toast } from "sonner";
@@ -35,7 +36,6 @@ const signupSchema = z.object({
     .min(3, "Usuario: mínimo 3 caracteres")
     .max(24, "Usuario muy largo")
     .regex(/^[a-zA-Z0-9._-]+$/, "Usuario: sólo letras, números, . _ -"),
-  phone: z.string().trim().min(8, "Teléfono inválido").max(24),
   email: z.string().trim().email("Correo inválido").max(255),
   password: z.string().min(6, "Contraseña: mínimo 6 caracteres").max(72),
 });
@@ -45,28 +45,6 @@ function onlyLetters(v: string): string {
   return v.replace(/[^a-zA-ZÀ-ÿ' ]/g, "");
 }
 
-/** Sólo dígitos, conservando un + inicial. */
-function onlyDigits(v: string, keepPlus = false): string {
-  const plus = keepPlus && v.trim().startsWith("+");
-  const digits = v.replace(/\D/g, "");
-  return plus ? `+${digits}` : digits;
-}
-
-
-/** Teléfono: prefijo del país + cantidad exacta de dígitos permitida. */
-const PHONE_RULES: Record<string, { prefix: string; max: number }> = {
-  BR: { prefix: "+55", max: 12 },
-  MX: { prefix: "+52", max: 10 },
-  US: { prefix: "+1", max: 10 },
-  CU: { prefix: "+53", max: 8 },
-};
-
-function formatPhone(v: string, country: string): string {
-  const rule = PHONE_RULES[country] ?? { prefix: "+", max: 15 };
-  const bare = rule.prefix.slice(1);
-  const digits = onlyDigits(v).replace(new RegExp(`^${bare}`), "").slice(0, rule.max);
-  return digits ? `${rule.prefix} ${digits}` : `${rule.prefix} `;
-}
 
 
 function AuthPage() {
@@ -83,17 +61,10 @@ function AuthPage() {
   // signup
   const [sFullName, setSFullName] = useState("");
   const [sUsername, setSUsername] = useState("");
-  const [sPhone, setSPhone] = useState("+55 ");
   const [sEmail, setSEmail] = useState("");
-  
-  const [sCountry, setSCountry] = useState("BR");
   const [sPassword, setSPassword] = useState("");
 
-  function changeCountry(code: string) {
-    setSCountry(code);
-    setSPhone(formatPhone("", code));
-    
-  }
+
 
 
   const resolve = useServerFn(resolveLoginIdentifier);
@@ -131,7 +102,6 @@ function AuthPage() {
     const parsed = signupSchema.safeParse({
       fullName: sFullName,
       username: sUsername,
-      phone: sPhone.replace(/\D/g, ""),
       email: sEmail,
       password: sPassword,
     });
@@ -142,9 +112,7 @@ function AuthPage() {
         data: {
           fullName: sFullName,
           username: sUsername,
-          phone: sPhone,
           email: sEmail,
-          country: sCountry,
           password: sPassword,
         },
       });
@@ -165,7 +133,9 @@ function AuthPage() {
     try {
       const result = await supabase.auth.signInWithOAuth({
         provider: "google",
-        options: { redirectTo: `${window.location.origin}/auth` },
+        options: {
+          redirectTo: `${window.location.origin}${nextPath ?? "/"}`,
+        },
       });
       if (result.error) {
         toast.error("No se pudo iniciar con Google");
@@ -234,30 +204,11 @@ function AuthPage() {
           ) : (
             <form onSubmit={handleSignup} className="space-y-4">
               <Field label="Nombre completo" value={sFullName} onChange={(v) => setSFullName(onlyLetters(v))} placeholder="João da Silva" />
-              <label className="block">
-                <span className="mb-1.5 block text-xs font-medium text-muted-foreground">País</span>
-                <select
-                  value={sCountry}
-                  onChange={(e) => changeCountry(e.target.value)}
-                  className="w-full rounded-lg border border-border bg-background px-4 py-3 text-sm outline-none focus:border-gold"
-                >
-                  {COUNTRIES.map((c) => (
-                    <option key={c.code} value={c.code}>{c.name}</option>
-                  ))}
-                </select>
-              </label>
               <Field label="Nombre de usuario" value={sUsername} onChange={setSUsername} placeholder="joaosilva" autoComplete="username" />
-              <Field
-                label="Teléfono"
-                value={sPhone}
-                onChange={(v) => setSPhone(formatPhone(v, sCountry))}
-                placeholder="+55 11900000000"
-                inputMode="tel"
-              />
               <Field label="Correo electrónico" type="email" value={sEmail} onChange={(v) => setSEmail(v.trim())} placeholder="tu@correo.com" autoComplete="email" />
               <Field label="Contraseña" type="password" value={sPassword} onChange={setSPassword} placeholder="Mínimo 6 caracteres" autoComplete="new-password" />
               <p className="text-xs text-muted-foreground">
-                Entras con tu usuario, teléfono o correo y contraseña.
+                Entras con tu usuario o correo y contraseña.
               </p>
 
               <SubmitButton loading={loading}>Crear cuenta VIP</SubmitButton>
