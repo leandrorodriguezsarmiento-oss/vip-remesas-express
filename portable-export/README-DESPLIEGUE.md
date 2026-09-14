@@ -31,8 +31,10 @@ bun run start   # sirve .output/server/index.mjs
 
 ## 6. GitHub y actualizaciones
 - Sube esta carpeta a tu repositorio y crea la rama `main`.
-- Secrets del repo: `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`,
-  `VITE_SUPABASE_PROJECT_ID`, `VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY`, `VPS_PATH`.
+- Variables del repo: `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`,
+  `VITE_SUPABASE_PROJECT_ID`, `VITE_VAPID_PUBLIC_KEY`, `VITE_PIX_KEY`.
+- Variables y Secrets del Worker se configuran en Cloudflare; el despliegue usa
+  `--keep-vars` para conservarlos.
 - Cada push a `main` compila (`ci.yml`) y publica en Cloudflare Workers (`deploy.yml`).
 - Guía completa de Cloudflare: `README-CLOUDFLARE.md`.
 - Apps Android/iPhone: ver `MOVIL.md`.

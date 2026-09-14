@@ -120,23 +120,37 @@ write("package.json", JSON.stringify(pkg, null, 2) + "\n");
 // 4. Configuración de Vite para Cloudflare Workers (sin paquetes de terceros)
 write(
   "vite.config.ts",
-  `import { defineConfig } from "vite";
+  `import { defineConfig, loadEnv } from "vite";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import { cloudflare } from "@cloudflare/vite-plugin";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import tsConfigPaths from "vite-tsconfig-paths";
 
-export default defineConfig({
-  server: { port: 3000, host: true },
-  plugins: [
-    tsConfigPaths(),
-    tailwindcss(),
-    // Entorno SSR de Cloudflare Workers (lee wrangler.jsonc).
-    cloudflare({ viteEnvironment: { name: "ssr" } }),
-    tanstackStart({ server: { entry: "server" } }),
-    react(),
-  ],
+export default defineConfig(({ command, mode }) => {
+  const env = loadEnv(mode, process.cwd(), "");
+  if (command === "build") {
+    const required = ["VITE_SUPABASE_URL", "VITE_SUPABASE_PUBLISHABLE_KEY"];
+    const missing = required.filter((name) => !env[name]?.trim());
+    if (missing.length > 0) {
+      throw new Error(
+        \`Faltan variables públicas de compilación: \${missing.join(", ")}. \` +
+          "Configúralas como Variables del repositorio en GitHub o expórtalas antes de bun run build.",
+      );
+    }
+  }
+
+  return {
+    server: { port: 3000, host: true },
+    plugins: [
+      tsConfigPaths(),
+      tailwindcss(),
+      // Entorno SSR de Cloudflare Workers (lee wrangler.jsonc).
+      cloudflare({ viteEnvironment: { name: "ssr" } }),
+      tanstackStart({ server: { entry: "server" } }),
+      react(),
+    ],
+  };
 });
 `,
 );
@@ -169,6 +183,18 @@ export function brokeredPreviewStorage() {
 }
 `,
 );
+
+// 5b. El navegador recibe la URL y la clave publicable durante el build.
+patch("src/integrations/supabase/client.ts", [
+  [
+    /  \/\/ Use import\.meta\.env for client-side \(Vite build-time replacement\)\n  \/\/ Fall back to process\.env for SSR \(server-side rendering\)\n  const SUPABASE_URL = import\.meta\.env\.VITE_SUPABASE_URL \|\| process\.env\.SUPABASE_URL;\n  const SUPABASE_PUBLISHABLE_KEY = import\.meta\.env\.VITE_SUPABASE_PUBLISHABLE_KEY \|\| process\.env\.SUPABASE_PUBLISHABLE_KEY;/,
+    `  // Valores públicos incorporados por Vite durante la compilación.\n  const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;\n  const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;`,
+  ],
+  [
+    /const message = `Missing Supabase environment variable\(s\): \$\{missing\.join\(', '\)\}\.[^`]*`;/,
+    "const message = `Faltan variables públicas de compilación: ${missing.map((name) => `VITE_${name}`).join(', ')}.`;",
+  ],
+]);
 
 // 6. Reporte de errores propio
 write(
@@ -346,12 +372,19 @@ jobs:
       - run: bun install --frozen-lockfile
       - name: Typecheck
         run: bunx tsc --noEmit
+      - name: Verificar configuración pública
+        run: |
+          test -n "$VITE_SUPABASE_URL" || (echo "Falta VITE_SUPABASE_URL en Actions > Variables" && exit 1)
+          test -n "$VITE_SUPABASE_PUBLISHABLE_KEY" || (echo "Falta VITE_SUPABASE_PUBLISHABLE_KEY en Actions > Variables" && exit 1)
+        env:
+          VITE_SUPABASE_URL: \${{ vars.VITE_SUPABASE_URL || secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: \${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY || secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
       - name: Build
         run: bun run build
         env:
-          VITE_SUPABASE_URL: \${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_PUBLISHABLE_KEY: \${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
-          VITE_SUPABASE_PROJECT_ID: \${{ secrets.VITE_SUPABASE_PROJECT_ID }}
+          VITE_SUPABASE_URL: \${{ vars.VITE_SUPABASE_URL || secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: \${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY || secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+          VITE_SUPABASE_PROJECT_ID: \${{ vars.VITE_SUPABASE_PROJECT_ID || secrets.VITE_SUPABASE_PROJECT_ID }}
 `,
 );
 
@@ -378,19 +411,26 @@ jobs:
         with:
           bun-version: latest
       - run: bun install --frozen-lockfile
+      - name: Verificar configuración pública
+        run: |
+          test -n "$VITE_SUPABASE_URL" || (echo "Falta VITE_SUPABASE_URL en Actions > Variables" && exit 1)
+          test -n "$VITE_SUPABASE_PUBLISHABLE_KEY" || (echo "Falta VITE_SUPABASE_PUBLISHABLE_KEY en Actions > Variables" && exit 1)
+        env:
+          VITE_SUPABASE_URL: \${{ vars.VITE_SUPABASE_URL || secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: \${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY || secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
       - run: bun run build
         env:
-          VITE_SUPABASE_URL: \${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_PUBLISHABLE_KEY: \${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
-          VITE_SUPABASE_PROJECT_ID: \${{ secrets.VITE_SUPABASE_PROJECT_ID }}
-          VITE_VAPID_PUBLIC_KEY: \${{ secrets.VITE_VAPID_PUBLIC_KEY }}
-          VITE_PIX_KEY: \${{ secrets.VITE_PIX_KEY }}
+          VITE_SUPABASE_URL: \${{ vars.VITE_SUPABASE_URL || secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: \${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY || secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+          VITE_SUPABASE_PROJECT_ID: \${{ vars.VITE_SUPABASE_PROJECT_ID || secrets.VITE_SUPABASE_PROJECT_ID }}
+          VITE_VAPID_PUBLIC_KEY: \${{ vars.VITE_VAPID_PUBLIC_KEY || secrets.VITE_VAPID_PUBLIC_KEY }}
+          VITE_PIX_KEY: \${{ vars.VITE_PIX_KEY || secrets.VITE_PIX_KEY }}
       - name: Publicar en Cloudflare
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: \${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: \${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: deploy
+          command: deploy -c dist/server/wrangler.json --keep-vars
 `,
 );
 
@@ -424,35 +464,64 @@ bun run deploy
 También se publica solo en cada push a \`main\` (\`.github/workflows/deploy.yml\`)
 con los secrets \`CLOUDFLARE_API_TOKEN\` y \`CLOUDFLARE_ACCOUNT_ID\`.
 
-## 4. Variables y secretos
-Las \`VITE_*\` son públicas y se inyectan al compilar (build o secrets del repo).
-Los secretos del servidor van en el Worker, nunca en el navegador:
+## 4. Variables públicas de compilación
+Las \`VITE_*\` quedan dentro del JavaScript del navegador. En GitHub, créalas
+en **Settings > Secrets and variables > Actions > Variables**:
+
+- \`VITE_SUPABASE_URL\` (obligatoria)
+- \`VITE_SUPABASE_PUBLISHABLE_KEY\` (obligatoria; clave publicable/anon)
+- \`VITE_SUPABASE_PROJECT_ID\`
+- \`VITE_VAPID_PUBLIC_KEY\`
+- \`VITE_PIX_KEY\`
+
+El workflow se detiene antes de publicar si faltan las dos primeras. Para un
+despliegue manual, expórtalas antes de ejecutar \`bun run build\`.
+
+## 5. Variables y Secrets del Worker
+En **Workers & Pages > vip-remesas-express > Settings > Variables and Secrets**,
+configura como **Variables**:
+
+- \`SUPABASE_URL\`
+- \`SUPABASE_PUBLISHABLE_KEY\`
+- \`PUBLIC_SITE_URL=https://vipremesas.com\`
+- \`EMAILJS_SERVICE_ID\`, \`EMAILJS_TEMPLATE_ID\`, \`EMAILJS_PUBLIC_KEY\`, \`EMAILJS_ORIGIN\`
+- \`VAPID_PUBLIC_KEY\`, \`VAPID_SUBJECT\`
+- \`RECARGAS_API_URL\`, \`AI_API_URL\`, \`AI_MODEL\` cuando se usen
+
+Configura como **Secrets**:
+
+- \`SUPABASE_SERVICE_ROLE_KEY\`
+- \`MERCADOPAGO_ACCESS_TOKEN\`, \`MERCADOPAGO_WEBHOOK_SECRET\`
+- \`EMAILJS_PRIVATE_KEY\`
+- \`VAPID_PRIVATE_KEY\`, \`PUSH_DISPATCH_SECRET\`
+- \`RECARGAS_API_KEY\`, \`RECARGA_WEBHOOK_SECRET\`
+- \`AI_API_KEY\` cuando se use
+
+Los secretos también se pueden cargar desde la terminal:
 \`\`\`bash
-bunx wrangler secret put PUBLIC_SITE_URL
 bunx wrangler secret put MERCADOPAGO_ACCESS_TOKEN
 bunx wrangler secret put MERCADOPAGO_WEBHOOK_SECRET
-bunx wrangler secret put EMAILJS_SERVICE_ID
-bunx wrangler secret put EMAILJS_TEMPLATE_ID
-bunx wrangler secret put EMAILJS_PUBLIC_KEY
 bunx wrangler secret put EMAILJS_PRIVATE_KEY
-bunx wrangler secret put VAPID_PUBLIC_KEY
 bunx wrangler secret put VAPID_PRIVATE_KEY
 bunx wrangler secret put PUSH_DISPATCH_SECRET
-bunx wrangler secret put SUPABASE_URL
-bunx wrangler secret put SUPABASE_PUBLISHABLE_KEY
 bunx wrangler secret put SUPABASE_SERVICE_ROLE_KEY
 \`\`\`
 
-## 5. Conectar vipremesas.com (cuando lo decidas)
+El despliegue usa \`--keep-vars\` para conservar la configuración del Worker.
+\`SUPABASE_URL\` y \`SUPABASE_PUBLISHABLE_KEY\` deben existir como Variables del
+Worker y también con prefijo \`VITE_\` durante el build. Son valores públicos;
+la clave administrativa sólo existe como \`SUPABASE_SERVICE_ROLE_KEY\` Secret.
+
+## 6. Configurar autenticación para vipremesas.com
 1. Añade el dominio a Cloudflare y apunta los nameservers en tu registrador.
 2. Workers & Pages > vip-remesas-express > Settings > Domains & Routes >
    *Add custom domain* → \`vipremesas.com\` y \`www.vipremesas.com\`.
-3. Actualiza \`PUBLIC_SITE_URL=https://vipremesas.com\` (secret del Worker).
+3. Configura \`PUBLIC_SITE_URL=https://vipremesas.com\` como Variable del Worker.
 4. Supabase Auth: Site URL \`https://vipremesas.com\`, Redirect URLs \`https://vipremesas.com/**\`.
 5. Mercado Pago: webhook \`https://vipremesas.com/api/public/mercadopago/webhook\`.
 6. Triggers de push en la base de datos: \`https://vipremesas.com/api/public/push/dispatch\`.
 
-## 6. Límites del runtime del Worker
+## 7. Límites del runtime del Worker
 \`nodejs_compat\` cubre \`crypto\`, \`createHmac\`, \`timingSafeEqual\` y \`Buffer\`.
 No añadas paquetes que necesiten binarios nativos, procesos hijos o disco real.
 `,
@@ -558,8 +627,10 @@ patch("README-DESPLIEGUE.md", [
     /## 6\. Play Store \(TWA\)/,
     `## 6. GitHub y actualizaciones
 - Sube esta carpeta a tu repositorio y crea la rama \`main\`.
-- Secrets del repo: \`VITE_SUPABASE_URL\`, \`VITE_SUPABASE_PUBLISHABLE_KEY\`,
-  \`VITE_SUPABASE_PROJECT_ID\`, \`VPS_HOST\`, \`VPS_USER\`, \`VPS_SSH_KEY\`, \`VPS_PATH\`.
+- Variables del repo: \`VITE_SUPABASE_URL\`, \`VITE_SUPABASE_PUBLISHABLE_KEY\`,
+  \`VITE_SUPABASE_PROJECT_ID\`, \`VITE_VAPID_PUBLIC_KEY\`, \`VITE_PIX_KEY\`.
+- Variables y Secrets del Worker se configuran en Cloudflare; el despliegue usa
+  \`--keep-vars\` para conservarlos.
 - Cada push a \`main\` compila (\`ci.yml\`) y publica en Cloudflare Workers (\`deploy.yml\`).
 - Guía completa de Cloudflare: \`README-CLOUDFLARE.md\`.
 - Apps Android/iPhone: ver \`MOVIL.md\`.
