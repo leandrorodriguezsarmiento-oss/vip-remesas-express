@@ -14,7 +14,7 @@ export const Route = createFileRoute("/api/public/push/dispatch")({
       POST: async ({ request }) => {
         // Verify caller: the DB trigger sends the Supabase anon key as `apikey`.
         const apiKey = request.headers.get("apikey");
-        const expectedAnon = process.env.SUPABASE_PUBLISHABLE_KEY;
+        const expectedAnon = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
         if (!expectedAnon || !apiKey || !safeEqual(apiKey, expectedAnon)) {
           return new Response("Unauthorized", { status: 401 });
         }
