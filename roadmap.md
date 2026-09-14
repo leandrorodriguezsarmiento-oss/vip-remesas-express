@@ -9,3 +9,5 @@
 - [x] Corregir la inyección pública y del servidor para Cloudflare en la exportación portable.
 - [x] Validar que producción no compile sin la configuración pública obligatoria.
 - [x] Documentar Variables y Secrets requeridos para el despliegue portable.
+- [ ] Unificar la configuración portable con las tres variables de producción indicadas.
+- [ ] Verificar que la clave administrativa no llegue al navegador y que el build funcione.

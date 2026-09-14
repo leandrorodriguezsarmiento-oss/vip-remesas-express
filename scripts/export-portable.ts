@@ -130,15 +130,14 @@ import tsConfigPaths from "vite-tsconfig-paths";
 export default defineConfig(({ command, mode }) => {
   // Explicit build variables must override any stale values loaded from files.
   const env = { ...loadEnv(mode, process.cwd(), ""), ...process.env };
-  // Cloudflare Build Variables often use the server-side names. Only these
-  // two values are public, so safely expose them to the browser bundle.
-  const publicSupabaseUrl = env.SUPABASE_URL || env.VITE_SUPABASE_URL;
-  const publicSupabaseKey =
-    env.SUPABASE_PUBLISHABLE_KEY || env.VITE_SUPABASE_PUBLISHABLE_KEY;
+  // These two NEXT_PUBLIC values are intentionally embedded in the browser bundle.
+  // The service-role key is never referenced or defined here.
+  const publicSupabaseUrl = env.NEXT_PUBLIC_SUPABASE_URL;
+  const publicSupabaseKey = env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
   if (command === "build") {
     const missing = [
-      ...(!publicSupabaseUrl?.trim() ? ["SUPABASE_URL"] : []),
-      ...(!publicSupabaseKey?.trim() ? ["SUPABASE_PUBLISHABLE_KEY"] : []),
+      ...(!publicSupabaseUrl?.trim() ? ["NEXT_PUBLIC_SUPABASE_URL"] : []),
+      ...(!publicSupabaseKey?.trim() ? ["NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"] : []),
     ];
     if (missing.length > 0) {
       throw new Error(
@@ -151,8 +150,8 @@ export default defineConfig(({ command, mode }) => {
   return {
     server: { port: 3000, host: true },
     define: {
-      "import.meta.env.VITE_SUPABASE_URL": JSON.stringify(publicSupabaseUrl),
-      "import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY": JSON.stringify(publicSupabaseKey),
+      "import.meta.env.NEXT_PUBLIC_SUPABASE_URL": JSON.stringify(publicSupabaseUrl),
+      "import.meta.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY": JSON.stringify(publicSupabaseKey),
     },
     plugins: [
       tsConfigPaths(),
@@ -200,12 +199,25 @@ export function brokeredPreviewStorage() {
 patch("src/integrations/supabase/client.ts", [
   [
     /  \/\/ Use import\.meta\.env for client-side \(Vite build-time replacement\)\n  \/\/ Fall back to process\.env for SSR \(server-side rendering\)\n  const SUPABASE_URL = import\.meta\.env\.VITE_SUPABASE_URL \|\| process\.env\.SUPABASE_URL;\n  const SUPABASE_PUBLISHABLE_KEY = import\.meta\.env\.VITE_SUPABASE_PUBLISHABLE_KEY \|\| process\.env\.SUPABASE_PUBLISHABLE_KEY;/,
-    `  // Valores públicos incorporados por Vite durante la compilación.\n  const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;\n  const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;`,
+    `  // Valores públicos incorporados por Vite durante la compilación.\n  const SUPABASE_URL = import.meta.env.NEXT_PUBLIC_SUPABASE_URL;\n  const SUPABASE_PUBLISHABLE_KEY = import.meta.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;`,
   ],
   [
     /const message = `Missing Supabase environment variable\(s\): \$\{missing\.join\(', '\)\}\.[^`]*`;/,
-    "const message = `Faltan variables públicas de compilación: ${missing.map((name) => `VITE_${name}`).join(', ')}.`;",
+    "const message = `Faltan variables públicas de compilación: ${missing.map((name) => `NEXT_PUBLIC_${name}`).join(', ')}.`;",
   ],
+]);
+
+// Los clientes del servidor comparten la URL pública. Las operaciones con RLS
+// usan la clave publicable; únicamente el cliente administrativo usa service role.
+patch("src/integrations/supabase/auth-middleware.ts", [
+  [/process\.env\.SUPABASE_URL/g, "process.env.NEXT_PUBLIC_SUPABASE_URL"],
+  [/process\.env\.SUPABASE_PUBLISHABLE_KEY/g, "process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"],
+  [/'SUPABASE_URL'/g, "'NEXT_PUBLIC_SUPABASE_URL'"],
+  [/'SUPABASE_PUBLISHABLE_KEY'/g, "'NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY'"],
+]);
+patch("src/integrations/supabase/client.server.ts", [
+  [/process\.env\.SUPABASE_URL/g, "process.env.NEXT_PUBLIC_SUPABASE_URL"],
+  [/'SUPABASE_URL'/g, "'NEXT_PUBLIC_SUPABASE_URL'"],
 ]);
 
 // 6. Reporte de errores propio
@@ -246,15 +258,12 @@ patch("src/lib/cv-translate.functions.ts", [
 write(
   ".env.example",
   `# --- Cliente (se envían al navegador: SOLO información pública) ---
-VITE_SUPABASE_URL=https://TU-PROYECTO.supabase.co
-VITE_SUPABASE_PUBLISHABLE_KEY=
-VITE_SUPABASE_PROJECT_ID=
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
 VITE_VAPID_PUBLIC_KEY=
 VITE_PIX_KEY=
 
-# --- Servidor (secretos: nunca con prefijo VITE_) ---
-SUPABASE_URL=https://TU-PROYECTO.supabase.co
-SUPABASE_PUBLISHABLE_KEY=
+# --- Servidor (secreto: nunca con prefijo NEXT_PUBLIC_) ---
 SUPABASE_SERVICE_ROLE_KEY=
 PUBLIC_SITE_URL=https://vipremesas.com
 
