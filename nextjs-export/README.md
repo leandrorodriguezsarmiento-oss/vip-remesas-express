@@ -9,7 +9,7 @@ Exportación autónoma de la app. **Cero dependencias `@lovable.dev/*`**. Corre 
 1. Ve a https://supabase.com/dashboard → **New Project**.
 2. Guarda estos valores (Settings → API):
    - `Project URL` → `NEXT_PUBLIC_SUPABASE_URL`
-   - `anon public key` → `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+   - `publishable key` → `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
    - `service_role secret` → `SUPABASE_SERVICE_ROLE_KEY` (¡NUNCA lo pegues en el frontend!)
 
 ## 2. Correr la migración
@@ -51,7 +51,7 @@ Abre http://localhost:3000. Regístrate con tu email admin para tener acceso al 
 3. Framework preset: **Next.js** (auto-detectado).
 4. Environment Variables → pega las mismas 4 de `.env.local`:
    - `NEXT_PUBLIC_SUPABASE_URL`
-   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+   - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
    - `SUPABASE_SERVICE_ROLE_KEY`
    - `NEXT_PUBLIC_SITE_URL` = `https://tudominio.com`
 5. Deploy. Vercel te da una URL `xxx.vercel.app`.

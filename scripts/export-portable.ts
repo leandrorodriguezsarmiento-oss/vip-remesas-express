@@ -219,6 +219,9 @@ patch("src/integrations/supabase/client.server.ts", [
   [/process\.env\.SUPABASE_URL/g, "process.env.NEXT_PUBLIC_SUPABASE_URL"],
   [/'SUPABASE_URL'/g, "'NEXT_PUBLIC_SUPABASE_URL'"],
 ]);
+patch("src/routes/api/public/push.dispatch.ts", [
+  [/process\.env\.SUPABASE_PUBLISHABLE_KEY/g, "process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"],
+]);
 
 // 6. Reporte de errores propio
 write(
