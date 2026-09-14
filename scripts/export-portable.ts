@@ -464,35 +464,64 @@ bun run deploy
 También se publica solo en cada push a \`main\` (\`.github/workflows/deploy.yml\`)
 con los secrets \`CLOUDFLARE_API_TOKEN\` y \`CLOUDFLARE_ACCOUNT_ID\`.
 
-## 4. Variables y secretos
-Las \`VITE_*\` son públicas y se inyectan al compilar (build o secrets del repo).
-Los secretos del servidor van en el Worker, nunca en el navegador:
+## 4. Variables públicas de compilación
+Las \`VITE_*\` quedan dentro del JavaScript del navegador. En GitHub, créalas
+en **Settings > Secrets and variables > Actions > Variables**:
+
+- \`VITE_SUPABASE_URL\` (obligatoria)
+- \`VITE_SUPABASE_PUBLISHABLE_KEY\` (obligatoria; clave publicable/anon)
+- \`VITE_SUPABASE_PROJECT_ID\`
+- \`VITE_VAPID_PUBLIC_KEY\`
+- \`VITE_PIX_KEY\`
+
+El workflow se detiene antes de publicar si faltan las dos primeras. Para un
+despliegue manual, expórtalas antes de ejecutar \`bun run build\`.
+
+## 5. Variables y Secrets del Worker
+En **Workers & Pages > vip-remesas-express > Settings > Variables and Secrets**,
+configura como **Variables**:
+
+- \`SUPABASE_URL\`
+- \`SUPABASE_PUBLISHABLE_KEY\`
+- \`PUBLIC_SITE_URL=https://vipremesas.com\`
+- \`EMAILJS_SERVICE_ID\`, \`EMAILJS_TEMPLATE_ID\`, \`EMAILJS_PUBLIC_KEY\`, \`EMAILJS_ORIGIN\`
+- \`VAPID_PUBLIC_KEY\`, \`VAPID_SUBJECT\`
+- \`RECARGAS_API_URL\`, \`AI_API_URL\`, \`AI_MODEL\` cuando se usen
+
+Configura como **Secrets**:
+
+- \`SUPABASE_SERVICE_ROLE_KEY\`
+- \`MERCADOPAGO_ACCESS_TOKEN\`, \`MERCADOPAGO_WEBHOOK_SECRET\`
+- \`EMAILJS_PRIVATE_KEY\`
+- \`VAPID_PRIVATE_KEY\`, \`PUSH_DISPATCH_SECRET\`
+- \`RECARGAS_API_KEY\`, \`RECARGA_WEBHOOK_SECRET\`
+- \`AI_API_KEY\` cuando se use
+
+Los secretos también se pueden cargar desde la terminal:
 \`\`\`bash
-bunx wrangler secret put PUBLIC_SITE_URL
 bunx wrangler secret put MERCADOPAGO_ACCESS_TOKEN
 bunx wrangler secret put MERCADOPAGO_WEBHOOK_SECRET
-bunx wrangler secret put EMAILJS_SERVICE_ID
-bunx wrangler secret put EMAILJS_TEMPLATE_ID
-bunx wrangler secret put EMAILJS_PUBLIC_KEY
 bunx wrangler secret put EMAILJS_PRIVATE_KEY
-bunx wrangler secret put VAPID_PUBLIC_KEY
 bunx wrangler secret put VAPID_PRIVATE_KEY
 bunx wrangler secret put PUSH_DISPATCH_SECRET
-bunx wrangler secret put SUPABASE_URL
-bunx wrangler secret put SUPABASE_PUBLISHABLE_KEY
 bunx wrangler secret put SUPABASE_SERVICE_ROLE_KEY
 \`\`\`
 
-## 5. Conectar vipremesas.com (cuando lo decidas)
+El despliegue usa \`--keep-vars\` para conservar la configuración del Worker.
+\`SUPABASE_URL\` y \`SUPABASE_PUBLISHABLE_KEY\` deben existir como Variables del
+Worker y también con prefijo \`VITE_\` durante el build. Son valores públicos;
+la clave administrativa sólo existe como \`SUPABASE_SERVICE_ROLE_KEY\` Secret.
+
+## 6. Configurar autenticación para vipremesas.com
 1. Añade el dominio a Cloudflare y apunta los nameservers en tu registrador.
 2. Workers & Pages > vip-remesas-express > Settings > Domains & Routes >
    *Add custom domain* → \`vipremesas.com\` y \`www.vipremesas.com\`.
-3. Actualiza \`PUBLIC_SITE_URL=https://vipremesas.com\` (secret del Worker).
+3. Configura \`PUBLIC_SITE_URL=https://vipremesas.com\` como Variable del Worker.
 4. Supabase Auth: Site URL \`https://vipremesas.com\`, Redirect URLs \`https://vipremesas.com/**\`.
 5. Mercado Pago: webhook \`https://vipremesas.com/api/public/mercadopago/webhook\`.
 6. Triggers de push en la base de datos: \`https://vipremesas.com/api/public/push/dispatch\`.
 
-## 6. Límites del runtime del Worker
+## 7. Límites del runtime del Worker
 \`nodejs_compat\` cubre \`crypto\`, \`createHmac\`, \`timingSafeEqual\` y \`Buffer\`.
 No añadas paquetes que necesiten binarios nativos, procesos hijos o disco real.
 `,
