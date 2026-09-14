@@ -82,6 +82,19 @@ for (const rel of [
 ]) patch(rel, [[/Connect Supabase in Lovable Cloud\./g, "Revisa tu archivo .env."]]);
 patch("src/routes/auth.index.tsx", [[/\(enlace seguro de Lovable Cloud\)/, "(enlace seguro por correo)"]]);
 
+// routeTree.gen.ts viene del editor y aún referencia la ruta de consentimiento
+// OAuth de la plataforma (ya eliminada). Limpiarla para que typecheck/build
+// funcionen en un clon limpio; el plugin la regenera en cada build.
+{
+  const rtPath = join(OUT, "src/routeTree.gen.ts");
+  let rt = readFileSync(rtPath, "utf8");
+  rt = rt.replace(/^import .*Dotlovable.*\n/m, "");
+  rt = rt.replace(/const DotlovableOauthConsentRoute[\s\S]*?\} as any\)\n/, "");
+  rt = rt.replace(/^ *'\/\.lovable\/oauth\/consent': \{[\s\S]*?\n *\}\n/gm, "");
+  rt = rt.replace(/^.*(?:Dotlovable|\.lovable\/oauth\/consent).*$\n/gm, "");
+  writeFileSync(rtPath, rt);
+}
+
 // 3. package.json sin paquetes @lovable.dev
 const pkg = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8"));
 pkg.name = "vip-remesas";
