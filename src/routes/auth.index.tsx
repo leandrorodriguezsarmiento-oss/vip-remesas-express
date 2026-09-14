@@ -80,7 +80,7 @@ function AuthPage() {
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
-    if (identifier.trim().length < 3) return toast.error("Ingresa tu usuario, teléfono o CPF");
+    if (identifier.trim().length < 3) return toast.error("Ingresa tu usuario o correo");
     if (!password) return toast.error("Ingresa tu contraseña");
     setLoading(true);
     try {
@@ -174,10 +174,10 @@ function AuthPage() {
           {tab === "login" ? (
             <form onSubmit={handleLogin} className="space-y-4">
               <Field
-                label="Usuario, teléfono o CPF"
+                label="Usuario o correo"
                 value={identifier}
                 onChange={setIdentifier}
-                placeholder="joaosilva / 55119... / 000.000.000-00"
+                placeholder="joaosilva / tu@correo.com"
                 autoComplete="username"
               />
               <Field

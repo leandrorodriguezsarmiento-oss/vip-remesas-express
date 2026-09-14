@@ -120,23 +120,37 @@ write("package.json", JSON.stringify(pkg, null, 2) + "\n");
 // 4. Configuración de Vite para Cloudflare Workers (sin paquetes de terceros)
 write(
   "vite.config.ts",
-  `import { defineConfig } from "vite";
+import { defineConfig, loadEnv } from "vite";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import { cloudflare } from "@cloudflare/vite-plugin";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import tsConfigPaths from "vite-tsconfig-paths";
 
-export default defineConfig({
-  server: { port: 3000, host: true },
-  plugins: [
-    tsConfigPaths(),
-    tailwindcss(),
-    // Entorno SSR de Cloudflare Workers (lee wrangler.jsonc).
-    cloudflare({ viteEnvironment: { name: "ssr" } }),
-    tanstackStart({ server: { entry: "server" } }),
-    react(),
-  ],
+export default defineConfig(({ command, mode }) => {
+  const env = loadEnv(mode, process.cwd(), "");
+  if (command === "build") {
+    const required = ["VITE_SUPABASE_URL", "VITE_SUPABASE_PUBLISHABLE_KEY"];
+    const missing = required.filter((name) => !env[name]?.trim());
+    if (missing.length > 0) {
+      throw new Error(
+        \`Faltan variables públicas de compilación: \${missing.join(", ")}. \` +
+          "Configúralas como Variables del repositorio en GitHub o expórtalas antes de bun run build.",
+      );
+    }
+  }
+
+  return {
+    server: { port: 3000, host: true },
+    plugins: [
+      tsConfigPaths(),
+      tailwindcss(),
+      // Entorno SSR de Cloudflare Workers (lee wrangler.jsonc).
+      cloudflare({ viteEnvironment: { name: "ssr" } }),
+      tanstackStart({ server: { entry: "server" } }),
+      react(),
+    ],
+  };
 });
 `,
 );
@@ -169,6 +183,18 @@ export function brokeredPreviewStorage() {
 }
 `,
 );
+
+// 5b. El navegador recibe la URL y la clave publicable durante el build.
+patch("src/integrations/supabase/client.ts", [
+  [
+    /  \/\/ Use import\.meta\.env for client-side \(Vite build-time replacement\)\n  \/\/ Fall back to process\.env for SSR \(server-side rendering\)\n  const SUPABASE_URL = import\.meta\.env\.VITE_SUPABASE_URL \|\| process\.env\.SUPABASE_URL;\n  const SUPABASE_PUBLISHABLE_KEY = import\.meta\.env\.VITE_SUPABASE_PUBLISHABLE_KEY \|\| process\.env\.SUPABASE_PUBLISHABLE_KEY;/,
+    `  // Valores públicos incorporados por Vite durante la compilación.\n  const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;\n  const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;`,
+  ],
+  [
+    /const message = `Missing Supabase environment variable\(s\): \$\{missing\.join\(', '\)\}\. Revisa tu archivo \.env\.`;/,
+    "const message = `Faltan variables públicas de compilación: ${missing.map((name) => `VITE_${name}`).join(', ')}.`;",
+  ],
+]);
 
 // 6. Reporte de errores propio
 write(
