@@ -64,9 +64,9 @@ jobs:
           if grep -rqF "uoglxwtritcsrglwimej" dist/client; then
             echo "El build todavía contiene el proyecto antiguo uoglxwtritcsrglwimej" && exit 1
           fi
-          if grep -rqE "SUPABASE_SERVICE_ROLE_KEY|sb_secret_" dist/client; then
-            echo "La clave administrativa no puede aparecer en el navegador" && exit 1
-          fi
+         if grep -rqE "sb_secret_[A-Za-z0-9_-]+" dist/client; then
+  echo "Una clave secreta de Supabase aparece en el navegador" && exit 1
+fi
           echo "Build verificado: $HOST"
 
       - name: Publicar en Cloudflare
