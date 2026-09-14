@@ -447,25 +447,21 @@ jobs:
           NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: \${{ vars.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
           VITE_VAPID_PUBLIC_KEY: \${{ vars.VITE_VAPID_PUBLIC_KEY || secrets.VITE_VAPID_PUBLIC_KEY }}
           VITE_PIX_KEY: \${{ vars.VITE_PIX_KEY || secrets.VITE_PIX_KEY }}
+      - name: Verificar Secret administrativo del Worker
+        env:
+          CLOUDFLARE_API_TOKEN: \${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: \${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          SERVICE_ROLE_KEY: \${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          test -n "$SERVICE_ROLE_KEY" || (echo "Falta SUPABASE_SERVICE_ROLE_KEY en Actions > Secrets" && exit 1)
+          printf '%s' "$SERVICE_ROLE_KEY" | bunx wrangler secret put SUPABASE_SERVICE_ROLE_KEY \
+            --config dist/server/wrangler.json
       - name: Publicar en Cloudflare
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: \${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: \${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: deploy -c dist/server/wrangler.json --keep-vars
-        env:
-          # Wrangler sólo recibe secretos de GitHub si se pasan explícitamente.
-          # --keep-vars conserva variables existentes, pero no crea este Secret.
-          CLOUDFLARE_SUPABASE_SERVICE_ROLE_KEY: \${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-      - name: Verificar Secret administrativo del Worker
-        env:
-          CF_API_TOKEN: \${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CF_ACCOUNT_ID: \${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          SERVICE_ROLE_KEY: \${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: |
-          test -n "$SERVICE_ROLE_KEY" || (echo "Falta SUPABASE_SERVICE_ROLE_KEY en Actions > Secrets" && exit 1)
-          printf '%s' "$SERVICE_ROLE_KEY" | bunx wrangler secret put SUPABASE_SERVICE_ROLE_KEY \
-            --config dist/server/wrangler.json
 `,
 );
 
