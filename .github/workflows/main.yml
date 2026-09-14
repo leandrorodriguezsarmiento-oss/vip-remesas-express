@@ -103,7 +103,7 @@ jobs:
 
           EXPECTED_URL="https://nczavdcqueebhhtkuasv.supabase.co"
 
-          echo "Proyecto Supabase esperado: $HOST"
+          echo "Proyecto Supabase esperado: $EXPECTED_URL"
 
           if [ ! -d "dist/client" ]; then
             echo "ERROR: No existe dist/client"
