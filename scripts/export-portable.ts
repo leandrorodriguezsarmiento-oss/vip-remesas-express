@@ -120,7 +120,7 @@ write("package.json", JSON.stringify(pkg, null, 2) + "\n");
 // 4. Configuración de Vite para Cloudflare Workers (sin paquetes de terceros)
 write(
   "vite.config.ts",
-import { defineConfig, loadEnv } from "vite";
+  `import { defineConfig, loadEnv } from "vite";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import { cloudflare } from "@cloudflare/vite-plugin";
 import react from "@vitejs/plugin-react";
@@ -372,12 +372,19 @@ jobs:
       - run: bun install --frozen-lockfile
       - name: Typecheck
         run: bunx tsc --noEmit
+      - name: Verificar configuración pública
+        run: |
+          test -n "$VITE_SUPABASE_URL" || (echo "Falta VITE_SUPABASE_URL en Actions > Variables" && exit 1)
+          test -n "$VITE_SUPABASE_PUBLISHABLE_KEY" || (echo "Falta VITE_SUPABASE_PUBLISHABLE_KEY en Actions > Variables" && exit 1)
+        env:
+          VITE_SUPABASE_URL: \${{ vars.VITE_SUPABASE_URL || secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: \${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY || secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
       - name: Build
         run: bun run build
         env:
-          VITE_SUPABASE_URL: \${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_PUBLISHABLE_KEY: \${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
-          VITE_SUPABASE_PROJECT_ID: \${{ secrets.VITE_SUPABASE_PROJECT_ID }}
+          VITE_SUPABASE_URL: \${{ vars.VITE_SUPABASE_URL || secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: \${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY || secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+          VITE_SUPABASE_PROJECT_ID: \${{ vars.VITE_SUPABASE_PROJECT_ID || secrets.VITE_SUPABASE_PROJECT_ID }}
 `,
 );
 
@@ -404,19 +411,26 @@ jobs:
         with:
           bun-version: latest
       - run: bun install --frozen-lockfile
+      - name: Verificar configuración pública
+        run: |
+          test -n "$VITE_SUPABASE_URL" || (echo "Falta VITE_SUPABASE_URL en Actions > Variables" && exit 1)
+          test -n "$VITE_SUPABASE_PUBLISHABLE_KEY" || (echo "Falta VITE_SUPABASE_PUBLISHABLE_KEY en Actions > Variables" && exit 1)
+        env:
+          VITE_SUPABASE_URL: \${{ vars.VITE_SUPABASE_URL || secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: \${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY || secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
       - run: bun run build
         env:
-          VITE_SUPABASE_URL: \${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_PUBLISHABLE_KEY: \${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
-          VITE_SUPABASE_PROJECT_ID: \${{ secrets.VITE_SUPABASE_PROJECT_ID }}
-          VITE_VAPID_PUBLIC_KEY: \${{ secrets.VITE_VAPID_PUBLIC_KEY }}
-          VITE_PIX_KEY: \${{ secrets.VITE_PIX_KEY }}
+          VITE_SUPABASE_URL: \${{ vars.VITE_SUPABASE_URL || secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: \${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY || secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+          VITE_SUPABASE_PROJECT_ID: \${{ vars.VITE_SUPABASE_PROJECT_ID || secrets.VITE_SUPABASE_PROJECT_ID }}
+          VITE_VAPID_PUBLIC_KEY: \${{ vars.VITE_VAPID_PUBLIC_KEY || secrets.VITE_VAPID_PUBLIC_KEY }}
+          VITE_PIX_KEY: \${{ vars.VITE_PIX_KEY || secrets.VITE_PIX_KEY }}
       - name: Publicar en Cloudflare
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: \${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: \${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: deploy
+          command: deploy -c dist/server/wrangler.json --keep-vars
 `,
 );
 
