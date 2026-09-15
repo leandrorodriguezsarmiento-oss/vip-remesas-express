@@ -115,14 +115,24 @@ export const deleteUserAsAdmin = createServerFn({ method: "POST" })
     if (roleErr) throw new Error("No se pudo verificar rol");
     if (!isAdmin) throw new Error("Solo admin puede eliminar usuarios");
     if (data.userId === context.userId) throw new Error("No puedes eliminar tu propia cuenta admin");
+
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: targetAliases, error: aliasLookupError } = await supabaseAdmin
+      .from("login_aliases")
+      .select("id, alias, kind")
+      .eq("user_id", data.userId);
+    if (aliasLookupError) throw new Error(`No se pudo verificar la cuenta: ${aliasLookupError.message}`);
+
     const { error: permissionsError } = await supabaseAdmin.from("organizer_permissions").delete().eq("user_id", data.userId);
     if (permissionsError) throw new Error(`No se pudieron limpiar los permisos del usuario: ${permissionsError.message}`);
     const { error: rolesError } = await supabaseAdmin.from("user_roles").delete().eq("user_id", data.userId);
     if (rolesError) throw new Error(`No se pudieron limpiar los roles del usuario: ${rolesError.message}`);
-    const { error } = await supabaseAdmin.auth.admin.deleteUser(data.userId);
-    if (error) throw new Error(`No se pudo eliminar la cuenta: ${error.message}`);
-    return { ok: true };
+    const { error: aliasesError } = await supabaseAdmin.from("login_aliases").delete().eq("user_id", data.userId);
+    if (aliasesError) throw new Error(`No se pudieron limpiar los alias de acceso: ${aliasesError.message}`);
+
+    const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(data.userId);
+    if (authError) throw new Error(`No se pudo eliminar la cuenta: ${authError.message}`);
+    return { ok: true, removedAliases: targetAliases?.length ?? 0 };
   });
 
 export const setUserProvince = createServerFn({ method: "POST" })
