@@ -9,6 +9,9 @@ concurrency:
   group: deploy-production
   cancel-in-progress: true
 
+permissions:
+  contents: write
+
 env:
   NEXT_PUBLIC_SUPABASE_URL: https://nczavdcqueebhhtkuasv.supabase.co
   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_rxqHb79-KneH3UZGHj2fDA_5ofGaUds
@@ -22,6 +25,61 @@ jobs:
     steps:
       - name: Descargar código
         uses: actions/checkout@v4
+
+      - name: Corregir PIX de remesas
+        shell: bash
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+
+          files = [
+              Path("src/routes/_authenticated/send.tsx"),
+              Path("portable-export/src/routes/_authenticated/send.tsx"),
+          ]
+
+          old_main = '''setTracking(res.trackingId);\n      // For BR, PIX must come exclusively from Mercado Pago.\n      setPixCode(null);\n      setTxId(res.transactionId);\n      setStep(6);\n      if (origin !== "BR") openWhatsApp(res.trackingId);'''
+          new_main = '''setTracking(res.trackingId);\n      setTxId(res.transactionId);\n\n      // Brasil: crear inmediatamente el PIX dinámico de Mercado Pago.\n      // Nunca usamos una llave PIX fija o generada localmente para remesas.\n      if (origin === "BR") {\n        setPixCode(null);\n        const mp = await createMpPreference({ data: { transactionId: res.transactionId } });\n        if (!mp.pixCode) throw new Error("Mercado Pago no devolvió el código PIX de esta orden.");\n        setPixCode(mp.pixCode);\n      } else {\n        setPixCode(res.pixCode);\n      }\n\n      setStep(6);\n      if (origin !== "BR") openWhatsApp(res.trackingId);'''
+
+          old_portable_import = '  findRate, calcQuote, generatePixCode,\n'
+          new_portable_import = '  findRate, calcQuote,\n'
+          old_portable_code = '  const pixPayCode = pixCode ?? (amountNum > 0 ? generatePixCode(tracking ?? "vip", amountNum) : null);'
+          new_portable_code = '  const pixPayCode = pixCode;'
+          old_portable_order = '''setTracking(res.trackingId);\n      setTxId(res.transactionId);\n\n      // Brasil: el código PIX que verá el cliente sale directamente de Mercado Pago.\n      // No redirigimos al checkout de Mercado Pago: mostramos QR + Copia y Cola.\n      if (origin === "BR") {\n        const mp = await createMpPreference({ data: { transactionId: res.transactionId } });\n        setPixCode(mp.pixCode);\n      } else {\n        setPixCode(res.pixCode);\n      }\n\n      setStep(6);\n      if (origin !== "BR") openWhatsApp(res.trackingId);'''
+          new_portable_order = '''setTracking(res.trackingId);\n      setTxId(res.transactionId);\n      setPixCode(null);\n\n      // Brasil: el PIX se crea ahora mismo en Mercado Pago y se muestra\n      // directamente en esta pantalla. Nunca usamos una llave fija/local.\n      if (origin === "BR") {\n        const mp = await createMpPreference({ data: { transactionId: res.transactionId } });\n        if (!mp.pixCode) throw new Error("Mercado Pago no devolvió el código PIX de esta orden.");\n        setPixCode(mp.pixCode);\n      } else {\n        setPixCode(res.pixCode);\n      }\n\n      setStep(6);\n      if (origin !== "BR") openWhatsApp(res.trackingId);'''
+
+          changed = False
+          for path in files:
+              if not path.exists():
+                  continue
+              text = path.read_text()
+              original = text
+              if path.as_posix().startswith("portable-export/"):
+                  text = text.replace(old_portable_import, new_portable_import)
+                  text = text.replace(old_portable_code, new_portable_code)
+                  text = text.replace(old_portable_order, new_portable_order)
+              else:
+                  text = text.replace(old_main, new_main)
+              if text != original:
+                  path.write_text(text)
+                  changed = True
+
+          for path in files:
+              if path.exists() and "generatePixCode" in path.read_text():
+                  raise SystemExit(f"ERROR: generatePixCode sigue en {path}")
+
+          if changed:
+              print("PIX remittance flow corrected")
+          else:
+              print("PIX remittance flow already corrected")
+          PY
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/routes/_authenticated/send.tsx portable-export/src/routes/_authenticated/send.tsx
+          if ! git diff --cached --quiet; then
+            git commit -m "Fix direct Mercado Pago PIX for remittances"
+            git push
+          fi
 
       - name: Detectar carpeta de la aplicación
         run: |
