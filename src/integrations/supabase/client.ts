@@ -41,9 +41,6 @@ async function signInWithGoogleIdToken(redirectTo?: string): Promise<void> {
         if (!response?.credential) throw new Error('Google no devolvió una credencial válida.');
         const signInResult = await Promise.race([supabase.auth.signInWithIdToken({ provider: 'google', token: response.credential, nonce }), new Promise<never>((_, timeoutReject) => { window.setTimeout(() => timeoutReject(new Error('Google inició correctamente, pero Supabase no respondió a tiempo.')), GOOGLE_AUTH_TIMEOUT_MS); })]);
         if (signInResult.error) throw readableGoogleError(signInResult.error);
-        const { ensureGoogleAccountVerified } = await import('@/lib/account.functions');
-        const verificationResult = await Promise.race([ensureGoogleAccountVerified({ data: undefined as never }), new Promise<never>((_, timeoutReject) => { window.setTimeout(() => timeoutReject(new Error('Google inició sesión, pero la activación de la cuenta está tardando demasiado.')), GOOGLE_AUTH_TIMEOUT_MS); })]);
-        if (!verificationResult?.verified) throw new Error('No se pudo activar la cuenta de Google.');
         const next = redirectTo ? new URL(redirectTo, window.location.origin).searchParams.get('next') : null;
         window.location.replace(next && next.startsWith('/') && !next.startsWith('//') ? next : '/dashboard'); finish(resolve);
       } catch (error) { const readable = readableGoogleError(error); console.error('Google ID token authentication error:', readable); finish(() => reject(readable)); }
