@@ -6,12 +6,11 @@ import { playNotificationSound } from "@/lib/notify-sound";
 
 /**
  * Escucha en vivo las tablas operativas del panel (remesas, recargas y pedidos).
- * Las remesas avisan cuando el cliente reporta el pago; las recargas
+ * Las remesas avisan cuando el pago queda realmente confirmado; las recargas
  * y pedidos avisan al crearse, porque se pagan antes de enviarse.
  */
 export function useLiveAdmin(userId?: string) {
   const qc = useQueryClient();
-
 
   useEffect(() => {
     const refresh = () => {
@@ -29,7 +28,6 @@ export function useLiveAdmin(userId?: string) {
       toast(label, { description: "Pendiente de procesar en el panel.", duration: 4000 });
     };
 
-    // ¿Me acaban de asignar este trabajo? (admin -> organizador)
     const assignedToMe = (payload: { old: unknown; new: unknown }, label: string) => {
       const oldRow = payload.old as { status?: string } | null;
       const newRow = payload.new as { status?: string; assigned_to?: string | null } | null;
@@ -47,17 +45,25 @@ export function useLiveAdmin(userId?: string) {
 
     const channel = supabase.channel("admin-live");
 
-    // Remesas: avisar sólo al confirmarse el pago.
     channel.on("postgres_changes", { event: "INSERT", schema: "public", table: "transactions" }, refresh);
     channel.on("postgres_changes", { event: "UPDATE", schema: "public", table: "transactions" }, (payload) => {
-      const oldRow = payload.old as { payment_reported_at?: string | null } | null;
-      const newRow = payload.new as { payment_reported_at?: string | null } | null;
+      const oldRow = payload.old as { status?: string; payment_confirmed_at?: string | null } | null;
+      const newRow = payload.new as { status?: string; payment_confirmed_at?: string | null } | null;
       if (assignedToMe(payload, "Remesa asignada a ti")) return;
-      if (!oldRow?.payment_reported_at && newRow?.payment_reported_at) alert("Cliente informó un pago");
-      else refresh();
+
+      // Una remesa sólo avisa como pagada cuando el backend ha confirmado
+      // realmente el pago (por ejemplo, Mercado Pago -> approved/authorized).
+      if (
+        newRow?.status === "payment_confirmed" &&
+        (oldRow?.status !== "payment_confirmed" || !oldRow?.payment_confirmed_at) &&
+        !!newRow?.payment_confirmed_at
+      ) {
+        alert("💰 Pago aprobado · Nueva remesa");
+      } else {
+        refresh();
+      }
     });
 
-    // Recargas y pedidos: se pagan antes, así que avisan al crearse.
     ([
       { table: "recargas_requests", label: "Nueva recarga", assigned: "Recarga asignada a ti" },
       { table: "store_orders", label: "Nuevo pedido VipShop", assigned: "Pedido asignado a ti" },
@@ -75,4 +81,3 @@ export function useLiveAdmin(userId?: string) {
     };
   }, [qc, userId]);
 }
-
