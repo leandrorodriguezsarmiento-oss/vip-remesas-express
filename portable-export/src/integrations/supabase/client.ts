@@ -4,6 +4,8 @@ import type { Database } from './types';
 import { brokeredPreviewStorage } from './previewAuthStorage';
 
 const GOOGLE_CLIENT_ID = '386834362759-ia6kr0pg1snrp7ousft2bea5ee29gahq.apps.googleusercontent.com';
+const SUPABASE_URL_FALLBACK = 'https://nczavdcqueebhhtkuasv.supabase.co';
+const SUPABASE_PUBLISHABLE_KEY_FALLBACK = 'sb_publishable_rxqHb79-KneH3UZGHj2fDA_5ofGaUds';
 
 type GoogleCredentialResponse = { credential: string };
 type GooglePromptNotification = {
@@ -146,18 +148,9 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
 
 function createSupabaseClient() {
   // VITE_* is replaced directly in the browser bundle by Vite.
-  const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL?.trim();
-  const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY?.trim();
-
-  if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
-    const missing = [
-      ...(!SUPABASE_URL ? ['SUPABASE_URL'] : []),
-      ...(!SUPABASE_PUBLISHABLE_KEY ? ['SUPABASE_PUBLISHABLE_KEY'] : []),
-    ];
-    const message = `Faltan variables públicas de compilación: ${missing.map((name) => `NEXT_PUBLIC_${name}`).join(', ')}.`;
-    console.error(`[Supabase] ${message}`);
-    throw new Error(message);
-  }
+  // Fallbacks keep the public client alive when only Cloudflare Runtime Variables exist.
+  const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL?.trim() || SUPABASE_URL_FALLBACK;
+  const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY?.trim() || SUPABASE_PUBLISHABLE_KEY_FALLBACK;
 
   const client = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
     global: {
