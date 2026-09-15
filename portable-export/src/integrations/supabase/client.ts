@@ -6,6 +6,7 @@ import { brokeredPreviewStorage } from './previewAuthStorage';
 const GOOGLE_CLIENT_ID = '386834362759-ia6kr0pg1snrp7ousft2bea5ee29gahq.apps.googleusercontent.com';
 const FALLBACK_SUPABASE_URL = 'https://nczavdcqueebhhtkuasv.supabase.co';
 const FALLBACK_SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_rxqHb79-KneH3UZGHj2fDA_5ofGaUds';
+const GOOGLE_AUTH_TIMEOUT_MS = 15000;
 
 type GoogleCredentialResponse = { credential: string };
 type GooglePromptNotification = { isNotDisplayed: () => boolean; isSkippedMoment: () => boolean };
@@ -80,14 +81,21 @@ async function signInWithGoogleIdToken(redirectTo?: string): Promise<void> {
     const handleCredential = async (response: GoogleCredentialResponse) => {
       try {
         if (!response?.credential) throw new Error('Google no devolvió una credencial válida.');
-        const { error } = await supabase.auth.signInWithIdToken({ provider: 'google', token: response.credential, nonce });
-        if (error) throw readableGoogleError(error);
+
+        const signInResult = await Promise.race([
+          supabase.auth.signInWithIdToken({ provider: 'google', token: response.credential, nonce }),
+          new Promise<never>((_, timeoutReject) => {
+            window.setTimeout(() => timeoutReject(new Error('Google inició correctamente, pero Supabase no respondió a tiempo.')), GOOGLE_AUTH_TIMEOUT_MS);
+          }),
+        ]);
+
+        if (signInResult.error) throw readableGoogleError(signInResult.error);
         const next = redirectTo ? new URL(redirectTo, window.location.origin).searchParams.get('next') : null;
         window.location.replace(next && next.startsWith('/') && !next.startsWith('//') ? next : '/dashboard');
         finish(resolve);
       } catch (error) {
         const readable = readableGoogleError(error);
-        console.error('Google ID token authentication error:', error);
+        console.error('Google ID token authentication error:', readable);
         finish(() => reject(readable));
       }
     };
