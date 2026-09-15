@@ -2,6 +2,82 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
+type MercadoPagoPaymentMethod = {
+  ticket_url?: string;
+  qr_code?: string;
+  qr_code_base64?: string;
+};
+
+type MercadoPagoOrder = {
+  id?: string;
+  message?: string;
+  error?: string;
+  cause?: Array<{ code?: string | number; description?: string }>;
+  transactions?: {
+    payments?: Array<{
+      id?: string;
+      status?: string;
+      status_detail?: string;
+      payment_method?: MercadoPagoPaymentMethod;
+    }>;
+  };
+};
+
+async function getMercadoPagoOrder(accessToken: string, orderId: string): Promise<MercadoPagoOrder> {
+  const response = await fetch(`https://api.mercadopago.com/v1/orders/${encodeURIComponent(orderId)}`, {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  const json = (await response.json().catch(() => ({}))) as MercadoPagoOrder;
+  if (!response.ok) {
+    const cause = json.cause?.map((item) => `${item.code ?? ""} ${item.description ?? ""}`.trim()).filter(Boolean).join(" | ");
+    const detail = cause || json.message || json.error || `HTTP ${response.status}`;
+    throw new Error(`Mercado Pago no pudo consultar la Order ${orderId}: ${detail}`);
+  }
+  return json;
+}
+
+async function resolveMercadoPagoPayment(accessToken: string, order: MercadoPagoOrder): Promise<{
+  checkoutUrl: string | null;
+  pixCode: string | null;
+  qrCodeBase64: string | null;
+  paymentId: string | null;
+  status: string | null;
+  statusDetail: string | null;
+}> {
+  let current = order;
+
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const payment = current.transactions?.payments?.[0];
+    const method = payment?.payment_method;
+    const pixCode = method?.qr_code?.trim() || null;
+
+    if (pixCode) {
+      return {
+        checkoutUrl: method?.ticket_url?.trim() || null,
+        pixCode,
+        qrCodeBase64: method?.qr_code_base64?.trim() || null,
+        paymentId: payment?.id ?? null,
+        status: payment?.status ?? null,
+        statusDetail: payment?.status_detail ?? null,
+      };
+    }
+
+    if (!current.id || attempt === 2) break;
+    await new Promise((resolve) => setTimeout(resolve, 700));
+    current = await getMercadoPagoOrder(accessToken, current.id);
+  }
+
+  const payment = current.transactions?.payments?.[0];
+  throw new Error(
+    `Mercado Pago creó la Order ${current.id ?? ""}, pero todavía no devolvió qr_code PIX. Estado: ${payment?.status ?? "desconocido"}; detalle: ${payment?.status_detail ?? "desconocido"}.`,
+  );
+}
+
 /** Crea una Order PIX real de Mercado Pago para una transacción existente. */
 export const createMercadoPagoPreference = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -39,6 +115,7 @@ export const createMercadoPagoPreference = createServerFn({ method: "POST" })
         preferenceId: existing.order_id,
         checkoutUrl: existing.checkout_url ?? null,
         pixCode: existing.qr_code,
+        qrCodeBase64: null,
       };
     }
 
@@ -76,21 +153,7 @@ export const createMercadoPagoPreference = createServerFn({ method: "POST" })
       body: JSON.stringify(body),
     });
 
-    const json = (await res.json().catch(() => ({}))) as {
-      id?: string;
-      message?: string;
-      error?: string;
-      cause?: Array<{ code?: string | number; description?: string }>;
-      transactions?: {
-        payments?: Array<{
-          payment_method?: {
-            ticket_url?: string;
-            qr_code?: string;
-            qr_code_base64?: string;
-          };
-        }>;
-      };
-    };
+    const json = (await res.json().catch(() => ({}))) as MercadoPagoOrder;
 
     if (!res.ok || !json.id) {
       const cause = json.cause?.map((item) => `${item.code ?? ""} ${item.description ?? ""}`.trim()).filter(Boolean).join(" | ");
@@ -98,12 +161,9 @@ export const createMercadoPagoPreference = createServerFn({ method: "POST" })
       throw new Error(`Mercado Pago rechazó la Order: ${detail}`);
     }
 
-    const payment = json.transactions?.payments?.[0];
-    const checkoutUrl = payment?.payment_method?.ticket_url ?? null;
-    const pixCode = payment?.payment_method?.qr_code;
-    if (!pixCode) {
-      throw new Error("Mercado Pago creó la Order, pero no devolvió qr_code PIX.");
-    }
+    const resolved = await resolveMercadoPagoPayment(accessToken, json);
+    const checkoutUrl = resolved.checkoutUrl;
+    const pixCode = resolved.pixCode;
 
     const { error: txUpdateError } = await supabaseAdmin.from("transactions")
       .update({ payment_method: "mercadopago", notes: `mp_order:${json.id}` })
@@ -118,6 +178,8 @@ export const createMercadoPagoPreference = createServerFn({ method: "POST" })
       preference_id: json.id,
       checkout_url: checkoutUrl,
       qr_code: pixCode,
+      mp_payment_id: resolved.paymentId,
+      mp_status: resolved.statusDetail ? `${resolved.status ?? ""}:${resolved.statusDetail}`.replace(/^:/, "") : resolved.status,
       internal_status: "created",
       amount,
       currency: "BRL",
@@ -128,6 +190,6 @@ export const createMercadoPagoPreference = createServerFn({ method: "POST" })
       preferenceId: json.id,
       checkoutUrl,
       pixCode,
-      qrCodeBase64: payment?.payment_method?.qr_code_base64 ?? null,
+      qrCodeBase64: resolved.qrCodeBase64,
     };
   });
