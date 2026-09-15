@@ -34,5 +34,5 @@ export const COUNTRIES = [
   { code: "OT", name: "Otro" },
 ] as const;
 
-export const SUPPORT_WHATSAPP = "5595981006775";
+export const SUPPORT_WHATSAPP = "5595984405698";
 export const SUPPORT_WHATSAPP_URL = `https://wa.me/${SUPPORT_WHATSAPP}`;
