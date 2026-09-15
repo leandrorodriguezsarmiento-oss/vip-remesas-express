@@ -112,8 +112,9 @@ function createSupabaseClient() {
       if (prop === 'signInWithOAuth') {
         return async (credentials: Parameters<typeof target.signInWithOAuth>[0]) => {
           if (credentials.provider !== 'google' || typeof window === 'undefined') return target.signInWithOAuth(credentials);
-          const isMobile = window.matchMedia?.('(pointer: coarse)').matches || window.innerWidth <= 900;
-          if (isMobile) return target.signInWithOAuth(credentials);
+          // Always use Google's browser ID-token flow. This avoids the Supabase
+          // /auth/v1/authorize OAuth path, which requires the Google OAuth client
+          // secret and was returning HTTP 400 in production.
           try {
             await signInWithGoogleIdToken(credentials.options?.redirectTo);
             return { data: { provider: 'google', url: null }, error: null } as Awaited<ReturnType<typeof target.signInWithOAuth>>;
