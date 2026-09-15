@@ -14,13 +14,7 @@ type GoogleButtonConfiguration = { type?: 'standard' | 'icon'; theme?: string; s
 type SupabaseLikeError = { message?: string; code?: string; status?: number; name?: string; details?: string; hint?: string };
 
 declare global {
-  interface Window {
-    google?: { accounts: { id: {
-      initialize: (options: { client_id: string; callback: (response: GoogleCredentialResponse) => void; nonce?: string; use_fedcm_for_prompt?: boolean }) => void;
-      prompt: (callback?: (notification: GooglePromptNotification) => void) => void;
-      renderButton: (parent: HTMLElement, options: GoogleButtonConfiguration) => void;
-    } } };
-  }
+  interface Window { google?: { accounts: { id: { initialize: (options: { client_id: string; callback: (response: GoogleCredentialResponse) => void; nonce?: string; use_fedcm_for_prompt?: boolean }) => void; prompt: (callback?: (notification: GooglePromptNotification) => void) => void; renderButton: (parent: HTMLElement, options: GoogleButtonConfiguration) => void; } } } }
 }
 
 let googleScriptPromise: Promise<void> | null = null;
@@ -28,39 +22,27 @@ function loadGoogleIdentityScript(): Promise<void> {
   if (typeof window === 'undefined') return Promise.reject(new Error('Google Sign-In solo está disponible en el navegador.'));
   if (window.google?.accounts?.id) return Promise.resolve();
   if (googleScriptPromise) return googleScriptPromise;
-  googleScriptPromise = new Promise((resolve, reject) => {
-    const existing = document.querySelector<HTMLScriptElement>('script[data-google-identity="true"]');
-    if (existing) { existing.addEventListener('load', () => resolve(), { once: true }); existing.addEventListener('error', () => reject(new Error('No se pudo cargar Google Sign-In.')), { once: true }); return; }
-    const script = document.createElement('script'); script.src = 'https://accounts.google.com/gsi/client'; script.async = true; script.defer = true; script.dataset.googleIdentity = 'true'; script.onload = () => resolve(); script.onerror = () => reject(new Error('No se pudo cargar Google Sign-In.')); document.head.appendChild(script);
-  });
+  googleScriptPromise = new Promise((resolve, reject) => { const existing = document.querySelector<HTMLScriptElement>('script[data-google-identity="true"]'); if (existing) { existing.addEventListener('load', () => resolve(), { once: true }); existing.addEventListener('error', () => reject(new Error('No se pudo cargar Google Sign-In.')), { once: true }); return; } const script = document.createElement('script'); script.src = 'https://accounts.google.com/gsi/client'; script.async = true; script.defer = true; script.dataset.googleIdentity = 'true'; script.onload = () => resolve(); script.onerror = () => reject(new Error('No se pudo cargar Google Sign-In.')); document.head.appendChild(script); });
   return googleScriptPromise;
 }
 function createNonce(): string { const bytes = new Uint8Array(32); crypto.getRandomValues(bytes); return btoa(String.fromCharCode(...bytes)); }
 async function hashNonce(nonce: string): Promise<string> { const encoded = new TextEncoder().encode(nonce); const hash = await crypto.subtle.digest('SHA-256', encoded); return Array.from(new Uint8Array(hash)).map((byte) => byte.toString(16).padStart(2, '0')).join(''); }
 function readableGoogleError(error: unknown): Error { if (error instanceof Error) return error; const value = (error ?? {}) as SupabaseLikeError; const parts = [value.message, value.code ? `code=${value.code}` : '', typeof value.status === 'number' ? `status=${value.status}` : '', value.details, value.hint].filter(Boolean); return new Error(parts.join(' | ') || 'No se pudo iniciar con Google.'); }
 
-async function signInWithGoogleIdToken(redirectTo?: string): Promise<void> {
+async function signInWithGoogleIdToken(auth: ReturnType<typeof createClient<Database>>['auth'], redirectTo?: string): Promise<void> {
   await loadGoogleIdentityScript(); const nonce = createNonce(); const hashedNonce = await hashNonce(nonce);
   await new Promise<void>((resolve, reject) => {
     let settled = false; let fallbackContainer: HTMLDivElement | null = null;
     const cleanup = () => { fallbackContainer?.remove(); fallbackContainer = null; }; const finish = (fn: () => void) => { if (settled) return; settled = true; cleanup(); fn(); };
-    const handleCredential = async (response: GoogleCredentialResponse) => {
-      try {
-        if (!response?.credential) throw new Error('Google no devolvió una credencial válida.');
-        const signInResult = await Promise.race([supabase.auth.signInWithIdToken({ provider: 'google', token: response.credential, nonce }), new Promise<never>((_, timeoutReject) => { window.setTimeout(() => timeoutReject(new Error('Google inició correctamente, pero Supabase no respondió a tiempo.')), GOOGLE_AUTH_TIMEOUT_MS); })]);
-        if (signInResult.error) throw readableGoogleError(signInResult.error);
-        const next = redirectTo ? new URL(redirectTo, window.location.origin).searchParams.get('next') : null;
-        window.location.replace(next && next.startsWith('/') && !next.startsWith('//') ? next : '/dashboard');
-        finish(resolve);
-      } catch (error) { const readable = readableGoogleError(error); console.error('Google ID token authentication error:', readable); finish(() => reject(readable)); }
-    };
+    const handleCredential = async (response: GoogleCredentialResponse) => { try {
+      if (!response?.credential) throw new Error('Google no devolvió una credencial válida.');
+      const signInResult = await Promise.race([auth.signInWithIdToken({ provider: 'google', token: response.credential, nonce }), new Promise<never>((_, timeoutReject) => { window.setTimeout(() => timeoutReject(new Error('Google inició correctamente, pero Supabase no respondió a tiempo.')), GOOGLE_AUTH_TIMEOUT_MS); })]);
+      if (signInResult.error) throw readableGoogleError(signInResult.error);
+      const next = redirectTo ? new URL(redirectTo, window.location.origin).searchParams.get('next') : null;
+      window.location.replace(next && next.startsWith('/') && !next.startsWith('//') ? next : '/dashboard'); finish(resolve);
+    } catch (error) { const readable = readableGoogleError(error); console.error('Google ID token authentication error:', readable); finish(() => reject(readable)); } };
     window.google!.accounts.id.initialize({ client_id: GOOGLE_CLIENT_ID, nonce: hashedNonce, use_fedcm_for_prompt: false, callback: handleCredential });
-    window.google!.accounts.id.prompt((notification) => {
-      if (!notification.isNotDisplayed() && !notification.isSkippedMoment()) return;
-      fallbackContainer = document.createElement('div'); fallbackContainer.style.position = 'fixed'; fallbackContainer.style.inset = '0'; fallbackContainer.style.zIndex = '2147483647'; fallbackContainer.style.display = 'flex'; fallbackContainer.style.alignItems = 'center'; fallbackContainer.style.justifyContent = 'center'; fallbackContainer.style.background = 'rgba(0,0,0,0.45)';
-      fallbackContainer.innerHTML = '<div style="background:white;border-radius:16px;padding:24px;box-shadow:0 20px 60px rgba(0,0,0,.25);min-width:300px;text-align:center"><div style="font:600 16px system-ui;margin-bottom:16px;color:#111">Continuar con Google</div><div data-google-button></div><button type="button" data-google-cancel style="margin-top:14px;border:0;background:transparent;color:#666;font:500 13px system-ui;cursor:pointer">Cancelar</button></div>';
-      document.body.appendChild(fallbackContainer); const buttonHost = fallbackContainer.querySelector<HTMLElement>('[data-google-button]'); const cancel = fallbackContainer.querySelector<HTMLButtonElement>('[data-google-cancel]'); cancel?.addEventListener('click', () => finish(() => reject(new Error('Inicio con Google cancelado.'))), { once: true }); if (buttonHost) window.google!.accounts.id.renderButton(buttonHost, { type: 'standard', theme: 'outline', size: 'large', text: 'continue_with', shape: 'rectangular', logo_alignment: 'left', width: 280 });
-    });
+    window.google!.accounts.id.prompt((notification) => { if (!notification.isNotDisplayed() && !notification.isSkippedMoment()) return; fallbackContainer = document.createElement('div'); fallbackContainer.style.position = 'fixed'; fallbackContainer.style.inset = '0'; fallbackContainer.style.zIndex = '2147483647'; fallbackContainer.style.display = 'flex'; fallbackContainer.style.alignItems = 'center'; fallbackContainer.style.justifyContent = 'center'; fallbackContainer.style.background = 'rgba(0,0,0,0.45)'; fallbackContainer.innerHTML = '<div style="background:white;border-radius:16px;padding:24px;box-shadow:0 20px 60px rgba(0,0,0,.25);min-width:300px;text-align:center"><div style="font:600 16px system-ui;margin-bottom:16px;color:#111">Continuar con Google</div><div data-google-button></div><button type="button" data-google-cancel style="margin-top:14px;border:0;background:transparent;color:#666;font:500 13px system-ui;cursor:pointer">Cancelar</button></div>'; document.body.appendChild(fallbackContainer); const buttonHost = fallbackContainer.querySelector<HTMLElement>('[data-google-button]'); const cancel = fallbackContainer.querySelector<HTMLButtonElement>('[data-google-cancel]'); cancel?.addEventListener('click', () => finish(() => reject(new Error('Inicio con Google cancelado.'))), { once: true }); if (buttonHost) window.google!.accounts.id.renderButton(buttonHost, { type: 'standard', theme: 'outline', size: 'large', text: 'continue_with', shape: 'rectangular', logo_alignment: 'left', width: 280 }); });
   });
 }
 function isNewSupabaseApiKey(value: string): boolean { return value.startsWith('sb_publishable_') || value.startsWith('sb_secret_'); }
@@ -69,7 +51,9 @@ function createSupabaseClient() {
   const SUPABASE_URL = import.meta.env.NEXT_PUBLIC_SUPABASE_URL?.trim() || import.meta.env.VITE_SUPABASE_URL?.trim() || FALLBACK_SUPABASE_URL;
   const SUPABASE_PUBLISHABLE_KEY = import.meta.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim() || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY?.trim() || FALLBACK_SUPABASE_PUBLISHABLE_KEY;
   const client = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, { global: { fetch: createSupabaseFetch(SUPABASE_PUBLISHABLE_KEY) }, auth: { storage: brokeredPreviewStorage(), persistSession: true, autoRefreshToken: true, flowType: 'pkce', detectSessionInUrl: true } });
-  const originalAuth = client.auth; const authProxy = new Proxy(originalAuth, { get(target, prop, receiver) { if (prop === 'signInWithOAuth') return async (credentials: Parameters<typeof target.signInWithOAuth>[0]) => { if (credentials.provider !== 'google' || typeof window === 'undefined') return target.signInWithOAuth(credentials); try { await signInWithGoogleIdToken(credentials.options?.redirectTo); return { data: { provider: 'google', url: null }, error: null } as Awaited<ReturnType<typeof target.signInWithOAuth>>; } catch (error) { const readable = readableGoogleError(error); return { data: { provider: 'google', url: null }, error: readable } as Awaited<ReturnType<typeof target.signInWithOAuth>>; } }; return Reflect.get(target, prop, receiver); } });
+  const originalAuth = client.auth;
+  const originalSignInWithIdToken = originalAuth.signInWithIdToken.bind(originalAuth);
+  const authProxy = new Proxy(originalAuth, { get(target, prop, receiver) { if (prop === 'signInWithOAuth') return async (credentials: Parameters<typeof target.signInWithOAuth>[0]) => { if (credentials.provider !== 'google' || typeof window === 'undefined') return target.signInWithOAuth(credentials); try { await signInWithGoogleIdToken(originalAuth, credentials.options?.redirectTo); return { data: { provider: 'google', url: null }, error: null } as Awaited<ReturnType<typeof target.signInWithOAuth>>; } catch (error) { const readable = readableGoogleError(error); return { data: { provider: 'google', url: null }, error: readable } as Awaited<ReturnType<typeof target.signInWithOAuth>>; } }; if (prop === 'signInWithIdToken') return originalSignInWithIdToken; return Reflect.get(target, prop, receiver); } });
   return new Proxy(client, { get(target, prop, receiver) { if (prop === 'auth') return authProxy; return Reflect.get(target, prop, receiver); } });
 }
 let _supabase: ReturnType<typeof createSupabaseClient> | undefined;
