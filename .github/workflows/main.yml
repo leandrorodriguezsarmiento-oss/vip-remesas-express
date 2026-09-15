@@ -25,51 +25,16 @@ jobs:
       - name: Descargar código
         uses: actions/checkout@v4
 
-      - name: Normalizar WhatsApp y asegurar diseño responsive
+      - name: Normalizar enlaces WhatsApp
         run: |
           set -e
-          # Todos los enlaces WhatsApp usan el número oficial de atención.
           for dir in src portable-export/src; do
             if [ -d "$dir" ]; then
-              grep -rlZE 'wa\.me|SUPPORT_WHATSAPP|WHATSAPP_NUMBER' "$dir" \
-                --include='*.ts' --include='*.tsx' 2>/dev/null \
+              grep -rlZE 'wa\.me|SUPPORT_WHATSAPP|WHATSAPP_NUMBER' "$dir" --include='*.ts' --include='*.tsx' 2>/dev/null \
                 | xargs -0 -r sed -i 's/5595981006775/5595984405698/g'
             fi
           done
-
-          # Base global para que la interfaz no desborde en iPhone/Android y
-          # los hijos de flex/grid puedan encogerse correctamente.
-          for css in src/styles.css portable-export/src/styles.css; do
-            if [ -f "$css" ] && ! grep -q 'VIP MOBILE RESPONSIVE BASE' "$css"; then
-              cat >> "$css" <<'EOF'
-
-/* VIP MOBILE RESPONSIVE BASE */
-@layer base {
-  *, *::before, *::after { box-sizing: border-box; }
-  html, body, #root {
-    width: 100%;
-    min-width: 0;
-    max-width: 100%;
-  }
-  img, svg, video, canvas {
-    max-width: 100%;
-  }
-  button, a, input, select, textarea {
-    max-width: 100%;
-  }
-  [class*="flex"], [class*="grid"] {
-    min-width: 0;
-  }
-}
-@media (max-width: 640px) {
-  .container {
-    width: 100%;
-    max-width: 100%;
-  }
-}
-EOF
-            fi
-          done
+          echo "WhatsApp oficial: +55 95 98440-5698"
 
       - name: Detectar carpeta de la aplicación
         run: |
