@@ -20,9 +20,11 @@ import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedSendRouteImport } from './routes/_authenticated/send'
 import { Route as AuthenticatedRecargasRouteImport } from './routes/_authenticated/recargas'
 import { Route as AuthenticatedPasajesRouteImport } from './routes/_authenticated/pasajes'
+import { Route as AuthenticatedOrganizerPermissionsRouteImport } from './routes/_authenticated/organizer-permissions'
 import { Route as AuthenticatedMigrantesRouteImport } from './routes/_authenticated/migrantes'
 import { Route as AuthenticatedHistoryRouteImport } from './routes/_authenticated/history'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as AuthenticatedAdminUsersRouteImport } from './routes/_authenticated/admin-users'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
 import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
@@ -87,6 +89,12 @@ const AuthenticatedPasajesRoute = AuthenticatedPasajesRouteImport.update({
   path: '/pasajes',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedOrganizerPermissionsRoute =
+  AuthenticatedOrganizerPermissionsRouteImport.update({
+    id: '/organizer-permissions',
+    path: '/organizer-permissions',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedMigrantesRoute = AuthenticatedMigrantesRouteImport.update({
   id: '/migrantes',
   path: '/migrantes',
@@ -100,6 +108,11 @@ const AuthenticatedHistoryRoute = AuthenticatedHistoryRouteImport.update({
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedAdminUsersRoute = AuthenticatedAdminUsersRouteImport.update({
+  id: '/admin-users',
+  path: '/admin-users',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
@@ -162,9 +175,11 @@ export interface FileRoutesByFullPath {
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/admin': typeof AuthenticatedAdminRoute
+  '/admin-users': typeof AuthenticatedAdminUsersRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/history': typeof AuthenticatedHistoryRoute
   '/migrantes': typeof AuthenticatedMigrantesRoute
+  '/organizer-permissions': typeof AuthenticatedOrganizerPermissionsRoute
   '/pasajes': typeof AuthenticatedPasajesRoute
   '/recargas': typeof AuthenticatedRecargasRoute
   '/send': typeof AuthenticatedSendRoute
@@ -185,9 +200,11 @@ export interface FileRoutesByTo {
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/admin': typeof AuthenticatedAdminRoute
+  '/admin-users': typeof AuthenticatedAdminUsersRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/history': typeof AuthenticatedHistoryRoute
   '/migrantes': typeof AuthenticatedMigrantesRoute
+  '/organizer-permissions': typeof AuthenticatedOrganizerPermissionsRoute
   '/pasajes': typeof AuthenticatedPasajesRoute
   '/recargas': typeof AuthenticatedRecargasRoute
   '/send': typeof AuthenticatedSendRoute
@@ -211,9 +228,11 @@ export interface FileRoutesById {
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
+  '/_authenticated/admin-users': typeof AuthenticatedAdminUsersRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/history': typeof AuthenticatedHistoryRoute
   '/_authenticated/migrantes': typeof AuthenticatedMigrantesRoute
+  '/_authenticated/organizer-permissions': typeof AuthenticatedOrganizerPermissionsRoute
   '/_authenticated/pasajes': typeof AuthenticatedPasajesRoute
   '/_authenticated/recargas': typeof AuthenticatedRecargasRoute
   '/_authenticated/send': typeof AuthenticatedSendRoute
@@ -237,9 +256,11 @@ export interface FileRouteTypes {
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
     | '/admin'
+    | '/admin-users'
     | '/dashboard'
     | '/history'
     | '/migrantes'
+    | '/organizer-permissions'
     | '/pasajes'
     | '/recargas'
     | '/send'
@@ -260,9 +281,11 @@ export interface FileRouteTypes {
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
     | '/admin'
+    | '/admin-users'
     | '/dashboard'
     | '/history'
     | '/migrantes'
+    | '/organizer-permissions'
     | '/pasajes'
     | '/recargas'
     | '/send'
@@ -285,9 +308,11 @@ export interface FileRouteTypes {
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
     | '/_authenticated/admin'
+    | '/_authenticated/admin-users'
     | '/_authenticated/dashboard'
     | '/_authenticated/history'
     | '/_authenticated/migrantes'
+    | '/_authenticated/organizer-permissions'
     | '/_authenticated/pasajes'
     | '/_authenticated/recargas'
     | '/_authenticated/send'
@@ -396,6 +421,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPasajesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/organizer-permissions': {
+      id: '/_authenticated/organizer-permissions'
+      path: '/organizer-permissions'
+      fullPath: '/organizer-permissions'
+      preLoaderRoute: typeof AuthenticatedOrganizerPermissionsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/migrantes': {
       id: '/_authenticated/migrantes'
       path: '/migrantes'
@@ -415,6 +447,13 @@ declare module '@tanstack/react-router' {
       path: '/dashboard'
       fullPath: '/dashboard'
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/admin-users': {
+      id: '/_authenticated/admin-users'
+      path: '/admin-users'
+      fullPath: '/admin-users'
+      preLoaderRoute: typeof AuthenticatedAdminUsersRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/admin': {
@@ -485,9 +524,11 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminRoute: typeof AuthenticatedAdminRoute
+  AuthenticatedAdminUsersRoute: typeof AuthenticatedAdminUsersRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedHistoryRoute: typeof AuthenticatedHistoryRoute
   AuthenticatedMigrantesRoute: typeof AuthenticatedMigrantesRoute
+  AuthenticatedOrganizerPermissionsRoute: typeof AuthenticatedOrganizerPermissionsRoute
   AuthenticatedPasajesRoute: typeof AuthenticatedPasajesRoute
   AuthenticatedRecargasRoute: typeof AuthenticatedRecargasRoute
   AuthenticatedSendRoute: typeof AuthenticatedSendRoute
@@ -498,9 +539,12 @@ interface AuthenticatedRouteRouteChildren {
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminRoute: AuthenticatedAdminRoute,
+  AuthenticatedAdminUsersRoute: AuthenticatedAdminUsersRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedHistoryRoute: AuthenticatedHistoryRoute,
   AuthenticatedMigrantesRoute: AuthenticatedMigrantesRoute,
+  AuthenticatedOrganizerPermissionsRoute:
+    AuthenticatedOrganizerPermissionsRoute,
   AuthenticatedPasajesRoute: AuthenticatedPasajesRoute,
   AuthenticatedRecargasRoute: AuthenticatedRecargasRoute,
   AuthenticatedSendRoute: AuthenticatedSendRoute,
