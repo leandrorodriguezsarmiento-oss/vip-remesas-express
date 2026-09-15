@@ -58,35 +58,32 @@ export const updateMyAliases = createServerFn({ method: "POST" }).middleware([re
 /** Solicita la verificación sin depender de la sesión Supabase del cliente para leer el perfil. */
 export const requestAccountVerification = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth]).handler(async ({ context }) => {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-
   const work = (async () => {
     const [{ data: profile, error: profileError }, { data: admins, error: adminsError }] = await Promise.all([
       supabaseAdmin.from("profiles").select("full_name, phone, username").eq("id", context.userId).maybeSingle(),
       supabaseAdmin.from("user_roles").select("user_id").eq("role", "admin"),
     ]);
-
     if (profileError) throw new Error(`No se pudo cargar el perfil: ${profileError.message}`);
     if (adminsError) throw new Error(`No se pudo localizar al administrador: ${adminsError.message}`);
-
-    const rows = (admins ?? []).map((a) => ({
-      user_id: a.user_id as string,
-      title: "Verificación solicitada",
-      body: `${profile?.full_name || profile?.username || "Un usuario"} (${profile?.phone ?? "s/tel"}) pidió verificar su cuenta.`,
-    }));
-
-    if (rows.length === 0) {
-      throw new Error("No hay un administrador disponible para recibir la solicitud.");
-    }
-
+    const rows = (admins ?? []).map((a) => ({ user_id: a.user_id as string, title: "Verificación solicitada", body: `${profile?.full_name || profile?.username || "Un usuario"} (${profile?.phone ?? "s/tel"}) pidió verificar su cuenta.` }));
+    if (rows.length === 0) throw new Error("No hay un administrador disponible para recibir la solicitud.");
     const { error: notificationError } = await supabaseAdmin.from("notifications").insert(rows);
     if (notificationError) throw new Error(`No se pudo enviar la solicitud al administrador: ${notificationError.message}`);
-
     return { ok: true };
   })();
-
-  const timeout = new Promise<never>((_, reject) => {
-    setTimeout(() => reject(new Error("La verificación está tardando demasiado. Inténtalo de nuevo en unos segundos.")), 8000);
-  });
-
+  const timeout = new Promise<never>((_, reject) => setTimeout(() => reject(new Error("La verificación está tardando demasiado. Inténtalo de nuevo en unos segundos.")), 8000));
   return Promise.race([work, timeout]);
+});
+
+/** Google autentica la identidad; las cuentas Google no quedan bloqueadas por la verificación manual. */
+export const ensureGoogleAccountVerified = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth]).handler(async ({ context }) => {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data: authData, error: authError } = await supabaseAdmin.auth.admin.getUserById(context.userId);
+  if (authError || !authData.user) throw new Error(authError?.message ?? "No se pudo comprobar la cuenta de Google.");
+  const provider = authData.user.app_metadata?.provider;
+  const hasGoogleIdentity = provider === "google" || authData.user.identities?.some((identity) => identity.provider === "google");
+  if (!hasGoogleIdentity) return { verified: false, provider: provider ?? null };
+  const { error } = await supabaseAdmin.from("profiles").update({ verified: true }).eq("id", context.userId);
+  if (error) throw new Error(`No se pudo activar la cuenta de Google: ${error.message}`);
+  return { verified: true, provider: "google" };
 });
