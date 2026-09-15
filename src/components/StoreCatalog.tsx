@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { formatMoney, generatePixCode } from "@/lib/remittance";
+import { formatMoney, generatePixCode, PIX_KEY } from "@/lib/remittance";
 import { PixQrCode } from "@/components/PixQrCode";
 import { toast } from "sonner";
 import {
@@ -552,7 +552,12 @@ export function StoreCatalog() {
                 <p className="text-xs font-extrabold uppercase text-muted-foreground">
                   Paga primero por PIX — el pedido se envía al confirmar el pago
                 </p>
-                <div className="rounded-xl bg-gradient-vip p-3">
+                <div className="rounded-xl border border-border bg-background p-3">
+        <p className="text-[11px] font-extrabold uppercase text-muted-foreground">Llave PIX</p>
+        <p className="mt-1 break-all font-mono text-xs font-bold text-foreground">{PIX_KEY}</p>
+        <button onClick={() => { navigator.clipboard.writeText(PIX_KEY); toast.success("Llave PIX copiada"); }} className="mt-2 w-full rounded-lg border border-border px-3 py-2 text-xs font-bold hover:border-gold">Copiar llave PIX</button>
+      </div>
+      <div className="rounded-xl bg-gradient-vip p-3">
                   <p className="text-[11px] font-extrabold uppercase text-muted-foreground">Monto exacto</p>
                   <p className="font-display text-2xl font-extrabold text-gold">{formatMoney(total, "BRL")}</p>
                 </div>
@@ -566,6 +571,9 @@ export function StoreCatalog() {
                   <Copy className="h-4 w-4" /> Copiar código PIX
                 </button>
                 <PixQrCode value={pixCode} />
+                <p className="text-center text-[11px] font-semibold text-muted-foreground">
+                  Después de pulsar “Confirmar pago y pedido”, confirma tu pago por WhatsApp al +55 95984405698. El pedido queda pendiente de verificación manual.
+                </p>
                 <label className="flex items-start gap-2 rounded-xl border border-border p-3 text-sm font-bold">
                   <input type="checkbox" checked={paid} onChange={(e) => setPaid(e.target.checked)} className="mt-0.5 h-4 w-4" />
                   <span>Ya realicé el pago por PIX de {formatMoney(total, "BRL")}</span>

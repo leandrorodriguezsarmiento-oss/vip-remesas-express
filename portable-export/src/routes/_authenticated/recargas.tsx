@@ -5,7 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { formatMoney } from "@/lib/remittance";
 import { createRechargeRequest } from "@/lib/orders.functions";
-import { generatePixCode } from "@/lib/remittance";
+import { generatePixCode, PIX_KEY } from "@/lib/remittance";
 import { PixQrCode } from "@/components/PixQrCode";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Smartphone, Loader2, Sparkles, Copy } from "lucide-react";
@@ -227,6 +227,11 @@ function Recargas() {
               {pixCode && (
                 <div className="animate-pop rounded-xl border border-gold/40 bg-background/60 p-4 text-center">
                   <p className="text-xs font-extrabold uppercase text-gold">Paso 1 · Paga con PIX</p>
+        <div className="mt-3 rounded-xl border border-border bg-background p-3 text-left">
+          <p className="text-[11px] font-extrabold uppercase text-muted-foreground">Llave PIX</p>
+          <p className="mt-1 break-all font-mono text-xs font-bold text-foreground">{PIX_KEY}</p>
+          <button onClick={() => { void navigator.clipboard.writeText(PIX_KEY); toast.success("Llave PIX copiada"); }} className="mt-2 w-full rounded-lg border border-border px-3 py-2 text-xs font-bold hover:border-gold">Copiar llave PIX</button>
+        </div>
                   <div className="mt-3 flex justify-center">
                     <PixQrCode value={pixCode} fileName={`pix-recarga-${digits}.png`} />
                   </div>
@@ -261,6 +266,9 @@ function Recargas() {
                   Ya pagué · enviar recarga
                 </button>
               </div>
+              <p className="text-center text-[11px] font-semibold text-muted-foreground">
+                Después de pulsar “Ya pagué”, confirma tu pago por WhatsApp al +55 95984405698.
+              </p>
               <p className="text-center text-[11px] font-semibold text-muted-foreground">
                 Verificamos tu pago, pasamos la recarga a proceso y te avisamos al completarla.
               </p>
