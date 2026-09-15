@@ -1,0 +1,71 @@
+name: Apply manual PIX flow
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Patch production flow
+        shell: bash
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+          import re
+
+          files = [
+              Path('src/routes/_authenticated/send.tsx'),
+              Path('portable-export/src/routes/_authenticated/send.tsx'),
+          ]
+
+          for path in files:
+              text = path.read_text()
+              text = text.replace('  findRate, calcQuote,\n', '  findRate, calcQuote, generatePixCode,\n', 1)
+              text = text.replace('import { createMercadoPagoPreference } from "@/lib/mercadopago.functions";\n', '')
+              text = text.replace('  const createMpPreference = useServerFn(createMercadoPagoPreference);\n', '')
+              text = text.replace('  const [mpLoading, setMpLoading] = useState(false);\n', '')
+              text = text.replace('  const WHATSAPP_NUMBER = "5595981006775";', '  const WHATSAPP_NUMBER = "5595984405698";')
+              text = re.sub(
+                  r'  /\*\* Sólo se muestra el código PIX REAL.*?\*/\n  const pixPayCode = pixCode;\n',
+                  '  /** PIX de producción generado localmente con la llave PIX real y el monto exacto. */\n  const pixPayCode = pixCode ?? (amountNum > 0 ? generatePixCode(tracking ?? "vip", amountNum) : null);\n',
+                  text, count=1, flags=re.S)
+
+              text = re.sub(
+                  r'      setTracking\(res\.trackingId\);\n      setTxId\(res\.transactionId\);\n\n      // Brasil: crear inmediatamente el PIX dinámico de Mercado Pago\..*?\n      setStep\(6\);\n      if \(origin !== "BR"\) openWhatsApp\(res\.trackingId\);',
+                  '''      setTracking(res.trackingId);\n      setTxId(res.transactionId);\n\n      // Brasil: PIX de producción con la llave fija real y el monto exacto.\n      if (origin === "BR") {\n        setPixCode(generatePixCode(res.trackingId, amountNum));\n      } else {\n        setPixCode(res.pixCode);\n      }\n\n      setStep(6);\n      if (origin !== "BR") openWhatsApp(res.trackingId);''',
+                  text, count=1, flags=re.S)
+
+              text, n = re.subn(r'\n  async function payWithMercadoPago\(\) \{.*?\n  \}\n\n  async function confirmPaid', '\n  async function confirmPaid', text, count=1, flags=re.S)
+              if n != 1:
+                  raise SystemExit(f'Mercado Pago function not found in {path}')
+
+              text = re.sub(r'\n          \{origin === "BR" && txId && <button onClick=\{payWithMercadoPago\}.*?</button>\}', '', text, count=1, flags=re.S)
+              text = text.replace('Paga por PIX de Mercado Pago — el monto exacto ya viene incluido', 'Paga por PIX — el monto exacto ya viene incluido')
+              text = text.replace('Al verificar se abrirá WhatsApp para enviarnos el comprobante de pago.', 'Después de pulsar “Ya pagué”, confirma tu pago por WhatsApp al +55 95984405698.')
+              text = text.replace('Check, Copy, CreditCard, Loader2', 'Check, Copy, Loader2')
+
+              if 'createMercadoPagoPreference' in text or 'payWithMercadoPago' in text or 'Pagar con Mercado Pago' in text:
+                  raise SystemExit(f'Mercado Pago UI/code remains in {path}')
+              path.write_text(text)
+
+          workflow = Path('.github/workflows/main.yml')
+          w = workflow.read_text()
+          w, n = re.subn(r'      - name: Corregir PIX de remesas\n.*?\n      - name: Detectar carpeta de la aplicación', '      - name: Detectar carpeta de la aplicación', w, count=1, flags=re.S)
+          if n != 1:
+              raise SystemExit('No se encontró la corrección automática de Mercado Pago en main.yml')
+          workflow.write_text(w)
+          PY
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/fix-manual-pix-now.yml
+          git add src/routes/_authenticated/send.tsx portable-export/src/routes/_authenticated/send.tsx .github/workflows/main.yml
+          git commit -m "Switch remittances to manual production PIX"
+          git push
