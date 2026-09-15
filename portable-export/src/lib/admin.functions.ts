@@ -90,19 +90,18 @@ export const setOrganizerRole = createServerFn({ method: "POST" })
     const { data: isAdmin, error: roleErr } = await context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" });
     if (roleErr) throw new Error("No se pudo verificar rol");
     if (!isAdmin) throw new Error("Solo el admin puede asignar organizadores");
+    if (data.userId === context.userId) throw new Error("No puedes cambiar tu propio rol admin");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     if (data.enabled) {
       const { error } = await supabaseAdmin.from("user_roles").insert({ user_id: data.userId, role: "organizador" });
       if (error && !error.message.includes("duplicate")) throw new Error(error.message);
-      const { error: permissionError } = await supabaseAdmin.from("organizer_permissions").insert(["remesas", "recargas", "tienda"].map((permission) => ({ user_id: data.userId, permission })));
-      if (permissionError && !permissionError.message.includes("duplicate")) throw new Error(permissionError.message);
-    } else {
-      const { error } = await supabaseAdmin.from("user_roles").delete().eq("user_id", data.userId).eq("role", "organizador");
-      if (error) throw new Error(error.message);
-      const { error: permissionError } = await supabaseAdmin.from("organizer_permissions").delete().eq("user_id", data.userId);
-      if (permissionError) throw new Error(permissionError.message);
+      return { ok: true, enabled: true, permissionsConfigured: false };
     }
-    return { ok: true, enabled: data.enabled };
+    const { error: permissionError } = await supabaseAdmin.from("organizer_permissions").delete().eq("user_id", data.userId);
+    if (permissionError) throw new Error(permissionError.message);
+    const { error } = await supabaseAdmin.from("user_roles").delete().eq("user_id", data.userId).eq("role", "organizador");
+    if (error) throw new Error(error.message);
+    return { ok: true, enabled: false, permissionsConfigured: false };
   });
 
 export const deleteUserAsAdmin = createServerFn({ method: "POST" })
@@ -117,8 +116,12 @@ export const deleteUserAsAdmin = createServerFn({ method: "POST" })
     if (!isAdmin) throw new Error("Solo admin puede eliminar usuarios");
     if (data.userId === context.userId) throw new Error("No puedes eliminar tu propia cuenta admin");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error: permissionsError } = await supabaseAdmin.from("organizer_permissions").delete().eq("user_id", data.userId);
+    if (permissionsError) throw new Error(`No se pudieron limpiar los permisos del usuario: ${permissionsError.message}`);
+    const { error: rolesError } = await supabaseAdmin.from("user_roles").delete().eq("user_id", data.userId);
+    if (rolesError) throw new Error(`No se pudieron limpiar los roles del usuario: ${rolesError.message}`);
     const { error } = await supabaseAdmin.auth.admin.deleteUser(data.userId);
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(`No se pudo eliminar la cuenta: ${error.message}`);
     return { ok: true };
   });
 
