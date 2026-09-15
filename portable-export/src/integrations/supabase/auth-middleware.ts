@@ -4,6 +4,9 @@ import { getRequest } from '@tanstack/react-start/server'
 import { createClient } from '@supabase/supabase-js'
 import type { Database } from './types'
 
+const SUPABASE_URL = 'https://nczavdcqueebhhtkuasv.supabase.co';
+const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_rxqHb79-KneH3UZGHj2fDA_5ofGaUds';
+
 function isNewSupabaseApiKey(value: string): boolean {
   return value.startsWith('sb_publishable_') || value.startsWith('sb_secret_');
 }
@@ -26,16 +29,6 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
 
 export const requireSupabaseAuth = createMiddleware({ type: 'function' }).server(
   async ({ next }) => {
-    const SUPABASE_URL = import.meta.env.NEXT_PUBLIC_SUPABASE_URL;
-    const SUPABASE_PUBLISHABLE_KEY = import.meta.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-    if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
-      const missing = [
-        ...(!SUPABASE_URL ? ['NEXT_PUBLIC_SUPABASE_URL'] : []),
-        ...(!SUPABASE_PUBLISHABLE_KEY ? ['NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY'] : []),
-      ];
-      throw new Error(`Missing Supabase environment variable(s): ${missing.join(', ')}`);
-    }
-
     const request = getRequest();
     if (!request?.headers) throw new Error('Unauthorized: No request headers available');
 
@@ -44,7 +37,6 @@ export const requireSupabaseAuth = createMiddleware({ type: 'function' }).server
     if (!authHeader.startsWith('Bearer ')) throw new Error('Unauthorized: Only Bearer tokens are supported');
 
     const token = authHeader.slice(7).trim();
-    // Reject malformed/oversized bearer values before doing any downstream work.
     if (!token || token.length > 8192 || token.split('.').length !== 3) {
       throw new Error('Unauthorized: Invalid token');
     }
