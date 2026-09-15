@@ -1,0 +1,119 @@
+name: Switch VIP Remesas to manual PIX
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Apply manual production PIX flow
+        shell: bash
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+          import re
+
+          files = [
+              Path("src/routes/_authenticated/send.tsx"),
+              Path("portable-export/src/routes/_authenticated/send.tsx"),
+          ]
+
+          for path in files:
+              text = path.read_text()
+
+              text = text.replace(
+                  '  findRate, calcQuote,\n',
+                  '  findRate, calcQuote, generatePixCode,\n',
+                  1,
+              )
+              text = text.replace('import { createMercadoPagoPreference } from "@/lib/mercadopago.functions";\n', '')
+              text = text.replace('  const createMpPreference = useServerFn(createMercadoPagoPreference);\n', '')
+              text = text.replace('  const [mpLoading, setMpLoading] = useState(false);\n', '')
+              text = text.replace('const WHATSAPP_NUMBER = "5595981006775";', 'const WHATSAPP_NUMBER = "5595984405698";')
+              text = re.sub(
+                  r'  /\*\* Sólo se muestra el código PIX REAL.*?\*/\n  const pixPayCode = pixCode;\n',
+                  '  /** PIX de producción generado localmente con la llave PIX real y el monto exacto. */\n  const pixPayCode = pixCode ?? (amountNum > 0 ? generatePixCode(tracking ?? "vip", amountNum) : null);\n',
+                  text,
+                  count=1,
+              )
+
+              mp_block = re.compile(
+                  r'      setTracking\(res\.trackingId\);\n      setTxId\(res\.transactionId\);\n\n'
+                  r'      // Brasil: crear inmediatamente el PIX dinámico de Mercado Pago\..*?'
+                  r'      setStep\(6\);\n      if \(origin !== "BR"\) openWhatsApp\(res\.trackingId\);',
+                  re.S,
+              )
+              manual_block = '''      setTracking(res.trackingId);
+      setTxId(res.transactionId);
+
+      // Brasil: generar PIX de producción con la llave fija real y el monto exacto.
+      if (origin === "BR") {
+        setPixCode(generatePixCode(res.trackingId, amountNum));
+      } else {
+        setPixCode(res.pixCode);
+      }
+
+      setStep(6);
+      if (origin !== "BR") openWhatsApp(res.trackingId);'''
+              text, n = mp_block.subn(manual_block, text, count=1)
+              if n != 1:
+                  raise SystemExit(f"No se pudo sustituir createOrder PIX en {path}")
+
+              text, n = re.subn(
+                  r'\n  async function payWithMercadoPago\(\) \{.*?\n  \}\n\n  async function confirmPaid',
+                  '\n  async function confirmPaid',
+                  text,
+                  count=1,
+                  flags=re.S,
+              )
+              if n != 1:
+                  raise SystemExit(f"No se pudo eliminar Mercado Pago de {path}")
+
+              text = text.replace(
+                  '{origin === "BR" ? "Crear orden y pagar con PIX" : "Crear orden y enviar por WhatsApp"}',
+                  '{origin === "BR" ? "Crear orden y pagar con PIX" : "Crear orden y enviar por WhatsApp"}',
+              )
+              text = text.replace(
+                  '{origin === "BR" && txId && <button onClick={payWithMercadoPago} disabled={mpLoading} className="flex w-full items-center justify-center gap-2 rounded-xl border border-primary bg-primary px-4 py-3.5 text-sm font-semibold text-primary-foreground disabled:opacity-70">{mpLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}Pagar con Mercado Pago</button>}\n          ',
+                  '',
+              )
+              text = text.replace(
+                  'Paga por PIX de Mercado Pago — el monto exacto ya viene incluido',
+                  'Paga por PIX — el monto exacto ya viene incluido',
+              )
+              text = text.replace(
+                  'Al verificar se abrirá WhatsApp para enviarnos el comprobante de pago.',
+                  'Después de pulsar “Ya pagué”, confirma tu pago por WhatsApp al +55 95984405698.',
+              )
+              text = text.replace('Check, Copy, CreditCard, Loader2', 'Check, Copy, Loader2')
+
+              path.write_text(text)
+
+          workflow = Path(".github/workflows/main.yml")
+          w = workflow.read_text()
+          w, n = re.subn(
+              r'      - name: Corregir PIX de remesas\n.*?\n      - name: Detectar carpeta de la aplicación',
+              '      - name: Verificar flujo PIX manual\n        run: |\n          grep -q "generatePixCode" src/routes/_authenticated/send.tsx\n          grep -q "5595984405698" src/routes/_authenticated/send.tsx\n          ! grep -q "createMercadoPagoPreference" src/routes/_authenticated/send.tsx\n\n      - name: Detectar carpeta de la aplicación',
+              w,
+              count=1,
+              flags=re.S,
+          )
+          if n != 1:
+              raise SystemExit("No se pudo actualizar main.yml")
+          workflow.write_text(w)
+          PY
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/manual-pix-migration.yml
+          git add src/routes/_authenticated/send.tsx portable-export/src/routes/_authenticated/send.tsx .github/workflows/main.yml
+          git commit -m "Use manual production PIX and WhatsApp confirmation"
+          git push
