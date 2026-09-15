@@ -117,3 +117,5 @@ jobs:
           git add src/routes/_authenticated/send.tsx portable-export/src/routes/_authenticated/send.tsx .github/workflows/main.yml
           git commit -m "Use manual production PIX and WhatsApp confirmation"
           git push
+
+# Triggered migration execution on 2026-09-15.
