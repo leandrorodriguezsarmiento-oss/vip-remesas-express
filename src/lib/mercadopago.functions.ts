@@ -29,20 +29,34 @@ async function getMercadoPagoOrder(accessToken: string, orderId: string): Promis
 
 async function resolveMercadoPagoPayment(accessToken: string, order: MercadoPagoOrder) {
   let current = order;
-  const payment = current.transactions?.payments?.[0];
-  const method = payment?.payment_method;
-  const initialPix = method?.qr_code?.trim() || null;
-  if (initialPix) return { checkoutUrl: method?.ticket_url?.trim() || null, pixCode: initialPix, qrCodeBase64: method?.qr_code_base64?.trim() || null, paymentId: payment?.id ?? null, status: payment?.status ?? null, statusDetail: payment?.status_detail ?? null };
-  if (current.id) {
-    await new Promise((resolve) => setTimeout(resolve, 800));
+  const retryDelays = [500, 1000, 1500, 2000, 2500, 3000];
+
+  for (let attempt = 0; attempt <= retryDelays.length; attempt++) {
+    const payment = current.transactions?.payments?.[0];
+    const method = payment?.payment_method;
+    const pixCode = method?.qr_code?.trim() || null;
+
+    if (pixCode) {
+      return {
+        checkoutUrl: method?.ticket_url?.trim() || null,
+        pixCode,
+        qrCodeBase64: method?.qr_code_base64?.trim() || null,
+        paymentId: payment?.id ?? null,
+        status: payment?.status ?? null,
+        statusDetail: payment?.status_detail ?? null,
+      };
+    }
+
+    if (!current.id || attempt === retryDelays.length) break;
+
+    const delay = retryDelays[attempt];
+    console.log(JSON.stringify({ event: "mp_pix_poll_retry", orderId: current.id, attempt: attempt + 1, delayMs: delay }));
+    await new Promise((resolve) => setTimeout(resolve, delay));
     current = await getMercadoPagoOrder(accessToken, current.id);
-    const updated = current.transactions?.payments?.[0];
-    const updatedMethod = updated?.payment_method;
-    const pixCode = updatedMethod?.qr_code?.trim() || null;
-    if (pixCode) return { checkoutUrl: updatedMethod?.ticket_url?.trim() || null, pixCode, qrCodeBase64: updatedMethod?.qr_code_base64?.trim() || null, paymentId: updated?.id ?? null, status: updated?.status ?? null, statusDetail: updated?.status_detail ?? null };
   }
+
   const finalPayment = current.transactions?.payments?.[0];
-  throw new Error(`Mercado Pago creó la Order ${current.id ?? ""}, pero todavía no entregó el PIX. Estado: ${finalPayment?.status ?? "desconocido"}; detalle: ${finalPayment?.status_detail ?? "desconocido"}.`);
+  throw new Error(`Mercado Pago creó la Order ${current.id ?? ""}, pero todavía no entregó el PIX después de varios intentos. Estado: ${finalPayment?.status ?? "desconocido"}; detalle: ${finalPayment?.status_detail ?? "desconocido"}.`);
 }
 
 export const createMercadoPagoPreference = createServerFn({ method: "POST" })
