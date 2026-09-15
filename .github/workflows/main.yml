@@ -76,7 +76,6 @@ jobs:
               text = text.replace('Ya pagué, verificar', 'Ya pagué')
               text = text.replace('CreditCard, ', '')
               text = text.replace(', CreditCard', '')
-              # Remaining Mercado Pago mentions in this screen are comments/labels only.
               text = text.replace('Mercado Pago', 'PIX')
               path.write_text(text)
 
@@ -89,6 +88,14 @@ jobs:
               if hits:
                   raise SystemExit(f"ERROR: Mercado Pago sigue en {path}: {hits}")
           PY
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/routes/_authenticated/send.tsx portable-export/src/routes/_authenticated/send.tsx
+          if ! git diff --cached --quiet; then
+            git commit -m "Switch remittances to fixed manual PIX"
+            git push
+          fi
 
       - name: Detectar carpeta de la aplicación
         run: |
