@@ -24,6 +24,15 @@ function applySecurityHeaders(response: Response, request: Request): Response {
   headers.set("X-Frame-Options", "SAMEORIGIN");
   headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
   headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=()");
+  // Never let the browser/edge cache retain the HTML shell: it contains the
+  // current hashed JS assets and stale HTML can keep old authentication code
+  // alive on mobile devices after a deployment.
+  const contentType = headers.get("content-type") ?? "";
+  if (contentType.includes("text/html")) {
+    headers.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0");
+    headers.set("Pragma", "no-cache");
+    headers.set("Expires", "0");
+  }
   if (request.url.startsWith("https://")) {
     headers.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
   }
