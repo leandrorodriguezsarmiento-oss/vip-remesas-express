@@ -31,7 +31,6 @@ jobs:
         run: |
           python3 <<'PY'
           from pathlib import Path
-          import re
 
           files = [
               Path("src/routes/_authenticated/send.tsx"),
@@ -42,11 +41,38 @@ jobs:
               if not path.exists():
                   continue
               text = path.read_text()
-              text = re.sub(r'import \{ createMercadoPagoPreference \} from "@/lib/(mercadopago|payments)\.functions";\n', '', text)
-              text = re.sub(r'\n\s*const createMpPreference = useServerFn\(createMercadoPagoPreference\);', '', text)
-              text = re.sub(r'\n\s*const \[mpLoading, setMpLoading\] = useState\(false\);', '', text)
-              text = re.sub(r'\n  async function payWithMercadoPago[\s\S]*?\n  async function confirmPaid', '\n\n  async function confirmPaid', text)
-              text = re.sub(r'\n\s*\{origin === "BR" && txId && <button onClick=\{payWithMercadoPago\}[\s\S]*?</button>\}', '', text)
+
+              # Imports/estado de Mercado Pago.
+              text = text.replace('import { createMercadoPagoPreference } from "@/lib/mercadopago.functions";\n', '')
+              text = text.replace('import { createMercadoPagoPreference } from "@/lib/payments.functions";\n', '')
+              text = text.replace('  const createMpPreference = useServerFn(createMercadoPagoPreference);\n', '')
+              text = text.replace('  const [mpLoading, setMpLoading] = useState(false);\n', '')
+
+              # Eliminar la función completa de Mercado Pago.
+              start = text.find('  async function payWithMercadoPago')
+              end = text.find('  async function confirmPaid', start)
+              if start >= 0 and end > start:
+                  text = text[:start] + text[end:]
+
+              # Sustituir cualquier bloque BR que cree PIX dinámico por el pixCode
+              # que ya genera createTransaction con la llave fija y el monto exacto.
+              marker = '      setTracking(res.trackingId);\n      setTxId(res.transactionId);'
+              pos = text.find(marker)
+              if pos >= 0:
+                  end_marker = '      setStep(6);\n      if (origin !== "BR") openWhatsApp(res.trackingId);'
+                  end = text.find(end_marker, pos)
+                  if end > pos:
+                      replacement = marker + '\n      setPixCode(res.pixCode);\n\n      // Brasil: PIX fijo de VIP Remesas con el monto exacto incluido.\n      // No se llama a Mercado Pago.\n\n'
+                      text = text[:pos] + replacement + text[end:]
+
+              # Eliminar botón de pago de Mercado Pago si existe.
+              while 'onClick={payWithMercadoPago}' in text:
+                  b = text.rfind('{origin === "BR"', 0, text.find('onClick={payWithMercadoPago}'))
+                  e = text.find('</button>}', text.find('onClick={payWithMercadoPago}'))
+                  if b < 0 or e < 0:
+                      break
+                  text = text[:b] + text[e + len('</button>}') :]
+
               text = text.replace('Paga por PIX de Mercado Pago — el monto exacto ya viene incluido', 'Paga por PIX — el monto exacto ya viene incluido')
               text = text.replace('Pagar con Mercado Pago', 'Pagar con PIX')
               text = text.replace('PIX de Mercado Pago generado. Escanea el QR o copia el código.', 'PIX generado. Escanea el QR o copia el código.')
