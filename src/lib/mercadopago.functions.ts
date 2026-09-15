@@ -23,8 +23,23 @@ type MercadoPagoOrder = {
   };
 };
 
+async function fetchMercadoPago(url: string, init: RequestInit): Promise<Response> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new Error("Mercado Pago no respondió en 15 segundos. Verifica la conexión/API de Mercado Pago.");
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 async function getMercadoPagoOrder(accessToken: string, orderId: string): Promise<MercadoPagoOrder> {
-  const response = await fetch(`https://api.mercadopago.com/v1/orders/${encodeURIComponent(orderId)}`, {
+  const response = await fetchMercadoPago(`https://api.mercadopago.com/v1/orders/${encodeURIComponent(orderId)}`, {
     method: "GET",
     headers: {
       Accept: "application/json",
@@ -68,13 +83,13 @@ async function resolveMercadoPagoPayment(accessToken: string, order: MercadoPago
     }
 
     if (!current.id || attempt === 2) break;
-    await new Promise((resolve) => setTimeout(resolve, 700));
+    await new Promise((resolve) => setTimeout(resolve, 500));
     current = await getMercadoPagoOrder(accessToken, current.id);
   }
 
   const payment = current.transactions?.payments?.[0];
   throw new Error(
-    `Mercado Pago creó la Order ${current.id ?? ""}, pero todavía no devolvió qr_code PIX. Estado: ${payment?.status ?? "desconocido"}; detalle: ${payment?.status_detail ?? "desconocido"}.`,
+    `Mercado Pago creó la Order ${current.id ?? ""}, pero no devolvió el Pix Copia y Cola. Estado: ${payment?.status ?? "desconocido"}; detalle: ${payment?.status_detail ?? "desconocido"}.`,
   );
 }
 
@@ -85,7 +100,7 @@ export const createMercadoPagoPreference = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const accessToken = process.env.MERCADOPAGO_ACCESS_TOKEN?.trim();
     if (!accessToken) {
-      throw new Error("Mercado Pago no está configurado en el runtime de Cloudflare: falta MERCADOPAGO_ACCESS_TOKEN.");
+      throw new Error("Mercado Pago no está configurado en Cloudflare: falta MERCADOPAGO_ACCESS_TOKEN.");
     }
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -142,7 +157,7 @@ export const createMercadoPagoPreference = createServerFn({ method: "POST" })
       payer: { email: payerEmail },
     };
 
-    const res = await fetch("https://api.mercadopago.com/v1/orders", {
+    const res = await fetchMercadoPago("https://api.mercadopago.com/v1/orders", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
