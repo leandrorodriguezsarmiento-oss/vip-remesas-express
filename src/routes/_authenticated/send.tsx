@@ -9,14 +9,13 @@ import {
   getOrigin, type OriginCode, type MethodCategory, type DestCurrency, type RateRow,
 } from "@/lib/remittance";
 import { createTransaction, reportTransactionPayment } from "@/lib/orders.functions";
-import { createMercadoPagoPreference } from "@/lib/mercadopago.functions";
 import { PixQrCode } from "@/components/PixQrCode";
 import { FlagIcon } from "@/components/FlagIcon";
 import bgCash from "@/assets/bg-cash.jpg";
 import bgCard from "@/assets/bg-card.jpg";
 
 import { toast } from "sonner";
-import { ArrowLeft, ArrowRight, Check, Copy, CreditCard, Loader2, Plane, Sparkles } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Copy, Loader2, Plane, Sparkles } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/send")({
   component: SendFlow,
@@ -53,7 +52,6 @@ function SendFlow() {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const createTx = useServerFn(createTransaction);
-  const createMpPreference = useServerFn(createMercadoPagoPreference);
   const reportPaid = useServerFn(reportTransactionPayment);
 
   const [origin, setOrigin] = useState<OriginCode | null>(null);
@@ -65,7 +63,6 @@ function SendFlow() {
   const [tracking, setTracking] = useState<string | null>(null);
   const [pixCode, setPixCode] = useState<string | null>(null);
   const [txId, setTxId] = useState<string | null>(null);
-  const [mpLoading, setMpLoading] = useState(false);
 
   const rates = useQuery<RateRow[]>({
     queryKey: ["rates"],
@@ -114,7 +111,7 @@ function SendFlow() {
 
   /** Número de VIP Remesas que recibe las órdenes de MX / EE.UU. / Europa. */
   const WHATSAPP_NUMBER = "5595981006775";
-  /** Sólo se muestra el código PIX REAL devuelto por Mercado Pago. */
+  /** Sólo se muestra el código PIX REAL devuelto por PIX. */
   const pixPayCode = pixCode;
 
   function openWhatsApp(trackingId: string) {
@@ -174,17 +171,10 @@ function SendFlow() {
 
       setTracking(res.trackingId);
       setTxId(res.transactionId);
+      setPixCode(res.pixCode);
 
-      // Brasil: crear inmediatamente el PIX dinámico de Mercado Pago.
-      // Nunca usamos una llave PIX fija o generada localmente para remesas.
-      if (origin === "BR") {
-        setPixCode(null);
-        const mp = await createMpPreference({ data: { transactionId: res.transactionId } });
-        if (!mp.pixCode) throw new Error("Mercado Pago no devolvió el código PIX de esta orden.");
-        setPixCode(mp.pixCode);
-      } else {
-        setPixCode(res.pixCode);
-      }
+      // Brasil: PIX fijo de VIP Remesas con el monto exacto incluido.
+      // No se llama a PIX.
 
       setStep(6);
       if (origin !== "BR") openWhatsApp(res.trackingId);
@@ -192,21 +182,6 @@ function SendFlow() {
       toast.error(e instanceof Error ? e.message : "Error al crear la orden");
     } finally {
       setLoading(false);
-    }
-  }
-
-  async function payWithMercadoPago() {
-    if (!txId) return;
-    setMpLoading(true);
-    try {
-      const res = await createMpPreference({ data: { transactionId: txId } });
-      if (!res.pixCode) throw new Error("Mercado Pago no devolvió el código PIX.");
-      setPixCode(res.pixCode);
-      toast.success("PIX de Mercado Pago generado. Escanea el QR o copia el código.");
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "No se pudo generar el PIX de Mercado Pago");
-    } finally {
-      setMpLoading(false);
     }
   }
 
@@ -374,13 +349,13 @@ function SendFlow() {
         <div className="space-y-4">
           <div><h1 className="font-display text-2xl font-bold">{origin === "BR" ? "Paga con PIX" : "Envía tu orden"}</h1><p className="mt-1 text-sm text-muted-foreground">{origin === "BR" ? "Copia el código y pégalo en tu app de banco — el monto ya viene incluido." : "Revisa los datos y envía la orden por WhatsApp para coordinar el pago y la entrega."}</p></div>
           <div className="rounded-2xl border border-gold/40 bg-gradient-gold p-5 text-center shadow-gold"><p className="text-xs uppercase tracking-wider text-black/70">Total a pagar</p><p className="mt-1 font-display text-3xl font-bold text-black">{formatMoney(amountNum, originOpt.currency)}</p></div>
-          {origin === "BR" && txId && <button onClick={payWithMercadoPago} disabled={mpLoading} className="flex w-full items-center justify-center gap-2 rounded-xl border border-primary bg-primary px-4 py-3.5 text-sm font-semibold text-primary-foreground disabled:opacity-70">{mpLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}Pagar con Mercado Pago</button>}
+          
           {origin === "BR" && pixPayCode && (
-            <div className="space-y-3 rounded-2xl border border-gold/40 bg-card p-3"><p className="text-xs font-extrabold uppercase text-muted-foreground">Paga por PIX de Mercado Pago — el monto exacto ya viene incluido</p><div className="rounded-xl bg-gradient-vip p-3"><p className="text-[11px] font-extrabold uppercase text-muted-foreground">Monto exacto</p><p className="font-display text-2xl font-extrabold text-gold">{formatMoney(amountNum, "BRL")}</p></div><button onClick={() => { navigator.clipboard.writeText(pixPayCode); toast.success("Código PIX copiado"); }} className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-sky px-4 py-3 text-sm font-extrabold text-white shadow-glow transition-transform active:scale-95"><Copy className="h-4 w-4" /> Copiar código PIX</button><PixQrCode value={pixPayCode} fileName={`pix-qr-${tracking ?? "pago"}.png`} /></div>
+            <div className="space-y-3 rounded-2xl border border-gold/40 bg-card p-3"><p className="text-xs font-extrabold uppercase text-muted-foreground">Paga por PIX — el monto exacto ya viene incluido</p><div className="rounded-xl bg-gradient-vip p-3"><p className="text-[11px] font-extrabold uppercase text-muted-foreground">Monto exacto</p><p className="font-display text-2xl font-extrabold text-gold">{formatMoney(amountNum, "BRL")}</p></div><button onClick={() => { navigator.clipboard.writeText(pixPayCode); toast.success("Código PIX copiado"); }} className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-sky px-4 py-3 text-sm font-extrabold text-white shadow-glow transition-transform active:scale-95"><Copy className="h-4 w-4" /> Copiar código PIX</button><PixQrCode value={pixPayCode} fileName={`pix-qr-${tracking ?? "pago"}.png`} /></div>
           )}
           {origin !== "BR" && tracking && <button onClick={() => openWhatsApp(tracking)} className="flex w-full items-center justify-center gap-2 rounded-xl border border-primary bg-primary px-4 py-3.5 text-sm font-semibold text-primary-foreground"><Sparkles className="h-4 w-4" /> Enviar datos por WhatsApp</button>}
-          <button onClick={() => { confirmPaid(); if (origin === "BR" && tracking) openWhatsApp(tracking); }} disabled={loading} className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-gold px-4 py-3.5 text-sm font-semibold text-primary-foreground shadow-gold disabled:opacity-70">{loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}Ya pagué, verificar</button>
-          {origin === "BR" && tracking && <p className="text-center text-xs text-muted-foreground">Al verificar se abrirá WhatsApp para enviarnos el comprobante de pago.</p>}
+          <button onClick={() => { confirmPaid(); if (origin === "BR" && tracking) openWhatsApp(tracking); }} disabled={loading} className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-gold px-4 py-3.5 text-sm font-semibold text-primary-foreground shadow-gold disabled:opacity-70">{loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}Ya pagué</button>
+          {origin === "BR" && tracking && <p className="text-center text-xs text-muted-foreground">Después de pulsar “Ya pagué”, confirma tu pago por WhatsApp al +55 95984405698.</p>}
         </div>
       )}
 

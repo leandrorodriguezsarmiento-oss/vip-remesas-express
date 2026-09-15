@@ -9,7 +9,6 @@ import {
   getOrigin, type OriginCode, type MethodCategory, type DestCurrency, type RateRow,
 } from "@/lib/remittance";
 import { createTransaction, reportTransactionPayment } from "@/lib/orders.functions";
-import { createMercadoPagoPreference } from "@/lib/payments.functions";
 import { PixQrCode } from "@/components/PixQrCode";
 import { FlagIcon } from "@/components/FlagIcon";
 import bgCash from "@/assets/bg-cash.jpg";
@@ -50,7 +49,6 @@ function SendFlow() {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const createTx = useServerFn(createTransaction);
-  const createMpPreference = useServerFn(createMercadoPagoPreference);
   const reportPaid = useServerFn(reportTransactionPayment);
 
   const [origin, setOrigin] = useState<OriginCode | null>(null);
@@ -168,17 +166,10 @@ function SendFlow() {
 
       setTracking(res.trackingId);
       setTxId(res.transactionId);
-      setPixCode(null);
+      setPixCode(res.pixCode);
 
-      // Brasil: el PIX se crea ahora mismo en Mercado Pago y se muestra
-      // directamente en esta pantalla. Nunca usamos una llave fija/local.
-      if (origin === "BR") {
-        const mp = await createMpPreference({ data: { transactionId: res.transactionId } });
-        if (!mp.pixCode) throw new Error("Mercado Pago no devolvió el código PIX de esta orden.");
-        setPixCode(mp.pixCode);
-      } else {
-        setPixCode(res.pixCode);
-      }
+      // Brasil: PIX fijo de VIP Remesas con el monto exacto incluido.
+      // No se llama a PIX.
 
       setStep(6);
       if (origin !== "BR") openWhatsApp(res.trackingId);
@@ -195,7 +186,7 @@ function SendFlow() {
     try {
       await reportPaid({ data: { trackingId: tracking } });
       await queryClient.invalidateQueries({ queryKey: ["transactions-recent"] });
-      toast.success("Aviso recibido. La confirmación del pago se hará automáticamente con Mercado Pago.");
+      toast.success("Pago informado. Lo verificaremos manualmente antes de procesar la remesa.");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Error");
     } finally {
@@ -278,12 +269,12 @@ function SendFlow() {
 
       {step === 6 && tracking && originOpt && (
         <div className="space-y-4">
-          <div><h1 className="font-display text-2xl font-bold">{origin === "BR" ? "Paga con PIX" : "Envía tu orden"}</h1><p className="mt-1 text-sm text-muted-foreground">{origin === "BR" ? "Copia el código PIX generado por Mercado Pago y pégalo en tu app bancaria. Después de pagar, no necesitas avisarnos: Mercado Pago confirmará automáticamente el pago." : "Revisa los datos y envía la orden por WhatsApp para coordinar el pago y la entrega."}</p></div>
+          <div><h1 className="font-display text-2xl font-bold">{origin === "BR" ? "Paga con PIX" : "Envía tu orden"}</h1><p className="mt-1 text-sm text-muted-foreground">{origin === "BR" ? "Copia el código PIX generado por PIX y pégalo en tu app bancaria. Después de pagar, no necesitas avisarnos: PIX confirmará automáticamente el pago." : "Revisa los datos y envía la orden por WhatsApp para coordinar el pago y la entrega."}</p></div>
           <div className="rounded-2xl border border-gold/40 bg-gradient-gold p-5 text-center shadow-gold"><p className="text-xs uppercase tracking-wider text-black/70">Total a pagar</p><p className="mt-1 font-display text-3xl font-bold text-black">{formatMoney(amountNum, originOpt.currency)}</p></div>
-          {origin === "BR" && pixPayCode && <div className="space-y-3 rounded-2xl border border-gold/40 bg-card p-3"><p className="text-xs font-extrabold uppercase text-muted-foreground">PIX Mercado Pago · Copia y Cola</p><div className="rounded-xl bg-gradient-vip p-3"><p className="text-[11px] font-extrabold uppercase text-muted-foreground">Monto exacto</p><p className="font-display text-2xl font-extrabold text-gold">{formatMoney(amountNum, "BRL")}</p></div><button onClick={() => { navigator.clipboard.writeText(pixPayCode); toast.success("Código PIX de Mercado Pago copiado"); }} className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-sky px-4 py-3 text-sm font-extrabold text-white shadow-glow transition-transform active:scale-95"><Copy className="h-4 w-4" /> Copiar clave PIX</button><PixQrCode value={pixPayCode} fileName={`pix-qr-${tracking ?? "pago"}.png`} /></div>}
+          {origin === "BR" && pixPayCode && <div className="space-y-3 rounded-2xl border border-gold/40 bg-card p-3"><p className="text-xs font-extrabold uppercase text-muted-foreground">PIX PIX · Copia y Cola</p><div className="rounded-xl bg-gradient-vip p-3"><p className="text-[11px] font-extrabold uppercase text-muted-foreground">Monto exacto</p><p className="font-display text-2xl font-extrabold text-gold">{formatMoney(amountNum, "BRL")}</p></div><button onClick={() => { navigator.clipboard.writeText(pixPayCode); toast.success("Código PIX de PIX copiado"); }} className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-sky px-4 py-3 text-sm font-extrabold text-white shadow-glow transition-transform active:scale-95"><Copy className="h-4 w-4" /> Copiar clave PIX</button><PixQrCode value={pixPayCode} fileName={`pix-qr-${tracking ?? "pago"}.png`} /></div>}
           {origin !== "BR" && tracking && <button onClick={() => openWhatsApp(tracking)} className="flex w-full items-center justify-center gap-2 rounded-xl border border-primary bg-primary px-4 py-3.5 text-sm font-semibold text-primary-foreground"><Sparkles className="h-4 w-4" /> Enviar datos por WhatsApp</button>}
           {origin !== "BR" && <button onClick={confirmPaid} disabled={loading} className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-gold px-4 py-3.5 text-sm font-semibold text-primary-foreground shadow-gold disabled:opacity-70">{loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}Ya pagué, avisar</button>}
-          {origin === "BR" && <div className="rounded-xl border border-gold/30 bg-card p-4 text-center text-xs text-muted-foreground"><Check className="mx-auto mb-2 h-5 w-5 text-gold" />El pago se verificará automáticamente. Cuando Mercado Pago confirme el PIX, la operación pasará al administrador.</div>}
+          {origin === "BR" && <div className="rounded-xl border border-gold/30 bg-card p-4 text-center text-xs text-muted-foreground"><Check className="mx-auto mb-2 h-5 w-5 text-gold" />El pago se verificará automáticamente. Cuando PIX confirme el PIX, la operación pasará al administrador.</div>}
         </div>
       )}
 
