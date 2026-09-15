@@ -68,14 +68,12 @@ function Dashboard() {
         <h1 className="font-display text-2xl font-extrabold">{firstName} 👋</h1>
       </div>
 
-      {/* Cartel principal: los banners del panel admin son el fondo */}
       <BannerHero>
         <p className="text-xs font-extrabold uppercase tracking-wider text-white/90">Envía a Cuba</p>
         <p className="mt-1 font-display text-3xl font-extrabold text-white drop-shadow">Desde 20 en 15 min</p>
         <p className="mt-1 text-xs font-bold text-white/90">Brasil · México · Europa · EE.UU. → Cuba</p>
       </BannerHero>
 
-      {/* Accesos rápidos */}
       <div className="grid grid-cols-2 gap-3">
         {actions.map(({ to, label, sub, icon: Icon, grad }, i) => (
           <Link
@@ -122,7 +120,6 @@ function Dashboard() {
         </Link>
       </div>
 
-      {/* Tasas de hoy */}
       <section className="animate-rise">
         <div className="mb-2 flex items-center justify-between rounded-xl bg-gradient-sky px-3 py-2 text-white shadow-glow">
           <h2 className="flex items-center gap-2 text-sm font-extrabold uppercase tracking-wider text-white">
@@ -136,6 +133,11 @@ function Dashboard() {
             const rMlc = findRate(rates.data, o.code as OriginCode, "transferencia", "MLC" as DestCurrency);
             const eCup = findRate(rates.data, o.code as OriginCode, "efectivo", "CUP" as DestCurrency);
             const eUsd = findRate(rates.data, o.code as OriginCode, "efectivo", "USD" as DestCurrency);
+            const mexicoUsd = o.code === "MX"
+              ? rates.data?.find(
+                  (r) => r.origin_country === "MX" && r.origin_currency === "USD" && r.dest_currency === "MXN" && r.active,
+                )
+              : undefined;
             return (
               <div
                 key={o.code}
@@ -160,6 +162,19 @@ function Dashboard() {
                     </div>
                   </div>
                 </div>
+                {o.code === "MX" && mexicoUsd && (
+                  <div className="mt-2 rounded-lg border border-gold/30 bg-secondary/60 p-2">
+                    <p className="mb-1 flex items-center gap-1 text-[10px] font-extrabold uppercase text-gold">
+                      🇺🇸 Tipo de cambio USD en México
+                    </p>
+                    <div className="text-xs">
+                      <div className="font-bold text-muted-foreground">1 USD · MXN</div>
+                      <div className="font-display text-lg font-extrabold text-foreground">
+                        {mexicoUsd.rate.toFixed(2)}
+                      </div>
+                    </div>
+                  </div>
+                )}
                 <div className="mt-2 rounded-lg border border-gold/30 bg-secondary/60 p-2">
                   <p className="mb-1 flex items-center gap-1 text-[10px] font-extrabold uppercase text-gold">
                     <Banknote className="h-3.5 w-3.5" /> Efectivo (entrega en mano)
@@ -181,7 +196,6 @@ function Dashboard() {
                 </div>
               </div>
             );
-
           })}
         </div>
       </section>
