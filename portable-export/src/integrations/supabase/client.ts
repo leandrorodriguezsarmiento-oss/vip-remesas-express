@@ -4,6 +4,8 @@ import type { Database } from './types';
 import { brokeredPreviewStorage } from './previewAuthStorage';
 
 const GOOGLE_CLIENT_ID = '386834362759-ia6kr0pg1snrp7ousft2bea5ee29gahq.apps.googleusercontent.com';
+const FALLBACK_SUPABASE_URL = 'https://nczavdcqueebhhtkuasv.supabase.co';
+const FALLBACK_SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_rxqHb79-KneH3UZGHj2fDA_5ofGaUds';
 
 type GoogleCredentialResponse = { credential: string };
 type GooglePromptNotification = { isNotDisplayed: () => boolean; isSkippedMoment: () => boolean };
@@ -98,14 +100,8 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
 }
 
 function createSupabaseClient() {
-  const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL?.trim();
-  const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY?.trim();
-  if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
-    const missing = [...(!SUPABASE_URL ? ['SUPABASE_URL'] : []), ...(!SUPABASE_PUBLISHABLE_KEY ? ['SUPABASE_PUBLISHABLE_KEY'] : [])];
-    const message = `Faltan variables públicas de compilación: ${missing.map((name) => `NEXT_PUBLIC_${name}`).join(', ')}.`;
-    console.error(`[Supabase] ${message}`);
-    throw new Error(message);
-  }
+  const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL?.trim() || FALLBACK_SUPABASE_URL;
+  const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY?.trim() || FALLBACK_SUPABASE_PUBLISHABLE_KEY;
   const client = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
     global: { fetch: createSupabaseFetch(SUPABASE_PUBLISHABLE_KEY) },
     auth: { storage: brokeredPreviewStorage(), persistSession: true, autoRefreshToken: true, flowType: 'pkce', detectSessionInUrl: true },
