@@ -3,11 +3,9 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 /**
- * Crea una preferencia de pago en Mercado Pago para una transacción existente.
- * El monto y datos se recalculan server-side desde la tabla `transactions`; no
- * se confía en ningún valor enviado por el cliente.
- *
- * Requiere el secreto `MERCADOPAGO_ACCESS_TOKEN`.
+ * Crea una Order de Mercado Pago para una transacción existente.
+ * El monto y los datos se recalculan server-side desde `transactions`.
+ * Para Brasil genera PIX real: QR, copia y pega y link de pago.
  */
 export const createMercadoPagoPreference = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -17,9 +15,7 @@ export const createMercadoPagoPreference = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const accessToken = process.env.MERCADOPAGO_ACCESS_TOKEN;
     if (!accessToken) {
-      throw new Error(
-        "Mercado Pago no está configurado. Agrega el secreto MERCADOPAGO_ACCESS_TOKEN.",
-      );
+      throw new Error("Mercado Pago no está configurado. Agrega el secreto MERCADOPAGO_ACCESS_TOKEN.");
     }
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -32,86 +28,124 @@ export const createMercadoPagoPreference = createServerFn({ method: "POST" })
     if (error) throw error;
     if (!tx) throw new Error("Transacción no encontrada");
     if (tx.user_id !== context.userId) throw new Error("No autorizado");
-    if (tx.status !== "pending_payment" && tx.status !== "pending") throw new Error("La transacción no está pendiente de pago");
+    if (tx.status !== "pending_payment" && tx.status !== "pending") {
+      throw new Error("La transacción no está pendiente de pago");
+    }
 
-    const origin = process.env.PUBLIC_SITE_URL;
-    if (!origin || !origin.startsWith("https://")) throw new Error("Falta configurar PUBLIC_SITE_URL con el dominio HTTPS");
+    const { data: authUser, error: authUserError } = await supabaseAdmin.auth.admin.getUserById(tx.user_id);
+    if (authUserError) throw authUserError;
+    const payerEmail = authUser.user?.email;
+    if (!payerEmail) throw new Error("El usuario no tiene un email válido para Mercado Pago");
 
     const { data: existing } = await supabaseAdmin
       .from("mercadopago_payments")
-      .select("preference_id,checkout_url")
+      .select("order_id,preference_id,checkout_url,qr_code")
       .eq("transaction_id", tx.id)
       .eq("internal_status", "created")
-      .not("checkout_url", "is", null)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
-    if (existing?.preference_id && existing.checkout_url) {
-      return { preferenceId: existing.preference_id, checkoutUrl: existing.checkout_url };
+    if (existing?.order_id && existing.checkout_url && existing.qr_code) {
+      return {
+        preferenceId: existing.order_id,
+        checkoutUrl: existing.checkout_url,
+        pixCode: existing.qr_code,
+      };
     }
 
+    const siteUrl = process.env.PUBLIC_SITE_URL;
+    if (!siteUrl || !siteUrl.startsWith("https://")) {
+      throw new Error("Falta configurar PUBLIC_SITE_URL con el dominio HTTPS");
+    }
+
+    const amount = Number(tx.total_brl);
+    if (!Number.isFinite(amount) || amount <= 0) throw new Error("Monto de pago inválido");
+
+    // La misma clave para la misma transacción evita duplicar una Order si
+    // el navegador reintenta por timeout o doble clic.
+    const idempotencyKey = `vip-remesa-${tx.id}`;
     const body = {
+      type: "online",
       external_reference: tx.tracking_id,
-      items: [
-        {
-          id: tx.tracking_id,
-          title: `Remesa ${tx.tracking_id} · ${tx.recipient_name}`,
-          quantity: 1,
-          currency_id: "BRL",
-          unit_price: Number(tx.total_brl),
-        },
-      ],
-      back_urls: {
-        success: `${origin}/transaction/${tx.id}`,
-        pending: `${origin}/transaction/${tx.id}`,
-        failure: `${origin}/transaction/${tx.id}`,
+      total_amount: amount.toFixed(2),
+      description: `Remesa ${tx.tracking_id}`,
+      processing_mode: "automatic",
+      transactions: {
+        payments: [
+          {
+            amount: amount.toFixed(2),
+            payment_method: {
+              id: "pix",
+              type: "bank_transfer",
+            },
+          },
+        ],
       },
-      auto_return: "approved",
-      notification_url: `${origin}/api/public/mercadopago/webhook`,
-      metadata: { transaction_id: tx.id, user_id: tx.user_id },
+      payer: { email: payerEmail },
+      notification_url: `${siteUrl}/api/public/mercadopago/webhook`,
     };
 
-    const res = await fetch("https://api.mercadopago.com/checkout/preferences", {
+    const res = await fetch("https://api.mercadopago.com/v1/orders", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${accessToken}`,
+        "X-Idempotency-Key": idempotencyKey,
       },
       body: JSON.stringify(body),
     });
-    const json = (await res.json()) as {
+
+    const json = (await res.json().catch(() => ({}))) as {
       id?: string;
-      init_point?: string;
-      sandbox_init_point?: string;
       message?: string;
+      transactions?: {
+        payments?: Array<{
+          id?: string;
+          status?: string;
+          status_detail?: string;
+          payment_method?: {
+            ticket_url?: string;
+            qr_code?: string;
+            qr_code_base64?: string;
+          };
+        }>;
+      };
     };
-    if (!res.ok) {
-      throw new Error(json.message || "Mercado Pago rechazó la preferencia");
+    if (!res.ok || !json.id) {
+      throw new Error(json.message || `Mercado Pago rechazó la Order (HTTP ${res.status})`);
     }
 
-    // Guardar referencia para poder correlacionar con el webhook.
+    const payment = json.transactions?.payments?.[0];
+    const checkoutUrl = payment?.payment_method?.ticket_url;
+    const qrCode = payment?.payment_method?.qr_code;
+    if (!checkoutUrl || !qrCode) {
+      throw new Error("Mercado Pago creó la Order pero no devolvió el PIX esperado");
+    }
+
     await supabaseAdmin
       .from("transactions")
-      .update({ payment_method: "mercadopago", notes: `mp_pref:${json.id}` })
+      .update({ payment_method: "mercadopago", notes: `mp_order:${json.id}` })
       .eq("id", tx.id);
 
-    const checkoutUrl = json.init_point || json.sandbox_init_point!;
-
-    // Historial de pagos Mercado Pago (visible en el panel admin)
-    await supabaseAdmin.from("mercadopago_payments").insert({
+    const { error: insertError } = await supabaseAdmin.from("mercadopago_payments").insert({
       transaction_id: tx.id,
       user_id: tx.user_id,
       tracking_id: tx.tracking_id,
-      preference_id: json.id ?? null,
+      order_id: json.id,
+      preference_id: json.id,
       checkout_url: checkoutUrl,
+      qr_code: qrCode,
       internal_status: "created",
-      amount: Number(tx.total_brl),
+      amount,
       currency: "BRL",
     });
+    if (insertError) throw insertError;
 
     return {
-      preferenceId: json.id!,
+      preferenceId: json.id,
       checkoutUrl,
+      pixCode: qrCode,
+      qrCodeBase64: payment?.payment_method?.qr_code_base64 ?? null,
     };
   });
 
