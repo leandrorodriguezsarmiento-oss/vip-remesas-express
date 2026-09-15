@@ -173,9 +173,19 @@ function SendFlow() {
       }
 
       setTracking(res.trackingId);
-      // For BR, PIX must come exclusively from Mercado Pago.
-      setPixCode(null);
       setTxId(res.transactionId);
+
+      // Brasil: crear inmediatamente el PIX dinámico de Mercado Pago.
+      // Nunca usamos una llave PIX fija o generada localmente para remesas.
+      if (origin === "BR") {
+        setPixCode(null);
+        const mp = await createMpPreference({ data: { transactionId: res.transactionId } });
+        if (!mp.pixCode) throw new Error("Mercado Pago no devolvió el código PIX de esta orden.");
+        setPixCode(mp.pixCode);
+      } else {
+        setPixCode(res.pixCode);
+      }
+
       setStep(6);
       if (origin !== "BR") openWhatsApp(res.trackingId);
     } catch (e) {

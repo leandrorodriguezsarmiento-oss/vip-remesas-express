@@ -5,7 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import {
   ORIGINS, METHOD_CATEGORIES, CURRENCY_LABEL, formatMoney,
-  findRate, calcQuote, generatePixCode,
+  findRate, calcQuote,
   getOrigin, type OriginCode, type MethodCategory, type DestCurrency, type RateRow,
 } from "@/lib/remittance";
 import { createTransaction, reportTransactionPayment } from "@/lib/orders.functions";
@@ -109,7 +109,7 @@ function SendFlow() {
   }, [method]);
 
   const WHATSAPP_NUMBER = "5595981006775";
-  const pixPayCode = pixCode ?? (amountNum > 0 ? generatePixCode(tracking ?? "vip", amountNum) : null);
+  const pixPayCode = pixCode;
 
   function openWhatsApp(trackingId: string) {
     if (!origin || !originOpt || !method || !currency || !quote || !rate) return;
@@ -168,11 +168,13 @@ function SendFlow() {
 
       setTracking(res.trackingId);
       setTxId(res.transactionId);
+      setPixCode(null);
 
-      // Brasil: el código PIX que verá el cliente sale directamente de Mercado Pago.
-      // No redirigimos al checkout de Mercado Pago: mostramos QR + Copia y Cola.
+      // Brasil: el PIX se crea ahora mismo en Mercado Pago y se muestra
+      // directamente en esta pantalla. Nunca usamos una llave fija/local.
       if (origin === "BR") {
         const mp = await createMpPreference({ data: { transactionId: res.transactionId } });
+        if (!mp.pixCode) throw new Error("Mercado Pago no devolvió el código PIX de esta orden.");
         setPixCode(mp.pixCode);
       } else {
         setPixCode(res.pixCode);
