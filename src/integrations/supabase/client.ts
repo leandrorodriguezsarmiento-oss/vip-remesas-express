@@ -57,10 +57,18 @@ async function signInWithGoogleIdToken(redirectTo?: string): Promise<void> {
 function isNewSupabaseApiKey(value: string): boolean { return value.startsWith('sb_publishable_') || value.startsWith('sb_secret_'); }
 function createSupabaseFetch(supabaseKey: string): typeof fetch { return (input, init) => { const headers = new Headers(typeof Request !== 'undefined' && input instanceof Request ? input.headers : undefined); if (init?.headers) new Headers(init.headers).forEach((value, key) => headers.set(key, value)); if (isNewSupabaseApiKey(supabaseKey) && headers.get('Authorization') === `Bearer ${supabaseKey}`) headers.delete('Authorization'); headers.set('apikey', supabaseKey); return fetch(input, { ...init, headers }); }; }
 function createSupabaseClient() {
-  const SUPABASE_URL = import.meta.env.NEXT_PUBLIC_SUPABASE_URL?.trim() || import.meta.env.VITE_SUPABASE_URL?.trim() || FALLBACK_SUPABASE_URL;
-  const SUPABASE_PUBLISHABLE_KEY = import.meta.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim() || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY?.trim() || FALLBACK_SUPABASE_PUBLISHABLE_KEY;
+  // Production must always use the current Supabase project.
+  // Do not read import.meta.env here: the root Cloudflare build can contain legacy .env values.
+  const SUPABASE_URL = FALLBACK_SUPABASE_URL;
+  const SUPABASE_PUBLISHABLE_KEY = FALLBACK_SUPABASE_PUBLISHABLE_KEY;
   const client = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, { global: { fetch: createSupabaseFetch(SUPABASE_PUBLISHABLE_KEY) }, auth: { storage: brokeredPreviewStorage(), persistSession: true, autoRefreshToken: true, flowType: 'pkce', detectSessionInUrl: true } });
-  const originalAuth = client.auth; const authProxy = new Proxy(originalAuth, { get(target, prop, receiver) { if (prop === 'signInWithOAuth') return async (credentials: Parameters<typeof target.signInWithOAuth>[0]) => { if (credentials.provider !== 'google' || typeof window === 'undefined') return target.signInWithOAuth(credentials); try { await signInWithGoogleIdToken(credentials.options?.redirectTo); return { data: { provider: 'google', url: null }, error: null } as Awaited<ReturnType<typeof target.signInWithOAuth>>; } catch (error) { const readable = readableGoogleError(error); return { data: { provider: 'google', url: null }, error: readable } as Awaited<ReturnType<typeof target.signInWithOAuth>>; } }; return Reflect.get(target, prop, receiver); } });
+  const originalAuth = client.auth;
+  const originalSignInWithIdToken = originalAuth.signInWithIdToken.bind(originalAuth);
+  const authProxy = new Proxy(originalAuth, { get(target, prop, receiver) {
+    if (prop === 'signInWithOAuth') return async (credentials: Parameters<typeof target.signInWithOAuth>[0]) => { if (credentials.provider !== 'google' || typeof window === 'undefined') return target.signInWithOAuth(credentials); try { await signInWithGoogleIdToken(credentials.options?.redirectTo); return { data: { provider: 'google', url: null }, error: null } as Awaited<ReturnType<typeof target.signInWithOAuth>>; } catch (error) { const readable = readableGoogleError(error); return { data: { provider: 'google', url: null }, error: readable } as Awaited<ReturnType<typeof target.signInWithOAuth>>; } };
+    if (prop === 'signInWithIdToken') return originalSignInWithIdToken;
+    return Reflect.get(target, prop, receiver);
+  } });
   return new Proxy(client, { get(target, prop, receiver) { if (prop === 'auth') return authProxy; return Reflect.get(target, prop, receiver); } });
 }
 let _supabase: ReturnType<typeof createSupabaseClient> | undefined;
