@@ -159,6 +159,15 @@ function createSupabaseClient() {
       if (prop === 'signInWithOAuth') {
         return async (credentials: Parameters<typeof target.signInWithOAuth>[0]) => {
           if (credentials.provider !== 'google' || typeof window === 'undefined') return target.signInWithOAuth(credentials);
+
+          const isMobile =
+            window.matchMedia?.('(pointer: coarse)').matches ||
+            window.innerWidth <= 900;
+
+          // Mobile browsers are unreliable with the Google Identity/FedCM prompt.
+          // Use the normal Supabase OAuth redirect on phones/tablets instead.
+          if (isMobile) return target.signInWithOAuth(credentials);
+
           try {
             await signInWithGoogleIdToken(credentials.options?.redirectTo);
             return { data: { provider: 'google', url: null }, error: null } as Awaited<ReturnType<typeof target.signInWithOAuth>>;
