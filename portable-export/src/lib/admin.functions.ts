@@ -9,17 +9,13 @@ const transactionActionSchema = z.object({
   reason: z.string().trim().max(300).optional(),
 });
 
-/** Error de regla de negocio: se devuelve al cliente como mensaje, no como fallo 500. */
 class WorkflowRuleError extends Error {}
-const rule = (message: string): never => {
-  throw new WorkflowRuleError(message);
-};
+const rule = (message: string): never => { throw new WorkflowRuleError(message); };
 
 type WorkflowResult =
   | { ok: true; status: "payment_confirmed" | "processing" | "completed" | "rejected" }
   | { ok: false; message: string };
 
-/** Ejecuta transiciones de remesas en servidor y deja una auditoría inmutable. */
 export const updateTransactionWorkflow = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) => {
@@ -34,16 +30,15 @@ export const updateTransactionWorkflow = createServerFn({ method: "POST" })
       context.supabase.rpc("has_role", { _user_id: context.userId, _role: "organizador" }),
     ]);
     if (!isAdmin && !isOrganizer) rule("No autorizado");
-    if (!isAdmin && !["complete", "reject"].includes(data.action)) {
-      rule("Solo el administrador puede confirmar pagos o asignar remesas");
+    if (!isAdmin) {
+      const { data: canRemesas, error: permissionError } = await context.supabase.rpc("has_organizer_permission", { _user_id: context.userId, _permission: "remesas" });
+      if (permissionError) throw new Error("No se pudo verificar el permiso de remesas");
+      if (!canRemesas) rule("No tienes permiso para gestionar remesas");
     }
+    if (!isAdmin && !["complete", "reject"].includes(data.action)) rule("Solo el administrador puede confirmar pagos o asignar remesas");
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: tx, error } = await supabaseAdmin
-      .from("transactions")
-      .select("id,status,assigned_to,payment_reported_at,payment_confirmed_at")
-      .eq("id", data.transactionId)
-      .maybeSingle();
+    const { data: tx, error } = await supabaseAdmin.from("transactions").select("id,status,assigned_to,payment_reported_at,payment_confirmed_at").eq("id", data.transactionId).maybeSingle();
     if (error) throw error;
     if (!tx) rule("Remesa no encontrada");
     if (!isAdmin && tx!.assigned_to !== context.userId) rule("Esta remesa no está asignada a ti");
@@ -51,15 +46,7 @@ export const updateTransactionWorkflow = createServerFn({ method: "POST" })
     const now = new Date().toISOString();
     const current = tx!.status;
     let toStatus: "payment_confirmed" | "processing" | "completed" | "rejected";
-    let patch: {
-      status: "payment_confirmed" | "processing" | "completed" | "rejected";
-      paid_at?: string;
-      payment_confirmed_at?: string;
-      payment_confirmed_by?: string;
-      assigned_to?: string;
-      payment_rejected_at?: string;
-      payment_rejection_reason?: string;
-    };
+    let patch: { status: "payment_confirmed" | "processing" | "completed" | "rejected"; paid_at?: string; payment_confirmed_at?: string; payment_confirmed_by?: string; assigned_to?: string; payment_rejected_at?: string; payment_rejection_reason?: string };
     if (data.action === "confirm_payment") {
       if (current !== "payment_reported" || !tx!.payment_reported_at) rule("El cliente aún no informó este pago");
       toStatus = "payment_confirmed";
@@ -83,14 +70,7 @@ export const updateTransactionWorkflow = createServerFn({ method: "POST" })
 
     const { error: updateError } = await supabaseAdmin.from("transactions").update(patch).eq("id", tx!.id).eq("status", current);
     if (updateError) throw updateError;
-    const { error: auditError } = await supabaseAdmin.from("transaction_audit_log").insert({
-      transaction_id: tx!.id,
-      actor_id: context.userId,
-      action: data.action,
-      from_status: current,
-      to_status: toStatus,
-      details: { assigned_to: data.assignedTo ?? null, reason: data.reason ?? null },
-    });
+    const { error: auditError } = await supabaseAdmin.from("transaction_audit_log").insert({ transaction_id: tx!.id, actor_id: context.userId, action: data.action, from_status: current, to_status: toStatus, details: { assigned_to: data.assignedTo ?? null, reason: data.reason ?? null } });
     if (auditError) throw auditError;
     return { ok: true, status: toStatus };
    } catch (e) {
@@ -99,7 +79,6 @@ export const updateTransactionWorkflow = createServerFn({ method: "POST" })
    }
   });
 
-/** Activa o quita el rol de organizador (sólo el admin dueño puede hacerlo). */
 export const setOrganizerRole = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: { userId: string; enabled: boolean }) => {
@@ -108,58 +87,41 @@ export const setOrganizerRole = createServerFn({ method: "POST" })
     return input;
   })
   .handler(async ({ data, context }) => {
-    const { data: isAdmin, error: roleErr } = await context.supabase.rpc("has_role", {
-      _user_id: context.userId,
-      _role: "admin",
-    });
+    const { data: isAdmin, error: roleErr } = await context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" });
     if (roleErr) throw new Error("No se pudo verificar rol");
     if (!isAdmin) throw new Error("Solo el admin puede asignar organizadores");
-
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     if (data.enabled) {
-      const { error } = await supabaseAdmin
-        .from("user_roles")
-        .insert({ user_id: data.userId, role: "organizador" });
+      const { error } = await supabaseAdmin.from("user_roles").insert({ user_id: data.userId, role: "organizador" });
       if (error && !error.message.includes("duplicate")) throw new Error(error.message);
+      const { error: permissionError } = await supabaseAdmin.from("organizer_permissions").insert(["remesas", "recargas", "tienda"].map((permission) => ({ user_id: data.userId, permission })));
+      if (permissionError && !permissionError.message.includes("duplicate")) throw new Error(permissionError.message);
     } else {
-      const { error } = await supabaseAdmin
-        .from("user_roles")
-        .delete()
-        .eq("user_id", data.userId)
-        .eq("role", "organizador");
+      const { error } = await supabaseAdmin.from("user_roles").delete().eq("user_id", data.userId).eq("role", "organizador");
       if (error) throw new Error(error.message);
+      const { error: permissionError } = await supabaseAdmin.from("organizer_permissions").delete().eq("user_id", data.userId);
+      if (permissionError) throw new Error(permissionError.message);
     }
     return { ok: true, enabled: data.enabled };
   });
 
-
 export const deleteUserAsAdmin = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: { userId: string }) => {
-    if (!input?.userId || typeof input.userId !== "string") {
-      throw new Error("userId requerido");
-    }
+    if (!input?.userId || typeof input.userId !== "string") throw new Error("userId requerido");
     return input;
   })
   .handler(async ({ data, context }) => {
-    // Verificar que el llamador es admin
-    const { data: isAdmin, error: roleErr } = await context.supabase.rpc("has_role", {
-      _user_id: context.userId,
-      _role: "admin",
-    });
+    const { data: isAdmin, error: roleErr } = await context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" });
     if (roleErr) throw new Error("No se pudo verificar rol");
     if (!isAdmin) throw new Error("Solo admin puede eliminar usuarios");
-    if (data.userId === context.userId) {
-      throw new Error("No puedes eliminar tu propia cuenta admin");
-    }
-
+    if (data.userId === context.userId) throw new Error("No puedes eliminar tu propia cuenta admin");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin.auth.admin.deleteUser(data.userId);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
 
-/** El admin asigna/cambia la provincia de un usuario (organizador). */
 export const setUserProvince = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: { userId: string; province: string | null }) => {
@@ -169,50 +131,26 @@ export const setUserProvince = createServerFn({ method: "POST" })
     return { userId: input.userId, province };
   })
   .handler(async ({ data, context }) => {
-    const { data: isAdmin, error: roleErr } = await context.supabase.rpc("has_role", {
-      _user_id: context.userId,
-      _role: "admin",
-    });
+    const { data: isAdmin, error: roleErr } = await context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" });
     if (roleErr) throw new Error("No se pudo verificar rol");
     if (!isAdmin) throw new Error("Solo el admin puede cambiar la provincia");
-
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { error } = await supabaseAdmin
-      .from("profiles")
-      .update({ province: data.province })
-      .eq("id", data.userId);
+    const { error } = await supabaseAdmin.from("profiles").update({ province: data.province }).eq("id", data.userId);
     if (error) throw new Error(error.message);
     return { ok: true, province: data.province };
   });
 
-/** Lista de organizadores (para asignar remesas / recargas / pedidos). Sólo staff. */
 export const listOrganizers = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { data: isAdmin } = await context.supabase.rpc("has_role", {
-      _user_id: context.userId,
-      _role: "admin",
-    });
+    const { data: isAdmin } = await context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" });
     if (!isAdmin) throw new Error("Solo el admin puede ver los organizadores");
-
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: roles, error: rolesErr } = await supabaseAdmin
-      .from("user_roles")
-      .select("user_id")
-      .eq("role", "organizador");
+    const { data: roles, error: rolesErr } = await supabaseAdmin.from("user_roles").select("user_id").eq("role", "organizador");
     if (rolesErr) throw new Error(rolesErr.message);
     const ids = (roles ?? []).map((r) => r.user_id);
     if (ids.length === 0) return [] as { id: string; full_name: string | null; email: string | null; province: string | null }[];
-
-    const { data: profs, error } = await supabaseAdmin
-      .from("profiles")
-      .select("id, full_name, email, province")
-      .in("id", ids);
+    const { data: profs, error } = await supabaseAdmin.from("profiles").select("id, full_name, email, province").in("id", ids);
     if (error) throw new Error(error.message);
-    return (profs ?? []).map((p) => ({
-      id: p.id,
-      full_name: p.full_name,
-      email: p.email ?? null,
-      province: p.province ?? null,
-    }));
+    return (profs ?? []).map((p) => ({ id: p.id, full_name: p.full_name, email: p.email ?? null, province: p.province ?? null }));
   });
