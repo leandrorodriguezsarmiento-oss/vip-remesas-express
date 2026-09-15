@@ -28,43 +28,20 @@ export const registerAccount = createServerFn({ method: "POST" }).inputValidator
   if (username.length < 3) throw new Error("Nombre de usuario inválido");
   if (phone && phone.length < 8) throw new Error("Teléfono inválido");
   if (cpf && cpf.length !== 11) throw new Error("El CPF debe tener 11 dígitos");
-
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const aliases = [
-    { alias: username, kind: "username" as const },
-    ...(phone ? [{ alias: phone, kind: "phone" as const }] : []),
-    { alias: contactEmail, kind: "email" as const },
-    ...(cpf ? [{ alias: cpf, kind: "cpf" as const }] : []),
-  ];
+  const aliases = [{ alias: username, kind: "username" as const }, ...(phone ? [{ alias: phone, kind: "phone" as const }] : []), { alias: contactEmail, kind: "email" as const }, ...(cpf ? [{ alias: cpf, kind: "cpf" as const }] : [])];
   const takenMessage = (kind: string) => kind === "username" ? "Ese nombre de usuario ya está en uso" : kind === "phone" ? "Ese teléfono ya tiene una cuenta" : kind === "email" ? "Ese correo ya tiene una cuenta" : "Ese CPF ya tiene una cuenta";
   for (const a of aliases) {
     const { data: taken } = await supabaseAdmin.from("login_aliases").select("id").ilike("alias", a.alias).maybeSingle();
     if (taken) throw new Error(takenMessage(a.kind));
   }
-
   const authEmail = syntheticEmail(username);
-  const { data: created, error } = await supabaseAdmin.auth.admin.createUser({
-    email: authEmail,
-    password: data.password,
-    email_confirm: true,
-    user_metadata: { full_name: data.fullName.trim(), phone: data.phone?.trim() ?? "", username, cpf, country: data.country ?? "BR", contact_email: contactEmail },
-  });
+  const { data: created, error } = await supabaseAdmin.auth.admin.createUser({ email: authEmail, password: data.password, email_confirm: true, user_metadata: { full_name: data.fullName.trim(), phone: data.phone?.trim() ?? "", username, cpf, country: data.country ?? "BR", contact_email: contactEmail } });
   if (error || !created.user) throw new Error(error?.message ?? "No se pudo crear la cuenta");
-
   const { error: aliasErr } = await supabaseAdmin.from("login_aliases").insert(aliases.map((a) => ({ alias: a.alias, kind: a.kind, auth_email: authEmail, user_id: created.user.id })));
-  if (aliasErr) {
-    await supabaseAdmin.auth.admin.deleteUser(created.user.id);
-    const dup = aliases.find((a) => aliasErr.message?.includes(a.alias));
-    throw new Error(dup ? takenMessage(dup.kind) : "Esos datos ya están registrados. Revisa usuario, teléfono, correo o CPF.");
-  }
-
+  if (aliasErr) { await supabaseAdmin.auth.admin.deleteUser(created.user.id); const dup = aliases.find((a) => aliasErr.message?.includes(a.alias)); throw new Error(dup ? takenMessage(dup.kind) : "Esos datos ya están registrados. Revisa usuario, teléfono, correo o CPF."); }
   const { error: profileError } = await supabaseAdmin.from("profiles").upsert({ id: created.user.id, full_name: data.fullName.trim(), username, phone: data.phone?.trim() || null, email: contactEmail }, { onConflict: "id" });
-  if (profileError) {
-    await supabaseAdmin.from("login_aliases").delete().eq("user_id", created.user.id);
-    await supabaseAdmin.auth.admin.deleteUser(created.user.id);
-    throw new Error(`No se pudo guardar el perfil: ${profileError.message}`);
-  }
-
+  if (profileError) { await supabaseAdmin.from("login_aliases").delete().eq("user_id", created.user.id); await supabaseAdmin.auth.admin.deleteUser(created.user.id); throw new Error(`No se pudo guardar el perfil: ${profileError.message}`); }
   return { email: authEmail };
 });
 
@@ -85,35 +62,32 @@ export const updateMyAliases = createServerFn({ method: "POST" }).middleware([re
 /** Solicita la verificación sin depender de la sesión Supabase del cliente para leer el perfil. */
 export const requestAccountVerification = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth]).handler(async ({ context }) => {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-
   const work = (async () => {
     const [{ data: profile, error: profileError }, { data: admins, error: adminsError }] = await Promise.all([
       supabaseAdmin.from("profiles").select("full_name, phone, username").eq("id", context.userId).maybeSingle(),
       supabaseAdmin.from("user_roles").select("user_id").eq("role", "admin"),
     ]);
-
     if (profileError) throw new Error(`No se pudo cargar el perfil: ${profileError.message}`);
     if (adminsError) throw new Error(`No se pudo localizar al administrador: ${adminsError.message}`);
-
-    const rows = (admins ?? []).map((a) => ({
-      user_id: a.user_id as string,
-      title: "Verificación solicitada",
-      body: `${profile?.full_name || profile?.username || "Un usuario"} (${profile?.phone ?? "s/tel"}) pidió verificar su cuenta.`,
-    }));
-
-    if (rows.length === 0) {
-      throw new Error("No hay un administrador disponible para recibir la solicitud.");
-    }
-
+    const rows = (admins ?? []).map((a) => ({ user_id: a.user_id as string, title: "Verificación solicitada", body: `${profile?.full_name || profile?.username || "Un usuario"} (${profile?.phone ?? "s/tel"}) pidió verificar su cuenta.` }));
+    if (rows.length === 0) throw new Error("No hay un administrador disponible para recibir la solicitud.");
     const { error: notificationError } = await supabaseAdmin.from("notifications").insert(rows);
     if (notificationError) throw new Error(`No se pudo enviar la solicitud al administrador: ${notificationError.message}`);
-
     return { ok: true };
   })();
-
-  const timeout = new Promise<never>((_, reject) => {
-    setTimeout(() => reject(new Error("La verificación está tardando demasiado. Inténtalo de nuevo en unos segundos.")), 8000);
-  });
-
+  const timeout = new Promise<never>((_, reject) => setTimeout(() => reject(new Error("La verificación está tardando demasiado. Inténtalo de nuevo en unos segundos.")), 8000));
   return Promise.race([work, timeout]);
+});
+
+/** Google autentica la identidad; las cuentas Google no quedan bloqueadas por la verificación manual. */
+export const ensureGoogleAccountVerified = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth]).handler(async ({ context }) => {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data: authData, error: authError } = await supabaseAdmin.auth.admin.getUserById(context.userId);
+  if (authError || !authData.user) throw new Error(authError?.message ?? "No se pudo comprobar la cuenta de Google.");
+  const provider = authData.user.app_metadata?.provider;
+  const hasGoogleIdentity = provider === "google" || authData.user.identities?.some((identity) => identity.provider === "google");
+  if (!hasGoogleIdentity) return { verified: false, provider: provider ?? null };
+  const { error } = await supabaseAdmin.from("profiles").update({ verified: true }).eq("id", context.userId);
+  if (error) throw new Error(`No se pudo activar la cuenta de Google: ${error.message}`);
+  return { verified: true, provider: "google" };
 });
