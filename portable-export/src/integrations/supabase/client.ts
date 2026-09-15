@@ -9,15 +9,8 @@ const FALLBACK_SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_rxqHb79-KneH3UZGHj2fDA
 
 type GoogleCredentialResponse = { credential: string };
 type GooglePromptNotification = { isNotDisplayed: () => boolean; isSkippedMoment: () => boolean };
-type GoogleButtonConfiguration = {
-  type?: 'standard' | 'icon';
-  theme?: string;
-  size?: string;
-  text?: string;
-  shape?: string;
-  logo_alignment?: string;
-  width?: number;
-};
+type GoogleButtonConfiguration = { type?: 'standard' | 'icon'; theme?: string; size?: string; text?: string; shape?: string; logo_alignment?: string; width?: number };
+type SupabaseLikeError = { message?: string; code?: string; status?: number; name?: string; details?: string; hint?: string };
 
 declare global {
   interface Window {
@@ -66,6 +59,13 @@ async function hashNonce(nonce: string): Promise<string> {
   return Array.from(new Uint8Array(hash)).map((byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
+function readableGoogleError(error: unknown): Error {
+  if (error instanceof Error) return error;
+  const value = (error ?? {}) as SupabaseLikeError;
+  const parts = [value.message, value.code ? `code=${value.code}` : '', typeof value.status === 'number' ? `status=${value.status}` : '', value.details, value.hint].filter(Boolean);
+  return new Error(parts.join(' | ') || 'No se pudo iniciar con Google.');
+}
+
 async function signInWithGoogleIdToken(redirectTo?: string): Promise<void> {
   await loadGoogleIdentityScript();
   const nonce = createNonce();
@@ -74,43 +74,28 @@ async function signInWithGoogleIdToken(redirectTo?: string): Promise<void> {
   await new Promise<void>((resolve, reject) => {
     let settled = false;
     let fallbackContainer: HTMLDivElement | null = null;
-    const cleanup = () => {
-      fallbackContainer?.remove();
-      fallbackContainer = null;
-    };
-    const finish = (fn: () => void) => {
-      if (settled) return;
-      settled = true;
-      cleanup();
-      fn();
-    };
+    const cleanup = () => { fallbackContainer?.remove(); fallbackContainer = null; };
+    const finish = (fn: () => void) => { if (settled) return; settled = true; cleanup(); fn(); };
 
     const handleCredential = async (response: GoogleCredentialResponse) => {
       try {
         if (!response?.credential) throw new Error('Google no devolvió una credencial válida.');
         const { error } = await supabase.auth.signInWithIdToken({ provider: 'google', token: response.credential, nonce });
-        if (error) throw error;
+        if (error) throw readableGoogleError(error);
         const next = redirectTo ? new URL(redirectTo, window.location.origin).searchParams.get('next') : null;
         window.location.replace(next && next.startsWith('/') && !next.startsWith('//') ? next : '/dashboard');
         finish(resolve);
       } catch (error) {
+        const readable = readableGoogleError(error);
         console.error('Google ID token authentication error:', error);
-        finish(() => reject(error instanceof Error ? error : new Error('No se pudo iniciar con Google.')));
+        finish(() => reject(readable));
       }
     };
 
-    window.google!.accounts.id.initialize({
-      client_id: GOOGLE_CLIENT_ID,
-      nonce: hashedNonce,
-      use_fedcm_for_prompt: false,
-      callback: handleCredential,
-    });
+    window.google!.accounts.id.initialize({ client_id: GOOGLE_CLIENT_ID, nonce: hashedNonce, use_fedcm_for_prompt: false, callback: handleCredential });
 
     window.google!.accounts.id.prompt((notification) => {
       if (!notification.isNotDisplayed() && !notification.isSkippedMoment()) return;
-
-      // One Tap can legitimately be unavailable because of browser/session policy.
-      // In that case render Google's official button instead of failing the login.
       fallbackContainer = document.createElement('div');
       fallbackContainer.style.position = 'fixed';
       fallbackContainer.style.inset = '0';
@@ -119,22 +104,12 @@ async function signInWithGoogleIdToken(redirectTo?: string): Promise<void> {
       fallbackContainer.style.alignItems = 'center';
       fallbackContainer.style.justifyContent = 'center';
       fallbackContainer.style.background = 'rgba(0,0,0,0.45)';
-      fallbackContainer.innerHTML = '<div data-google-button-card style="background:white;border-radius:16px;padding:24px;box-shadow:0 20px 60px rgba(0,0,0,.25);min-width:300px;text-align:center"><div style="font:600 16px system-ui;margin-bottom:16px;color:#111">Continuar con Google</div><div data-google-button></div><button type="button" data-google-cancel style="margin-top:14px;border:0;background:transparent;color:#666;font:500 13px system-ui;cursor:pointer">Cancelar</button></div>';
+      fallbackContainer.innerHTML = '<div style="background:white;border-radius:16px;padding:24px;box-shadow:0 20px 60px rgba(0,0,0,.25);min-width:300px;text-align:center"><div style="font:600 16px system-ui;margin-bottom:16px;color:#111">Continuar con Google</div><div data-google-button></div><button type="button" data-google-cancel style="margin-top:14px;border:0;background:transparent;color:#666;font:500 13px system-ui;cursor:pointer">Cancelar</button></div>';
       document.body.appendChild(fallbackContainer);
       const buttonHost = fallbackContainer.querySelector<HTMLElement>('[data-google-button]');
       const cancel = fallbackContainer.querySelector<HTMLButtonElement>('[data-google-cancel]');
       cancel?.addEventListener('click', () => finish(() => reject(new Error('Inicio con Google cancelado.'))), { once: true });
-      if (buttonHost) {
-        window.google!.accounts.id.renderButton(buttonHost, {
-          type: 'standard',
-          theme: 'outline',
-          size: 'large',
-          text: 'continue_with',
-          shape: 'rectangular',
-          logo_alignment: 'left',
-          width: 280,
-        });
-      }
+      if (buttonHost) window.google!.accounts.id.renderButton(buttonHost, { type: 'standard', theme: 'outline', size: 'large', text: 'continue_with', shape: 'rectangular', logo_alignment: 'left', width: 280 });
     });
   });
 }
@@ -168,25 +143,16 @@ function createSupabaseClient() {
             await signInWithGoogleIdToken(credentials.options?.redirectTo);
             return { data: { provider: 'google', url: null }, error: null } as Awaited<ReturnType<typeof target.signInWithOAuth>>;
           } catch (error) {
-            return { data: { provider: 'google', url: null }, error: error instanceof Error ? error : new Error('No se pudo iniciar con Google.') } as Awaited<ReturnType<typeof target.signInWithOAuth>>;
+            const readable = readableGoogleError(error);
+            return { data: { provider: 'google', url: null }, error: readable } as Awaited<ReturnType<typeof target.signInWithOAuth>>;
           }
         };
       }
       return Reflect.get(target, prop, receiver);
     },
   });
-  return new Proxy(client, {
-    get(target, prop, receiver) {
-      if (prop === 'auth') return authProxy;
-      return Reflect.get(target, prop, receiver);
-    },
-  });
+  return new Proxy(client, { get(target, prop, receiver) { if (prop === 'auth') return authProxy; return Reflect.get(target, prop, receiver); } });
 }
 
 let _supabase: ReturnType<typeof createSupabaseClient> | undefined;
-export const supabase = new Proxy({} as ReturnType<typeof createSupabaseClient>, {
-  get(_, prop, receiver) {
-    if (!_supabase) _supabase = createSupabaseClient();
-    return Reflect.get(_supabase, prop, receiver);
-  },
-});
+export const supabase = new Proxy({} as ReturnType<typeof createSupabaseClient>, { get(_, prop, receiver) { if (!_supabase) _supabase = createSupabaseClient(); return Reflect.get(_supabase, prop, receiver); } });
