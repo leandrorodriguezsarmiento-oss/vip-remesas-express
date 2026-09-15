@@ -83,3 +83,5 @@ jobs:
           git rm .github/workflows/fix-pix-freeze.yml
           git commit -m "Fix PIX order UI freeze"
           git push
+
+# trigger patch workflow
