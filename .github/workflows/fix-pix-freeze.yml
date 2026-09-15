@@ -1,0 +1,85 @@
+name: Fix PIX freeze
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch PIX flow without blocking UI
+        shell: python
+        run: |
+          from pathlib import Path
+
+          old = '''      // Brasil: el código PIX que verá el cliente sale directamente de Mercado Pago.
+      // No redirigimos al checkout de Mercado Pago: mostramos QR + Copia y Cola.
+      if (origin === "BR") {
+        const mp = await createMpPreference({ data: { transactionId: res.transactionId } });
+        setPixCode(mp.pixCode);
+      } else {
+        setPixCode(res.pixCode);
+      }
+
+      setStep(6);
+      if (origin !== "BR") openWhatsApp(res.trackingId);'''
+
+          new = '''      // Brasil: mostramos inmediatamente la pantalla de pago.
+      // Mercado Pago se consulta en segundo plano para que un problema de API
+      // nunca congele el botón ni impida llegar a la pantalla del PIX.
+      if (origin === "BR") {
+        setStep(6);
+        void (async () => {
+          try {
+            const mp = await Promise.race([
+              createMpPreference({ data: { transactionId: res.transactionId } }),
+              new Promise<never>((_, reject) =>
+                setTimeout(() => reject(new Error("Mercado Pago no respondió en 20 segundos.")), 20000)
+              ),
+            ]);
+            setPixCode(mp.pixCode);
+          } catch (error) {
+            toast.error(error instanceof Error ? error.message : "No se pudo generar el PIX de Mercado Pago");
+          }
+        })();
+      } else {
+        setPixCode(res.pixCode);
+        setStep(6);
+        openWhatsApp(res.trackingId);
+      }'''
+
+          for name in [
+              "portable-export/src/routes/_authenticated/send.tsx",
+              "src/routes/_authenticated/send.tsx",
+          ]:
+              p = Path(name)
+              text = p.read_text(encoding="utf-8")
+              if old not in text:
+                  raise SystemExit(f"Bloque PIX no encontrado en {name}")
+              text = text.replace(old, new, 1)
+              text = text.replace(
+                  '  const pixPayCode = pixCode ?? (amountNum > 0 ? generatePixCode(tracking ?? "vip", amountNum) : null);',
+                  '  const pixPayCode = pixCode;',
+                  1,
+              )
+              marker = '          {origin === "BR" && pixPayCode && <div className="space-y-3 rounded-2xl border border-gold/40 bg-card p-3">'
+              loading = '          {origin === "BR" && !pixPayCode && <div className="rounded-2xl border border-gold/40 bg-card p-5 text-center"><Loader2 className="mx-auto mb-2 h-6 w-6 animate-spin text-gold" /><p className="text-sm font-bold">Generando PIX de Mercado Pago…</p><p className="mt-1 text-xs text-muted-foreground">La pantalla ya está lista. Espera unos segundos.</p></div>}\n'
+              if marker not in text:
+                  raise SystemExit(f"Marcador PIX no encontrado en {name}")
+              text = text.replace(marker, loading + marker, 1)
+              p.write_text(text, encoding="utf-8")
+
+      - name: Commit patch and remove this one-time workflow
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add portable-export/src/routes/_authenticated/send.tsx src/routes/_authenticated/send.tsx
+          git rm .github/workflows/fix-pix-freeze.yml
+          git commit -m "Fix PIX order UI freeze"
+          git push
