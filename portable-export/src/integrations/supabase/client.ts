@@ -90,6 +90,18 @@ async function signInWithGoogleIdToken(redirectTo?: string): Promise<void> {
         ]);
 
         if (signInResult.error) throw readableGoogleError(signInResult.error);
+
+        // El inicio de sesión ya creó/recuperó la sesión. Ahora sincronizamos el
+        // estado de verificación de la cuenta Google antes de abandonar la pantalla.
+        const { ensureGoogleAccountVerified } = await import('@/lib/account.functions');
+        const verificationResult = await Promise.race([
+          ensureGoogleAccountVerified({ data: undefined as never }),
+          new Promise<never>((_, timeoutReject) => {
+            window.setTimeout(() => timeoutReject(new Error('Google inició sesión, pero la activación de la cuenta está tardando demasiado.')), GOOGLE_AUTH_TIMEOUT_MS);
+          }),
+        ]);
+        if (!verificationResult?.verified) throw new Error('No se pudo activar la cuenta de Google.');
+
         const next = redirectTo ? new URL(redirectTo, window.location.origin).searchParams.get('next') : null;
         window.location.replace(next && next.startsWith('/') && !next.startsWith('//') ? next : '/dashboard');
         finish(resolve);
