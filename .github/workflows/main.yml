@@ -114,6 +114,22 @@ jobs:
           if grep -rqF "$SUPABASE_SERVICE_ROLE_KEY" dist/client; then echo "ERROR CRÍTICO: La clave administrativa real aparece en dist/client."; exit 1; fi
           echo "Comprobación de seguridad completada."
 
+      - name: Asegurar tasas de México en Supabase
+        env:
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          set -e
+          curl --fail-with-body -sS -X POST "https://nczavdcqueebhhtkuasv.supabase.co/rest/v1/rates?on_conflict=origin_country,method_category,dest_currency" \
+            -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
+            -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+            -H "Content-Type: application/json" \
+            -H "Prefer: resolution=merge-duplicates,return=minimal" \
+            --data '[
+              {"origin_country":"MX","origin_currency":"MXN","method_category":"transferencia","dest_currency":"CUP","rate":50,"time_min_minutes":15,"time_max_minutes":60,"min_amount":1,"active":true},
+              {"origin_country":"MX","origin_currency":"MXN","method_category":"efectivo","dest_currency":"CUP","rate":35,"time_min_minutes":30,"time_max_minutes":240,"min_amount":1,"active":true}
+            ]'
+          echo "Tasas de México aseguradas: transferencia 50 CUP/MXN y efectivo 35 CUP/MXN."
+
       - name: Configurar secreto en Cloudflare
         env:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
