@@ -3,61 +3,46 @@ import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 import { brokeredPreviewStorage } from './previewAuthStorage';
 
+const GOOGLE_CLIENT_ID = '386834362759-ia6kr0pg1snrp7ousft2bea5ee29gahq.apps.googleusercontent.com';
 const SUPABASE_URL_FALLBACK = 'https://nczavdcqueebhhtkuasv.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY_FALLBACK = 'sb_publishable_rxqHb79-KneH3UZGHj2fDA_5ofGaUds';
 
-function isNewSupabaseApiKey(value: string): boolean {
-  return value.startsWith('sb_publishable_') || value.startsWith('sb_secret_');
+type GoogleCredentialResponse = { credential: string };
+type GooglePromptNotification = { isNotDisplayed: () => boolean; isSkippedMoment: () => boolean };
+declare global { interface Window { google?: { accounts: { id: { initialize: (options: { client_id: string; callback: (response: GoogleCredentialResponse) => void; nonce?: string; use_fedcm_for_prompt?: boolean }) => void; prompt: (callback?: (notification: GooglePromptNotification) => void) => void } } } } }
+let googleScriptPromise: Promise<void> | null = null;
+function loadGoogleIdentityScript(): Promise<void> {
+  if (typeof window === 'undefined') return Promise.reject(new Error('Google Sign-In solo está disponible en el navegador.'));
+  if (window.google?.accounts?.id) return Promise.resolve();
+  if (googleScriptPromise) return googleScriptPromise;
+  googleScriptPromise = new Promise((resolve, reject) => {
+    const existing = document.querySelector<HTMLScriptElement>('script[data-google-identity="true"]');
+    if (existing) { existing.addEventListener('load', () => resolve(), { once: true }); existing.addEventListener('error', () => reject(new Error('No se pudo cargar Google Sign-In.')), { once: true }); return; }
+    const script = document.createElement('script'); script.src = 'https://accounts.google.com/gsi/client'; script.async = true; script.defer = true; script.dataset.googleIdentity = 'true'; script.onload = () => resolve(); script.onerror = () => reject(new Error('No se pudo cargar Google Sign-In.')); document.head.appendChild(script);
+  });
+  return googleScriptPromise;
 }
-
-function createSupabaseFetch(supabaseKey: string): typeof fetch {
-  return (input, init) => {
-    const headers = new Headers(
-      typeof Request !== 'undefined' && input instanceof Request ? input.headers : undefined,
-    );
-
-    if (init?.headers) {
-      new Headers(init.headers).forEach((value, key) => headers.set(key, value));
-    }
-
-    if (isNewSupabaseApiKey(supabaseKey) && headers.get('Authorization') === `Bearer ${supabaseKey}`) {
-      headers.delete('Authorization');
-    }
-
-    headers.set('apikey', supabaseKey);
-    return fetch(input, { ...init, headers });
-  };
-}
-
-function createSupabaseClient() {
-  const SUPABASE_URL =
-    import.meta.env.NEXT_PUBLIC_SUPABASE_URL?.trim() ||
-    import.meta.env.VITE_SUPABASE_URL?.trim() ||
-    SUPABASE_URL_FALLBACK;
-  const SUPABASE_PUBLISHABLE_KEY =
-    import.meta.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim() ||
-    import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY?.trim() ||
-    SUPABASE_PUBLISHABLE_KEY_FALLBACK;
-
-  return createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
-    global: {
-      fetch: createSupabaseFetch(SUPABASE_PUBLISHABLE_KEY),
-    },
-    auth: {
-      storage: brokeredPreviewStorage(),
-      persistSession: true,
-      autoRefreshToken: true,
-      flowType: 'pkce',
-      detectSessionInUrl: true,
-    },
+function createNonce(): string { const bytes = new Uint8Array(32); crypto.getRandomValues(bytes); return btoa(String.fromCharCode(...bytes)); }
+async function hashNonce(nonce: string): Promise<string> { const encoded = new TextEncoder().encode(nonce); const hash = await crypto.subtle.digest('SHA-256', encoded); return Array.from(new Uint8Array(hash)).map((byte) => byte.toString(16).padStart(2, '0')).join(''); }
+async function signInWithGoogleIdToken(redirectTo?: string): Promise<void> {
+  await loadGoogleIdentityScript(); const nonce = createNonce(); const hashedNonce = await hashNonce(nonce);
+  await new Promise<void>((resolve, reject) => {
+    let settled = false; const finish = (fn: () => void) => { if (settled) return; settled = true; fn(); };
+    window.google!.accounts.id.initialize({ client_id: GOOGLE_CLIENT_ID, nonce: hashedNonce, use_fedcm_for_prompt: true, callback: async (response) => {
+      try { if (!response?.credential) throw new Error('Google no devolvió una credencial válida.'); const { error } = await supabase.auth.signInWithIdToken({ provider: 'google', token: response.credential, nonce }); if (error) throw error; const next = redirectTo ? new URL(redirectTo, window.location.origin).searchParams.get('next') : null; window.location.replace(next && next.startsWith('/') && !next.startsWith('//') ? next : '/dashboard'); finish(resolve); }
+      catch (error) { console.error('Google ID token authentication error:', error); finish(() => reject(error instanceof Error ? error : new Error('No se pudo iniciar con Google.'))); }
+    }});
+    window.google!.accounts.id.prompt((notification) => { if (notification.isNotDisplayed() || notification.isSkippedMoment()) finish(() => reject(new Error('Google no pudo mostrar la ventana de inicio de sesión.'))); });
   });
 }
-
+function isNewSupabaseApiKey(value: string): boolean { return value.startsWith('sb_publishable_') || value.startsWith('sb_secret_'); }
+function createSupabaseFetch(supabaseKey: string): typeof fetch { return (input, init) => { const headers = new Headers(typeof Request !== 'undefined' && input instanceof Request ? input.headers : undefined); if (init?.headers) new Headers(init.headers).forEach((value, key) => headers.set(key, value)); if (isNewSupabaseApiKey(supabaseKey) && headers.get('Authorization') === `Bearer ${supabaseKey}`) headers.delete('Authorization'); headers.set('apikey', supabaseKey); return fetch(input, { ...init, headers }); }; }
+function createSupabaseClient() {
+  const SUPABASE_URL = import.meta.env.NEXT_PUBLIC_SUPABASE_URL?.trim() || import.meta.env.VITE_SUPABASE_URL?.trim() || SUPABASE_URL_FALLBACK;
+  const SUPABASE_PUBLISHABLE_KEY = import.meta.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim() || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY?.trim() || SUPABASE_PUBLISHABLE_KEY_FALLBACK;
+  const client = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, { global: { fetch: createSupabaseFetch(SUPABASE_PUBLISHABLE_KEY) }, auth: { storage: brokeredPreviewStorage(), persistSession: true, autoRefreshToken: true, flowType: 'pkce', detectSessionInUrl: true } });
+  const originalAuth = client.auth; const authProxy = new Proxy(originalAuth, { get(target, prop, receiver) { if (prop === 'signInWithOAuth') return async (credentials: Parameters<typeof target.signInWithOAuth>[0]) => { if (credentials.provider !== 'google' || typeof window === 'undefined') return target.signInWithOAuth(credentials); const isMobile = window.matchMedia?.('(pointer: coarse)').matches || window.innerWidth <= 900; if (isMobile) return target.signInWithOAuth(credentials); try { await signInWithGoogleIdToken(credentials.options?.redirectTo); return { data: { provider: 'google', url: null }, error: null } as Awaited<ReturnType<typeof target.signInWithOAuth>>; } catch (error) { return { data: { provider: 'google', url: null }, error: error instanceof Error ? error : new Error('No se pudo iniciar con Google.') } as Awaited<ReturnType<typeof target.signInWithOAuth>>; }; return Reflect.get(target, prop, receiver); } });
+  return new Proxy(client, { get(target, prop, receiver) { if (prop === 'auth') return authProxy; return Reflect.get(target, prop, receiver); } });
+}
 let _supabase: ReturnType<typeof createSupabaseClient> | undefined;
-
-export const supabase = new Proxy({} as ReturnType<typeof createSupabaseClient>, {
-  get(_, prop, receiver) {
-    if (!_supabase) _supabase = createSupabaseClient();
-    return Reflect.get(_supabase, prop, receiver);
-  },
-});
+export const supabase = new Proxy({} as ReturnType<typeof createSupabaseClient>, { get(_, prop, receiver) { if (!_supabase) _supabase = createSupabaseClient(); return Reflect.get(_supabase, prop, receiver); } });
