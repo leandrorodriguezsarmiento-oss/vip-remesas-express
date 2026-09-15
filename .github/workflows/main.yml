@@ -55,6 +55,22 @@ jobs:
           PY
           echo "Gestor de tasas preparado: el admin podrá crear nuevas tasas sin modificar código."
 
+      - name: Colocar eliminar cuenta dentro de Ajustes
+        run: |
+          set -e
+          python3 - <<'PY'
+          from pathlib import Path
+          for path in [Path("src/routes/_authenticated/settings.tsx"), Path("portable-export/src/routes/_authenticated/settings.tsx")]:
+              if not path.exists():
+                  continue
+              text = path.read_text()
+              if 'DeleteAccountCard' not in text:
+                  text = text.replace('import { PushToggle } from "@/components/PushToggle";', 'import { PushToggle } from "@/components/PushToggle";\nimport { DeleteAccountCard } from "@/components/DeleteAccountCard";')
+              text = text.replace('      <SupportCard />\n', '      <SupportCard />\n      <DeleteAccountCard />\n')
+              path.write_text(text)
+          PY
+          echo "Eliminar cuenta colocado dentro del contenido de Ajustes."
+
       - name: Detectar carpeta de la aplicación
         run: |
           if [ -f portable-export/wrangler.jsonc ]; then
@@ -99,19 +115,12 @@ jobs:
           if [ -z "$SUPABASE_SERVICE_ROLE_KEY" ]; then echo "ERROR: Falta SUPABASE_SERVICE_ROLE_KEY"; exit 1; fi
           if [ -z "$CLOUDFLARE_API_TOKEN" ]; then echo "ERROR: Falta CLOUDFLARE_API_TOKEN"; exit 1; fi
           if [ -z "$RAW_CLOUDFLARE_ACCOUNT_ID" ]; then echo "ERROR: Falta CLOUDFLARE_ACCOUNT_ID"; exit 1; fi
-
           ACCOUNT_ID="$(printf '%s' "$RAW_CLOUDFLARE_ACCOUNT_ID" | tr -d '\r\n\t ' | sed -e 's/^"//' -e 's/"$//' -e "s/^'//" -e "s/'$//")"
-
           if ! printf '%s' "$ACCOUNT_ID" | grep -Eq '^[A-Za-z0-9_-]+$'; then
             echo "ERROR: CLOUDFLARE_ACCOUNT_ID contiene caracteres inválidos. Debe ser únicamente el Account ID, sin comillas ni espacios."
             exit 1
           fi
-
-          if [ -z "$ACCOUNT_ID" ]; then
-            echo "ERROR: CLOUDFLARE_ACCOUNT_ID quedó vacío después de normalizarlo."
-            exit 1
-          fi
-
+          if [ -z "$ACCOUNT_ID" ]; then echo "ERROR: CLOUDFLARE_ACCOUNT_ID quedó vacío después de normalizarlo."; exit 1; fi
           echo "account_id=$ACCOUNT_ID" >> "$GITHUB_OUTPUT"
           echo "Credenciales Cloudflare verificadas."
 
