@@ -22,8 +22,6 @@ export const Route = createFileRoute("/api/public/mercadopago/webhook")({
         const dataId = payload.data?.id ?? "";
         if (!ts || !v1 || !dataId) return new Response("Invalid signature", { status: 401 });
 
-        // Mercado Pago indica usar el data.id en minúsculas para validar
-        // notificaciones del tópico Order.
         const manifestId = payload.type === "order" ? dataId.toLowerCase() : dataId;
         const manifest = `id:${manifestId};request-id:${requestId};ts:${ts};`;
         const expected = createHmac("sha256", secret).update(manifest).digest("hex");
@@ -33,8 +31,6 @@ export const Route = createFileRoute("/api/public/mercadopago/webhook")({
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-        // Orders API: Mercado Pago notifica la Order, por lo que consultamos
-        // el recurso para obtener el pago y su estado auténtico.
         if (payload.type === "order") {
           const orderRes = await fetch(`https://api.mercadopago.com/v1/orders/${encodeURIComponent(dataId)}`, {
             headers: { Authorization: `Bearer ${accessToken}` },
@@ -44,7 +40,7 @@ export const Route = createFileRoute("/api/public/mercadopago/webhook")({
           const order = (await orderRes.json()) as {
             external_reference?: string;
             total_amount?: string;
-            transactions?: { payments?: Array<{ id?: string; amount?: string; status?: string; payment_method?: { id?: string } }> };
+            transactions?: { payments?: Array<{ id?: string; amount?: string; status?: string; payment_method?: { id?: string; type?: string } }> };
           };
           const trackingId = order.external_reference;
           const payment = order.transactions?.payments?.[0];
@@ -56,9 +52,35 @@ export const Route = createFileRoute("/api/public/mercadopago/webhook")({
             .eq("order_id", dataId)
             .maybeSingle();
           if (!paymentRow) return new Response("Unknown order reference", { status: 404 });
+          if (paymentRow.tracking_id !== trackingId) return new Response("Tracking reference mismatch", { status: 409 });
+
+          const { data: tx } = await supabaseAdmin
+            .from("transactions")
+            .select("id,user_id,tracking_id,total_brl,status")
+            .eq("id", paymentRow.transaction_id)
+            .eq("user_id", paymentRow.user_id)
+            .maybeSingle();
+          if (!tx || tx.tracking_id !== trackingId) return new Response("Transaction reference mismatch", { status: 409 });
+
           if (paymentRow.mp_payment_id === String(payment.id)) return Response.json({ ok: true, duplicate: true });
           if (payment.payment_method?.id !== "pix") return new Response("Unexpected payment method", { status: 409 });
-          if (Math.abs(Number(payment.amount) - Number(paymentRow.amount)) > 0.009) return new Response("Payment amount mismatch", { status: 409 });
+
+          const expectedAmount = Number(paymentRow.amount);
+          const transactionAmount = Number(tx.total_brl);
+          const orderAmount = Number(order.total_amount);
+          const paidAmount = Number(payment.amount);
+          if (![expectedAmount, transactionAmount, orderAmount, paidAmount].every(Number.isFinite)) return new Response("Invalid payment amount", { status: 409 });
+          if (Math.abs(expectedAmount - transactionAmount) > 0.009 || Math.abs(orderAmount - transactionAmount) > 0.009 || Math.abs(paidAmount - transactionAmount) > 0.009) {
+            return new Response("Payment amount mismatch", { status: 409 });
+          }
+
+          const { data: samePayment } = await supabaseAdmin
+            .from("mercadopago_payments")
+            .select("id,transaction_id")
+            .eq("mp_payment_id", String(payment.id))
+            .neq("id", paymentRow.id)
+            .maybeSingle();
+          if (samePayment) return new Response("Payment already linked to another transaction", { status: 409 });
 
           const statusMap: Record<string, "pending_payment" | "payment_confirmed" | "rejected"> = {
             approved: "payment_confirmed",
@@ -81,25 +103,25 @@ export const Route = createFileRoute("/api/public/mercadopago/webhook")({
             .eq("user_id", paymentRow.user_id);
           if (error) return new Response(error.message, { status: 500 });
 
-          await supabaseAdmin.from("mercadopago_payments").update({
+          const { error: paymentUpdateError } = await supabaseAdmin.from("mercadopago_payments").update({
             mp_payment_id: String(payment.id),
             mp_status: payment.status ?? null,
             internal_status: newStatus,
           }).eq("id", paymentRow.id).is("mp_payment_id", null);
+          if (paymentUpdateError) return new Response(paymentUpdateError.message, { status: 500 });
 
           await supabaseAdmin.from("transaction_audit_log").insert({
             transaction_id: paymentRow.transaction_id,
             actor_id: null,
             action: `mercadopago_order_${payment.status ?? "unknown"}`,
-            from_status: null,
+            from_status: tx.status ?? null,
             to_status: newStatus,
-            details: { order_id: dataId, payment_id: String(payment.id) },
+            details: { order_id: dataId, payment_id: String(payment.id), verified_amount: paidAmount },
           });
 
           return Response.json({ ok: true, trackingId, status: newStatus });
         }
 
-        // Compatibilidad con notificaciones antiguas del tópico payment.
         const paymentId = payload.data?.id;
         if (!paymentId || (payload.type && payload.type !== "payment")) return Response.json({ ok: true, skipped: true });
 
@@ -107,17 +129,18 @@ export const Route = createFileRoute("/api/public/mercadopago/webhook")({
           headers: { Authorization: `Bearer ${accessToken}` },
         });
         if (!mpRes.ok) return new Response(`MP lookup failed: ${mpRes.status}`, { status: 502 });
-        const payment = (await mpRes.json()) as { status?: string; external_reference?: string; transaction_amount?: number; currency_id?: string };
+        const payment = (await mpRes.json()) as { status?: string; external_reference?: string; transaction_amount?: number; currency_id?: string; payment_method_id?: string };
         const trackingId = payment.external_reference;
         if (!trackingId) return Response.json({ ok: true, skipped: "no external_reference" });
 
         const { data: paymentRow } = await supabaseAdmin
           .from("mercadopago_payments")
-          .select("id,transaction_id,user_id,amount,currency,mp_payment_id")
+          .select("id,transaction_id,user_id,tracking_id,amount,currency,mp_payment_id")
           .eq("tracking_id", trackingId)
           .maybeSingle();
         if (!paymentRow) return new Response("Unknown payment reference", { status: 404 });
         if (paymentRow.mp_payment_id === String(paymentId)) return Response.json({ ok: true, duplicate: true });
+        if (payment.payment_method_id !== "pix") return new Response("Unexpected payment method", { status: 409 });
         if (payment.currency_id !== paymentRow.currency || Math.abs(Number(payment.transaction_amount) - Number(paymentRow.amount)) > 0.009) return new Response("Payment amount or currency mismatch", { status: 409 });
 
         const map: Record<string, "pending_payment" | "payment_confirmed" | "rejected"> = {
