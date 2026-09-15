@@ -4,40 +4,27 @@ import type { Database } from './types';
 import { brokeredPreviewStorage } from './previewAuthStorage';
 
 const GOOGLE_CLIENT_ID = '386834362759-ia6kr0pg1snrp7ousft2bea5ee29gahq.apps.googleusercontent.com';
+const FALLBACK_SUPABASE_URL = 'https://nczavdcqueebhhtkuasv.supabase.co';
+const FALLBACK_SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_rxqHb79-KneH3UZGHj2fDA_5ofGaUds';
 
 type GoogleCredentialResponse = { credential: string };
-type GooglePromptNotification = {
-  isNotDisplayed: () => boolean;
-  isSkippedMoment: () => boolean;
-};
+type GooglePromptNotification = { isNotDisplayed: () => boolean; isSkippedMoment: () => boolean };
 
 declare global {
   interface Window {
-    google?: {
-      accounts: {
-        id: {
-          initialize: (options: {
-            client_id: string;
-            callback: (response: GoogleCredentialResponse) => void;
-            nonce?: string;
-            use_fedcm_for_prompt?: boolean;
-          }) => void;
-          prompt: (callback?: (notification: GooglePromptNotification) => void) => void;
-        };
-      };
-    };
+    google?: { accounts: { id: {
+      initialize: (options: { client_id: string; callback: (response: GoogleCredentialResponse) => void; nonce?: string; use_fedcm_for_prompt?: boolean }) => void;
+      prompt: (callback?: (notification: GooglePromptNotification) => void) => void;
+    } } };
   }
 }
 
 let googleScriptPromise: Promise<void> | null = null;
 
 function loadGoogleIdentityScript(): Promise<void> {
-  if (typeof window === 'undefined') {
-    return Promise.reject(new Error('Google Sign-In solo está disponible en el navegador.'));
-  }
+  if (typeof window === 'undefined') return Promise.reject(new Error('Google Sign-In solo está disponible en el navegador.'));
   if (window.google?.accounts?.id) return Promise.resolve();
   if (googleScriptPromise) return googleScriptPromise;
-
   googleScriptPromise = new Promise((resolve, reject) => {
     const existing = document.querySelector<HTMLScriptElement>('script[data-google-identity="true"]');
     if (existing) {
@@ -113,17 +100,8 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
 }
 
 function createSupabaseClient() {
-  const SUPABASE_URL = import.meta.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
-  const SUPABASE_PUBLISHABLE_KEY = import.meta.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim();
-  if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
-    const missing = [
-      ...(!SUPABASE_URL ? ['SUPABASE_URL'] : []),
-      ...(!SUPABASE_PUBLISHABLE_KEY ? ['SUPABASE_PUBLISHABLE_KEY'] : []),
-    ];
-    const message = `Faltan variables públicas de compilación: ${missing.map((name) => `NEXT_PUBLIC_${name}`).join(', ')}.`;
-    console.error(`[Supabase] ${message}`);
-    throw new Error(message);
-  }
+  const SUPABASE_URL = import.meta.env.NEXT_PUBLIC_SUPABASE_URL?.trim() || import.meta.env.VITE_SUPABASE_URL?.trim() || FALLBACK_SUPABASE_URL;
+  const SUPABASE_PUBLISHABLE_KEY = import.meta.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim() || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY?.trim() || FALLBACK_SUPABASE_PUBLISHABLE_KEY;
   const client = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
     global: { fetch: createSupabaseFetch(SUPABASE_PUBLISHABLE_KEY) },
     auth: { storage: brokeredPreviewStorage(), persistSession: true, autoRefreshToken: true, flowType: 'pkce', detectSessionInUrl: true },
