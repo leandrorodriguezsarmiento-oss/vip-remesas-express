@@ -36,6 +36,25 @@ jobs:
           done
           echo "WhatsApp oficial: +55 95 98440-5698"
 
+      - name: Preparar gestor de tasas en el panel admin
+        run: |
+          set -e
+          python3 - <<'PY'
+          from pathlib import Path
+          for path in [Path("src/routes/_authenticated/admin.tsx"), Path("portable-export/src/routes/_authenticated/admin.tsx")]:
+              if not path.exists():
+                  continue
+              text = path.read_text()
+              if 'RateCreateCard' not in text:
+                  anchor = 'import { usePendingCounts } from "@/hooks/use-pending-counts";'
+                  text = text.replace(anchor, anchor + '\nimport { RateCreateCard } from "@/components/RateCreateCard";')
+              old = '{isAdmin && tab === "rates" && <RatesTab />}'
+              new = '{isAdmin && tab === "rates" && <div className="space-y-3"><RateCreateCard /><RatesTab /></div>}'
+              text = text.replace(old, new)
+              path.write_text(text)
+          PY
+          echo "Gestor de tasas preparado: el admin podrá crear nuevas tasas sin modificar código."
+
       - name: Detectar carpeta de la aplicación
         run: |
           if [ -f portable-export/wrangler.jsonc ]; then
@@ -137,9 +156,10 @@ jobs:
             -H "Prefer: resolution=merge-duplicates,return=minimal" \
             --data '[
               {"origin_country":"MX","origin_currency":"MXN","method_category":"transferencia","dest_currency":"CUP","rate":50,"time_min_minutes":15,"time_max_minutes":60,"min_amount":1,"active":true},
-              {"origin_country":"MX","origin_currency":"MXN","method_category":"efectivo","dest_currency":"CUP","rate":35,"time_min_minutes":30,"time_max_minutes":240,"min_amount":1,"active":true}
+              {"origin_country":"MX","origin_currency":"MXN","method_category":"efectivo","dest_currency":"CUP","rate":35,"time_min_minutes":30,"time_max_minutes":240,"min_amount":1,"active":true},
+              {"origin_country":"MX","origin_currency":"MXN","method_category":"transferencia","dest_currency":"MLC","rate":1,"time_min_minutes":15,"time_max_minutes":60,"min_amount":1,"active":true}
             ]'
-          echo "Tasas de México aseguradas: transferencia 50 CUP/MXN y efectivo 35 CUP/MXN."
+          echo "Tasas de México aseguradas: transferencia 50 CUP/MXN, efectivo 35 CUP/MXN y MLC 1 MLC/MXN (provisional)."
 
       - name: Configurar secreto en Cloudflare
         env:
