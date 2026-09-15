@@ -9,11 +9,8 @@ const transactionActionSchema = z.object({
   reason: z.string().trim().max(300).optional(),
 });
 
-/** Error de regla de negocio: se devuelve al cliente como mensaje, no como fallo 500. */
 class WorkflowRuleError extends Error {}
-const rule = (message: string): never => {
-  throw new WorkflowRuleError(message);
-};
+const rule = (message: string): never => { throw new WorkflowRuleError(message); };
 
 type WorkflowResult =
   | { ok: true; status: "payment_confirmed" | "processing" | "completed" | "rejected" }
@@ -34,6 +31,16 @@ export const updateTransactionWorkflow = createServerFn({ method: "POST" })
       context.supabase.rpc("has_role", { _user_id: context.userId, _role: "organizador" }),
     ]);
     if (!isAdmin && !isOrganizer) rule("No autorizado");
+
+    if (!isAdmin) {
+      const { data: canRemesas, error: permissionError } = await context.supabase.rpc("has_organizer_permission", {
+        _user_id: context.userId,
+        _permission: "remesas",
+      });
+      if (permissionError) throw new Error("No se pudo verificar el permiso de remesas");
+      if (!canRemesas) rule("No tienes permiso para gestionar remesas");
+    }
+
     if (!isAdmin && !["complete", "reject"].includes(data.action)) {
       rule("Solo el administrador puede confirmar pagos o asignar remesas");
     }
@@ -117,42 +124,32 @@ export const setOrganizerRole = createServerFn({ method: "POST" })
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     if (data.enabled) {
-      const { error } = await supabaseAdmin
-        .from("user_roles")
-        .insert({ user_id: data.userId, role: "organizador" });
+      const { error } = await supabaseAdmin.from("user_roles").insert({ user_id: data.userId, role: "organizador" });
       if (error && !error.message.includes("duplicate")) throw new Error(error.message);
+      const { error: permissionError } = await supabaseAdmin.from("organizer_permissions").insert(
+        ["remesas", "recargas", "tienda"].map((permission) => ({ user_id: data.userId, permission })),
+      );
+      if (permissionError && !permissionError.message.includes("duplicate")) throw new Error(permissionError.message);
     } else {
-      const { error } = await supabaseAdmin
-        .from("user_roles")
-        .delete()
-        .eq("user_id", data.userId)
-        .eq("role", "organizador");
+      const { error } = await supabaseAdmin.from("user_roles").delete().eq("user_id", data.userId).eq("role", "organizador");
       if (error) throw new Error(error.message);
+      const { error: permissionError } = await supabaseAdmin.from("organizer_permissions").delete().eq("user_id", data.userId);
+      if (permissionError) throw new Error(permissionError.message);
     }
     return { ok: true, enabled: data.enabled };
   });
 
-
 export const deleteUserAsAdmin = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: { userId: string }) => {
-    if (!input?.userId || typeof input.userId !== "string") {
-      throw new Error("userId requerido");
-    }
+    if (!input?.userId || typeof input.userId !== "string") throw new Error("userId requerido");
     return input;
   })
   .handler(async ({ data, context }) => {
-    // Verificar que el llamador es admin
-    const { data: isAdmin, error: roleErr } = await context.supabase.rpc("has_role", {
-      _user_id: context.userId,
-      _role: "admin",
-    });
+    const { data: isAdmin, error: roleErr } = await context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" });
     if (roleErr) throw new Error("No se pudo verificar rol");
     if (!isAdmin) throw new Error("Solo admin puede eliminar usuarios");
-    if (data.userId === context.userId) {
-      throw new Error("No puedes eliminar tu propia cuenta admin");
-    }
-
+    if (data.userId === context.userId) throw new Error("No puedes eliminar tu propia cuenta admin");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin.auth.admin.deleteUser(data.userId);
     if (error) throw new Error(error.message);
@@ -169,18 +166,11 @@ export const setUserProvince = createServerFn({ method: "POST" })
     return { userId: input.userId, province };
   })
   .handler(async ({ data, context }) => {
-    const { data: isAdmin, error: roleErr } = await context.supabase.rpc("has_role", {
-      _user_id: context.userId,
-      _role: "admin",
-    });
+    const { data: isAdmin, error: roleErr } = await context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" });
     if (roleErr) throw new Error("No se pudo verificar rol");
     if (!isAdmin) throw new Error("Solo el admin puede cambiar la provincia");
-
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { error } = await supabaseAdmin
-      .from("profiles")
-      .update({ province: data.province })
-      .eq("id", data.userId);
+    const { error } = await supabaseAdmin.from("profiles").update({ province: data.province }).eq("id", data.userId);
     if (error) throw new Error(error.message);
     return { ok: true, province: data.province };
   });
@@ -189,30 +179,14 @@ export const setUserProvince = createServerFn({ method: "POST" })
 export const listOrganizers = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { data: isAdmin } = await context.supabase.rpc("has_role", {
-      _user_id: context.userId,
-      _role: "admin",
-    });
+    const { data: isAdmin } = await context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" });
     if (!isAdmin) throw new Error("Solo el admin puede ver los organizadores");
-
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: roles, error: rolesErr } = await supabaseAdmin
-      .from("user_roles")
-      .select("user_id")
-      .eq("role", "organizador");
+    const { data: roles, error: rolesErr } = await supabaseAdmin.from("user_roles").select("user_id").eq("role", "organizador");
     if (rolesErr) throw new Error(rolesErr.message);
     const ids = (roles ?? []).map((r) => r.user_id);
     if (ids.length === 0) return [] as { id: string; full_name: string | null; email: string | null; province: string | null }[];
-
-    const { data: profs, error } = await supabaseAdmin
-      .from("profiles")
-      .select("id, full_name, email, province")
-      .in("id", ids);
+    const { data: profs, error } = await supabaseAdmin.from("profiles").select("id, full_name, email, province").in("id", ids);
     if (error) throw new Error(error.message);
-    return (profs ?? []).map((p) => ({
-      id: p.id,
-      full_name: p.full_name,
-      email: p.email ?? null,
-      province: p.province ?? null,
-    }));
+    return (profs ?? []).map((p) => ({ id: p.id, full_name: p.full_name, email: p.email ?? null, province: p.province ?? null }));
   });
