@@ -26,58 +26,60 @@ jobs:
       - name: Descargar código
         uses: actions/checkout@v4
 
-      - name: Corregir PIX de remesas
+      - name: Forzar flujo PIX manual
         shell: bash
         run: |
           python3 <<'PY'
           from pathlib import Path
+          import re
 
           files = [
               Path("src/routes/_authenticated/send.tsx"),
               Path("portable-export/src/routes/_authenticated/send.tsx"),
           ]
 
-          old_main = '''setTracking(res.trackingId);\n      // For BR, PIX must come exclusively from Mercado Pago.\n      setPixCode(null);\n      setTxId(res.transactionId);\n      setStep(6);\n      if (origin !== "BR") openWhatsApp(res.trackingId);'''
-          new_main = '''setTracking(res.trackingId);\n      setTxId(res.transactionId);\n\n      // Brasil: crear inmediatamente el PIX dinámico de Mercado Pago.\n      // Nunca usamos una llave PIX fija o generada localmente para remesas.\n      if (origin === "BR") {\n        setPixCode(null);\n        const mp = await createMpPreference({ data: { transactionId: res.transactionId } });\n        if (!mp.pixCode) throw new Error("Mercado Pago no devolvió el código PIX de esta orden.");\n        setPixCode(mp.pixCode);\n      } else {\n        setPixCode(res.pixCode);\n      }\n\n      setStep(6);\n      if (origin !== "BR") openWhatsApp(res.trackingId);'''
-
-          old_portable_import = '  findRate, calcQuote, generatePixCode,\n'
-          new_portable_import = '  findRate, calcQuote,\n'
-          old_portable_code = '  const pixPayCode = pixCode ?? (amountNum > 0 ? generatePixCode(tracking ?? "vip", amountNum) : null);'
-          new_portable_code = '  const pixPayCode = pixCode;'
-          old_portable_order = '''setTracking(res.trackingId);\n      setTxId(res.transactionId);\n\n      // Brasil: el código PIX que verá el cliente sale directamente de Mercado Pago.\n      // No redirigimos al checkout de Mercado Pago: mostramos QR + Copia y Cola.\n      if (origin === "BR") {\n        const mp = await createMpPreference({ data: { transactionId: res.transactionId } });\n        setPixCode(mp.pixCode);\n      } else {\n        setPixCode(res.pixCode);\n      }\n\n      setStep(6);\n      if (origin !== "BR") openWhatsApp(res.trackingId);'''
-          new_portable_order = '''setTracking(res.trackingId);\n      setTxId(res.transactionId);\n      setPixCode(null);\n\n      // Brasil: el PIX se crea ahora mismo en Mercado Pago y se muestra\n      // directamente en esta pantalla. Nunca usamos una llave fija/local.\n      if (origin === "BR") {\n        const mp = await createMpPreference({ data: { transactionId: res.transactionId } });\n        if (!mp.pixCode) throw new Error("Mercado Pago no devolvió el código PIX de esta orden.");\n        setPixCode(mp.pixCode);\n      } else {\n        setPixCode(res.pixCode);\n      }\n\n      setStep(6);\n      if (origin !== "BR") openWhatsApp(res.trackingId);'''
-
-          changed = False
           for path in files:
               if not path.exists():
                   continue
               text = path.read_text()
-              original = text
-              if path.as_posix().startswith("portable-export/"):
-                  text = text.replace(old_portable_import, new_portable_import)
-                  text = text.replace(old_portable_code, new_portable_code)
-                  text = text.replace(old_portable_order, new_portable_order)
-              else:
-                  text = text.replace(old_main, new_main)
-              if text != original:
-                  path.write_text(text)
-                  changed = True
+              text = re.sub(r'import \{ createMercadoPagoPreference \} from "@/lib/(mercadopago|payments)\.functions";\n', '', text)
+              text = re.sub(r'\n\s*const createMpPreference = useServerFn\(createMercadoPagoPreference\);', '', text)
+              text = re.sub(r'\n\s*const \[mpLoading, setMpLoading\] = useState\(false\);', '', text)
+              text = re.sub(r'\n  async function payWithMercadoPago\(\) \{.*?\n  \}\n\n  async function confirmPaid', '\n\n  async function confirmPaid', text, flags=re.S)
+              text = text.replace('  const WHATSAPP_NUMBER = "5595981006775";', '  const WHATSAPP_NUMBER = "5595981006775";')
+              text = text.replace('const pixPayCode = pixCode;', 'const pixPayCode = pixCode;')
+
+              # Root and portable variants both get the same manual-PIX order result.
+              text = re.sub(
+                  r'      setTracking\(res\.trackingId\);\n      setTxId\(res\.transactionId\);\n.*?      setStep\(6\);\n      if \(origin !== "BR"\) openWhatsApp\(res\.trackingId\);',
+                  '      setTracking(res.trackingId);\n      setTxId(res.transactionId);\n      setPixCode(res.pixCode);\n\n      // Brasil: PIX fijo de VIP Remesas con el monto exacto incluido.\n      // No se llama a Mercado Pago.\n      setStep(6);\n      if (origin !== "BR") openWhatsApp(res.trackingId);',
+                  text,
+                  flags=re.S,
+              )
+              text = text.replace('Pagar con Mercado Pago', 'Pagar con PIX')
+              text = text.replace('Paga por PIX de Mercado Pago — el monto exacto ya viene incluido', 'Paga por PIX — el monto exacto ya viene incluido')
+              text = text.replace('PIX de Mercado Pago generado. Escanea el QR o copia el código.', 'PIX generado. Escanea el QR o copia el código.')
+              text = text.replace('Aviso recibido. La confirmación del pago se hará automáticamente con Mercado Pago.', 'Pago informado. Lo verificaremos manualmente antes de procesar la remesa.')
+              text = text.replace('Al verificar se abrirá WhatsApp para enviarnos el comprobante de pago.', 'Después de pulsar “Ya pagué”, confirma tu pago por WhatsApp al +55 95984405698.')
+              text = text.replace('Ya pagué, verificar', 'Ya pagué')
+              text = text.replace('CreditCard, ', '')
+              text = text.replace(', CreditCard', '')
+              path.write_text(text)
 
           for path in files:
-              if path.exists() and "generatePixCode" in path.read_text():
-                  raise SystemExit(f"ERROR: generatePixCode sigue en {path}")
-
-          if changed:
-              print("PIX remittance flow corrected")
-          else:
-              print("PIX remittance flow already corrected")
+              if path.exists():
+                  text = path.read_text()
+                  forbidden = ["createMercadoPagoPreference", "payWithMercadoPago", "Pagar con Mercado Pago", "PIX de Mercado Pago"]
+                  hits = [x for x in forbidden if x in text]
+                  if hits:
+                      raise SystemExit(f"ERROR: Mercado Pago sigue en {path}: {hits}")
           PY
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add src/routes/_authenticated/send.tsx portable-export/src/routes/_authenticated/send.tsx
           if ! git diff --cached --quiet; then
-            git commit -m "Fix direct Mercado Pago PIX for remittances"
+            git commit -m "Switch remittances to fixed manual PIX"
             git push
           fi
 
@@ -101,10 +103,7 @@ jobs:
         run: |
           test -n "$NEXT_PUBLIC_SUPABASE_URL" || { echo "ERROR: Falta NEXT_PUBLIC_SUPABASE_URL"; exit 1; }
           test -n "$NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY" || { echo "ERROR: Falta NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"; exit 1; }
-          if [ "$NEXT_PUBLIC_SUPABASE_URL" != "https://nczavdcqueebhhtkuasv.supabase.co" ]; then
-            echo "ERROR: NEXT_PUBLIC_SUPABASE_URL no apunta al proyecto configurado."
-            exit 1
-          fi
+          test "$NEXT_PUBLIC_SUPABASE_URL" = "https://nczavdcqueebhhtkuasv.supabase.co" || { echo "ERROR: Supabase incorrecto"; exit 1; }
 
       - name: Verificar credenciales
         id: cloudflare-config
@@ -138,15 +137,11 @@ jobs:
         run: |
           cd "$APP_DIR"
           test -d dist/client || { echo "ERROR: No existe dist/client"; exit 1; }
-          if grep -rqF "uoglxwtritcsrglwimej" dist/client; then
-            echo "ERROR: El build contiene el proyecto Supabase antiguo."
-            exit 1
-          fi
-          grep -rqF "https://nczavdcqueebhhtkuasv.supabase.co" dist/client || { echo "ERROR: No aparece el proyecto Supabase configurado."; exit 1; }
-          if grep -rqF "$SUPABASE_SERVICE_ROLE_KEY" dist/client; then
-            echo "ERROR CRÍTICO: La clave administrativa aparece en el navegador."
-            exit 1
-          fi
+          if grep -rqF "uoglxwtritcsrglwimej" dist/client; then echo "ERROR: Supabase antiguo en build"; exit 1; fi
+          grep -rqF "https://nczavdcqueebhhtkuasv.supabase.co" dist/client || { echo "ERROR: Supabase actual ausente"; exit 1; }
+          if grep -rqF "createMercadoPagoPreference" dist/client; then echo "ERROR: Mercado Pago quedó en el navegador"; exit 1; fi
+          if grep -rqF "Pagar con Mercado Pago" dist/client; then echo "ERROR: UI de Mercado Pago quedó en el build"; exit 1; fi
+          if grep -rqF "$SUPABASE_SERVICE_ROLE_KEY" dist/client; then echo "ERROR CRÍTICO: clave administrativa en navegador"; exit 1; fi
 
       - name: Configurar secreto en Cloudflare
         env:
