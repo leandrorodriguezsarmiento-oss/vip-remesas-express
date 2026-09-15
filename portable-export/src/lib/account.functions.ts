@@ -55,11 +55,38 @@ export const updateMyAliases = createServerFn({ method: "POST" }).middleware([re
   return { ok: true };
 });
 
+/** Solicita la verificación sin depender de la sesión Supabase del cliente para leer el perfil. */
 export const requestAccountVerification = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth]).handler(async ({ context }) => {
-  const { data: profile } = await context.supabase.from("profiles").select("full_name, phone, username").eq("id", context.userId).maybeSingle();
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { data: admins } = await supabaseAdmin.from("user_roles").select("user_id").eq("role", "admin");
-  const rows = (admins ?? []).map((a) => ({ user_id: a.user_id as string, title: "Verificación solicitada", body: `${profile?.full_name || profile?.username || "Un usuario"} (${profile?.phone ?? "s/tel"}) pidió verificar su cuenta.` }));
-  if (rows.length) await supabaseAdmin.from("notifications").insert(rows);
-  return { ok: true };
+
+  const work = (async () => {
+    const [{ data: profile, error: profileError }, { data: admins, error: adminsError }] = await Promise.all([
+      supabaseAdmin.from("profiles").select("full_name, phone, username").eq("id", context.userId).maybeSingle(),
+      supabaseAdmin.from("user_roles").select("user_id").eq("role", "admin"),
+    ]);
+
+    if (profileError) throw new Error(`No se pudo cargar el perfil: ${profileError.message}`);
+    if (adminsError) throw new Error(`No se pudo localizar al administrador: ${adminsError.message}`);
+
+    const rows = (admins ?? []).map((a) => ({
+      user_id: a.user_id as string,
+      title: "Verificación solicitada",
+      body: `${profile?.full_name || profile?.username || "Un usuario"} (${profile?.phone ?? "s/tel"}) pidió verificar su cuenta.`,
+    }));
+
+    if (rows.length === 0) {
+      throw new Error("No hay un administrador disponible para recibir la solicitud.");
+    }
+
+    const { error: notificationError } = await supabaseAdmin.from("notifications").insert(rows);
+    if (notificationError) throw new Error(`No se pudo enviar la solicitud al administrador: ${notificationError.message}`);
+
+    return { ok: true };
+  })();
+
+  const timeout = new Promise<never>((_, reject) => {
+    setTimeout(() => reject(new Error("La verificación está tardando demasiado. Inténtalo de nuevo en unos segundos.")), 8000);
+  });
+
+  return Promise.race([work, timeout]);
 });
