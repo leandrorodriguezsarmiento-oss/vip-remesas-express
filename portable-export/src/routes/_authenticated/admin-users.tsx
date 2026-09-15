@@ -15,21 +15,31 @@ function AdminUsersInfo() {
   const q = useQuery({
     queryKey: ["admin-users-info"],
     queryFn: async () => {
-      const [{ data: profiles, error: profileError }, { data: roles, error: roleError }] = await Promise.all([
+      const [{ data: profiles, error: profileError }, { data: roles, error: roleError }, { data: aliases, error: aliasError }] = await Promise.all([
         supabase.from("profiles").select("id, username, full_name, email, phone, province, created_at").order("created_at", { ascending: false }),
         supabase.from("user_roles").select("user_id, role"),
+        supabase.from("login_aliases").select("user_id, alias, kind"),
       ]);
       if (profileError) throw profileError;
       if (roleError) throw roleError;
+      if (aliasError) throw aliasError;
       const roleByUser = new Map<string, string[]>();
       for (const r of roles ?? []) roleByUser.set(r.user_id, [...(roleByUser.get(r.user_id) ?? []), r.role]);
-      return (profiles ?? []).map((p) => ({ ...p, roles: roleByUser.get(p.id) ?? [] }));
+      const emailByUser = new Map<string, string>();
+      const phoneByUser = new Map<string, string>();
+      for (const a of aliases ?? []) {
+        const value = String(a.alias ?? "").trim();
+        if (!value) continue;
+        if (a.kind === "email" && !emailByUser.has(a.user_id)) emailByUser.set(a.user_id, value);
+        if (a.kind === "phone" && !phoneByUser.has(a.user_id)) phoneByUser.set(a.user_id, value);
+      }
+      return (profiles ?? []).map((p) => ({ ...p, roles: roleByUser.get(p.id) ?? [], loginEmail: p.email || emailByUser.get(p.id) || "", loginPhone: p.phone || phoneByUser.get(p.id) || "" }));
     },
   });
 
   return (
     <div className="mx-auto w-full max-w-2xl space-y-4 p-4">
-      <div className="flex items-center gap-3 rounded-2xl border border-gold/40 bg-card p-4 shadow-card">
+      <div className="flex items-center gap-3 rounded-2xl border border-gold/40 bg-card p-4">
         <div className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-gold"><Shield className="h-5 w-5 text-primary-foreground" /></div>
         <div><h1 className="font-display text-xl font-extrabold">Información de usuarios</h1><p className="text-xs text-muted-foreground">Nombre de usuario, datos y rol de cada cuenta.</p></div>
       </div>
@@ -43,7 +53,7 @@ function AdminUsersInfo() {
               <div className="min-w-0 flex-1 space-y-1">
                 <div className="flex flex-wrap items-center gap-2"><span className="font-extrabold">{u.full_name || "(sin nombre)"}</span>{u.roles.map((role) => <span key={role} className="rounded-full bg-secondary px-2 py-0.5 text-[9px] font-extrabold uppercase text-gold">{role}</span>)}</div>
                 <div className="rounded-lg border border-gold/30 bg-background/60 px-2 py-1.5 text-xs font-extrabold text-gold">Usuario: @{u.username || "sin usuario"}</div>
-                <div className="grid grid-cols-1 gap-0.5 text-[11px] text-muted-foreground sm:grid-cols-2"><span>Correo: {u.email || "sin correo"}</span><span>Teléfono: {u.phone || "sin teléfono"}</span><span>Provincia: {u.province || "Sin provincia"}</span><span>Alta: {new Date(u.created_at).toLocaleString("es")}</span></div>
+                <div className="grid grid-cols-1 gap-0.5 text-[11px] text-muted-foreground sm:grid-cols-2"><span>Correo: {u.loginEmail || "sin correo"}</span><span>Teléfono: {u.loginPhone || "sin teléfono"}</span><span>Provincia: {u.province || "Sin provincia"}</span><span>Alta: {new Date(u.created_at).toLocaleString("es")}</span></div>
               </div>
             </div>
           </div>
