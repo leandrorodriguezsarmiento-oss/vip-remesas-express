@@ -1,0 +1,72 @@
+name: Ensure manual PIX in Recargas and VipShop
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: manual-pix-products
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar código
+        uses: actions/checkout@v4
+      - name: Aplicar método PIX manual
+        shell: bash
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+          files = [Path("src/routes/_authenticated/recargas.tsx"), Path("portable-export/src/routes/_authenticated/recargas.tsx"), Path("src/components/StoreCatalog.tsx"), Path("portable-export/src/components/StoreCatalog.tsx")]
+          for path in files:
+              if not path.exists(): continue
+              text = path.read_text()
+              if path.name == "recargas.tsx":
+                  text = text.replace('import { generatePixCode } from "@/lib/remittance";', 'import { generatePixCode, PIX_KEY } from "@/lib/remittance";')
+                  marker = '<p className="text-xs font-extrabold uppercase text-gold">Paso 1 · Paga con PIX</p>'
+                  if marker in text and 'Llave PIX' not in text:
+                      card = marker + '''
+                  <div className="mt-3 rounded-xl border border-border bg-background p-3 text-left">
+                    <p className="text-[11px] font-extrabold uppercase text-muted-foreground">Llave PIX</p>
+                    <p className="mt-1 break-all font-mono text-xs font-bold text-foreground">{PIX_KEY}</p>
+                    <button onClick={() => { void navigator.clipboard.writeText(PIX_KEY); toast.success("Llave PIX copiada"); }} className="mt-2 w-full rounded-lg border border-border px-3 py-2 text-xs font-bold hover:border-gold">Copiar llave PIX</button>
+                  </div>'''
+                      text = text.replace(marker, card, 1)
+                  anchor = '              <p className="text-center text-[11px] font-semibold text-muted-foreground">\n                Verificamos tu pago, pasamos la recarga a proceso y te avisamos al completarla.\n              </p>'
+                  if anchor in text and 'confirma tu pago por WhatsApp' not in text:
+                      note = '              <p className="text-center text-[11px] font-semibold text-muted-foreground">\n                Después de pulsar “Ya pagué”, confirma tu pago por WhatsApp al +55 95984405698.\n              </p>\n'
+                      text = text.replace(anchor, note + anchor, 1)
+              else:
+                  text = text.replace('import { formatMoney, generatePixCode } from "@/lib/remittance";', 'import { formatMoney, generatePixCode, PIX_KEY } from "@/lib/remittance";')
+                  marker = '<div className="rounded-xl bg-gradient-vip p-3">'
+                  if marker in text and 'Llave PIX' not in text:
+                      card = '''<div className="rounded-xl border border-border bg-background p-3">
+                  <p className="text-[11px] font-extrabold uppercase text-muted-foreground">Llave PIX</p>
+                  <p className="mt-1 break-all font-mono text-xs font-bold text-foreground">{PIX_KEY}</p>
+                  <button onClick={() => { navigator.clipboard.writeText(PIX_KEY); toast.success("Llave PIX copiada"); }} className="mt-2 w-full rounded-lg border border-border px-3 py-2 text-xs font-bold hover:border-gold">Copiar llave PIX</button>
+                </div>
+                ''' + marker
+                      text = text.replace(marker, card, 1)
+                  anchor = '                <PixQrCode value={pixCode} />'
+                  if anchor in text and 'confirma tu pago por WhatsApp' not in text:
+                      note = '                <p className="text-center text-[11px] font-semibold text-muted-foreground">\n                  Después de pulsar “Confirmar pago y pedido”, confirma tu pago por WhatsApp al +55 95984405698. El pedido queda pendiente de verificación manual.\n                </p>'
+                      text = text.replace(anchor, anchor + '\n' + note, 1)
+              path.write_text(text)
+          for path in files:
+              if not path.exists(): continue
+              text = path.read_text()
+              for required in ("generatePixCode", "PIX_KEY", "Llave PIX", "PixQrCode"):
+                  if required not in text: raise SystemExit(f"ERROR: {required} falta en {path}")
+          PY
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/routes/_authenticated/recargas.tsx portable-export/src/routes/_authenticated/recargas.tsx src/components/StoreCatalog.tsx portable-export/src/components/StoreCatalog.tsx
+          if ! git diff --cached --quiet; then
+            git commit -m "Apply manual PIX payment to Recargas and VipShop"
+            git push
+          fi
