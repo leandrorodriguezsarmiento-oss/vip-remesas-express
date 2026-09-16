@@ -110,7 +110,7 @@ function Recargas() {
         `💰 Monto pagado: ${formatMoney(Number(selected.price_brl), "BRL")}`,
         "Por favor, verifiquen mi pago y procesen la recarga.",
       ].join("\n");
-      window.open(`https://wa.me/5595984405698?text=${encodeURIComponent(message)}`, "_blank", "noopener,noreferrer");
+      window.open(`https://wa.me/5595981006775?text=${encodeURIComponent(message)}`, "_blank", "noopener,noreferrer");
       toast.success("Solicitud enviada. WhatsApp se abrió para confirmar el pago.");
       setDigits("");
       setStep("form");
