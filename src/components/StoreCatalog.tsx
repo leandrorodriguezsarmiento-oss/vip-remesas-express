@@ -203,6 +203,18 @@ export function StoreCatalog() {
   const count = cart.reduce((s, l) => s + l.qty, 0);
   const total = useMemo(() => cart.reduce((s, l) => s + l.qty * l.price_brl, 0), [cart]);
 
+  function contactDigitalProduct(p: StoreProduct) {
+    const message = [
+      "Hola VIP Remesas 👋",
+      "Estoy interesado en este servicio digital:",
+      `💻 ${p.title}`,
+      p.description ? `📝 ${p.description}` : "",
+      p.price_brl > 0 ? `💰 Precio publicado: ${formatMoney(p.price_brl, "BRL")}` : "",
+    ].filter(Boolean).join("\n");
+    const url = `https://wa.me/5595984405698?text=${encodeURIComponent(message)}`;
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
+
   function addToCart(p: StoreProduct) {
     setCart((prev) => {
       const found = prev.find((l) => l.id === p.id);
@@ -363,14 +375,22 @@ export function StoreCatalog() {
             }`}
           >
             <span className={`relative block aspect-square w-full ${grad}`}>
-              <img
-                src={photo}
-                alt={label}
-                loading="lazy"
-                width={512}
-                height={512}
-                className="h-full w-full object-cover"
-              />
+              {photo ? (
+                <img
+                  src={photo}
+                  alt={label}
+                  loading="lazy"
+                  width={512}
+                  height={512}
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <span className="grid h-full w-full place-items-center text-white">
+                  <span className="rounded-2xl border border-white/20 bg-white/10 p-4 shadow-lg backdrop-blur-sm">
+                    <Code2 className="h-12 w-12" />
+                  </span>
+                </span>
+              )}
               {cat === id && (
                 <span className="animate-pop absolute right-1 top-1 grid h-5 w-5 place-items-center rounded-full bg-gold text-white">
                   <Check className="h-3 w-3" />
@@ -417,7 +437,7 @@ export function StoreCatalog() {
                   {formatMoney(p.price_brl, "BRL")}
                 </p>
                 <span className="mt-1 inline-flex items-center gap-1 rounded-md bg-secondary px-1.5 py-0.5 text-[10px] font-extrabold text-foreground/80">
-                  {p.category === "digitales" ? <><Code2 className="h-3 w-3 text-gold" /> Entrega digital</> : <><MapPin className="h-3 w-3 text-gold" /> {p.province ?? "Toda Cuba"}</>}
+                  {p.category === "digitales" ? <><Code2 className="h-3 w-3 text-gold" /> Servicio digital</> : <><MapPin className="h-3 w-3 text-gold" /> {p.province ?? "Toda Cuba"}</>}
                 </span>
               </div>
             </button>
@@ -463,20 +483,29 @@ export function StoreCatalog() {
             <p className="mt-1 inline-flex items-center gap-1 rounded-md bg-secondary px-2 py-0.5 text-[11px] font-extrabold">
               <MapPin className="h-3 w-3 text-gold" /> {open.province ?? "Toda Cuba"}
             </p>
-            <div className="mt-4 grid grid-cols-2 gap-2">
+            {open.category === "digitales" ? (
               <button
-                onClick={() => { addToCart(open); setOpen(null); }}
-                className="flex items-center justify-center gap-2 rounded-xl bg-gradient-amber px-3 py-3 text-sm font-extrabold text-white shadow-glow transition-transform active:scale-95"
+                onClick={() => { contactDigitalProduct(open); setOpen(null); }}
+                className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-emerald px-3 py-3 text-sm font-extrabold text-white shadow-glow transition-transform active:scale-95"
               >
-                <ShoppingCart className="h-4 w-4" /> Carrito
+                <MessageCircle className="h-4 w-4" /> Consultar por WhatsApp
               </button>
-              <button
-                onClick={() => buyNow(open)}
-                className="flex items-center justify-center gap-2 rounded-xl bg-gradient-emerald px-3 py-3 text-sm font-extrabold text-white shadow-glow transition-transform active:scale-95"
-              >
-                <Copy className="h-4 w-4" /> Pagar
-              </button>
-            </div>
+            ) : (
+              <div className="mt-4 grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => { addToCart(open); setOpen(null); }}
+                  className="flex items-center justify-center gap-2 rounded-xl bg-gradient-amber px-3 py-3 text-sm font-extrabold text-white shadow-glow transition-transform active:scale-95"
+                >
+                  <ShoppingCart className="h-4 w-4" /> Carrito
+                </button>
+                <button
+                  onClick={() => buyNow(open)}
+                  className="flex items-center justify-center gap-2 rounded-xl bg-gradient-emerald px-3 py-3 text-sm font-extrabold text-white shadow-glow transition-transform active:scale-95"
+                >
+                  <Copy className="h-4 w-4" /> Pagar
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
