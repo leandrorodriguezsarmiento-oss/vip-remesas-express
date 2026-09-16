@@ -6,7 +6,7 @@ import { PixQrCode } from "@/components/PixQrCode";
 import { toast } from "sonner";
 import {
   ShoppingBag, Store, ShoppingCart, X, Plus, Minus, Trash2, Loader2, Check,
-  User, Phone, IdCard, MapPin, Plane, Copy, Code2,
+  User, Phone, IdCard, MapPin, Plane, Copy, Code2, MessageCircle,
 } from "lucide-react";
 import catCelulares from "@/assets/cat-celulares.jpg";
 import catElectro from "@/assets/cat-electrodomesticos.jpg";
