@@ -1,50 +1,67 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { Sparkles, Shield, Zap, Globe2, TrendingUp, Smartphone, Banknote } from "lucide-react";
+import { BrandMark } from "@/components/BrandMark";
+import { FlagIcon } from "@/components/FlagIcon";
+import { BannerCarousel } from "@/components/BannerCarousel";
+import { ORIGINS, findRate, formatMoney, type OriginCode, type DestCurrency, type RateRow } from "@/lib/remittance";
+import featMinutos from "@/assets/feat-minutos.jpg";
+import featSeguro from "@/assets/feat-seguro.jpg";
+import featOrigenes from "@/assets/feat-origenes.jpg";
+import featTasa from "@/assets/feat-tasa.jpg";
 
 export const Route = createFileRoute("/")({
   ssr: false,
+  beforeLoad: async () => {
+    const { data } = await supabase.auth.getSession();
+    if (data.session) throw redirect({ to: "/dashboard" });
+  },
   component: Landing,
+  head: () => ({
+    meta: [
+      { title: "Tasas de cambio y recargas a Cuba | VIP Remesas" },
+      { name: "description", content: "Consulta gratis las tasas de hoy para enviar dinero a Cuba desde Brasil, México, EE.UU. y Europa, y las promociones de recarga Cubacel." },
+      { property: "og:title", content: "Tasas de cambio y recargas a Cuba | VIP Remesas" },
+      { property: "og:description", content: "Tasas de hoy y promos de recarga Cubacel, sin necesidad de crear cuenta." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
 });
 
-type RateRow = {
-  origin_country: string;
-  origin_currency: string;
-  method_category: string;
-  dest_currency: string;
-  rate: number;
-  active: boolean;
-};
+type Promo = { id: string; title: string; price_brl: number; bonus_label: string | null };
 
 const QUICK_AMOUNTS = [100, 250, 500];
 const WHATSAPP_NUMBER = "5595981006775";
 
 function Landing() {
   const rates = useQuery<RateRow[]>({
-    queryKey: ["public-quick-remittance-rate"],
+    queryKey: ["public-rates"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("rates")
-        .select("origin_country, origin_currency, method_category, dest_currency, rate, active")
-        .eq("origin_country", "BR")
-        .eq("origin_currency", "BRL")
-        .eq("method_category", "transferencia")
-        .eq("dest_currency", "CUP")
-        .eq("active", true)
-        .limit(1);
+      const { data, error } = await supabase.from("rates").select("*").eq("active", true);
       if (error) throw error;
-      return (data ?? []) as RateRow[];
+      return data as unknown as RateRow[];
     },
-    staleTime: 30_000,
   });
 
-  const currentRate = Number(rates.data?.[0]?.rate ?? 0);
-  const formatCUP = (value: number) =>
-    new Intl.NumberFormat("es-ES", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(value);
+  const promos = useQuery<Promo[]>({
+    queryKey: ["public-promos"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("promos")
+        .select("id, title, price_brl, bonus_label")
+        .eq("active", true)
+        .order("price_brl")
+        .limit(6);
+      if (error) throw error;
+      return data as unknown as Promo[];
+    },
+  });
 
+  const brlCupRate = findRate(rates.data, "BR" as OriginCode, "transferencia", "CUP" as DestCurrency);
+  const currentRate = Number(brlCupRate?.rate ?? 0);
+  const formatCUP = (value: number) => new Intl.NumberFormat("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
   const quickOfferLink = (amount: number) => {
     const cup = amount * currentRate;
     const message = [
@@ -59,70 +76,119 @@ function Landing() {
   };
 
   return (
-    <main className="min-h-screen bg-[#0B1B3A] px-5 py-10 text-white">
-      <div className="mx-auto max-w-md">
-        <div className="flex items-center gap-3">
-          <img src="/icon-192-v8.png" alt="VIP Remesas" width={56} height={56} className="h-14 w-14 rounded-2xl" />
-          <div>
-            <div className="text-xl font-bold">VIP Remesas</div>
-            <div className="text-xs font-semibold tracking-[0.25em] text-[#E7C766]">ENVÍA COMO VIP</div>
-          </div>
+    <div className="min-h-screen bg-gradient-vip text-foreground">
+      <header className="mx-auto flex max-w-md items-center justify-between px-5 pt-6">
+        <div className="flex items-center gap-2">
+          <BrandMark />
+          <span className="font-display text-lg font-bold tracking-wide">VIP Remesas</span>
         </div>
+        <Link to="/auth" search={{ next: undefined }} className="text-sm font-bold text-gold hover:opacity-80">Entrar</Link>
+      </header>
 
-        <section className="mt-12">
-          <p className="text-sm font-bold uppercase tracking-wider text-[#E7C766]">VIP Remesas</p>
-          <h1 className="mt-3 text-4xl font-bold leading-tight">Envía dinero como VIP a Cuba.</h1>
-          <p className="mt-4 text-base text-white/70">Remesas, recargas y servicios para Cuba desde Brasil.</p>
-        </section>
+      <main className="mx-auto max-w-md px-5 pt-10 pb-16">
+        <p className="mb-3 inline-flex items-center gap-2 rounded-full border border-gold/40 bg-card/60 px-3 py-1 text-xs font-bold text-gold">
+          <span className="h-1.5 w-1.5 rounded-full bg-gold" /> Tasas visibles sin cuenta
+        </p>
+        <h1 className="font-display text-4xl font-bold leading-tight sm:text-5xl">Envía dinero <span className="text-gradient-gold">como VIP</span> a Cuba.</h1>
+        <p className="mt-4 text-base font-medium text-muted-foreground">Mira las tasas de hoy y las promos de recarga. Crea tu cuenta solo cuando quieras enviar.</p>
 
-        <section className="mt-8 rounded-2xl border border-[#E7C766]/40 bg-white/5 p-4 shadow-lg">
+        <div className="mt-6"><BannerCarousel /></div>
+
+        <section className="mt-8 rounded-2xl border border-gold/40 bg-card/70 p-4 shadow-card">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <p className="text-xs font-extrabold uppercase tracking-wider text-[#E7C766]">⚡ Remesa rápida</p>
-              <h2 className="mt-1 text-lg font-bold">Elige un monto y mira cuánto recibe Cuba</h2>
+              <p className="text-xs font-extrabold uppercase tracking-wider text-gold">⚡ Remesas rápidas</p>
+              <h2 className="mt-1 text-lg font-bold">Elige cuánto quieres enviar</h2>
             </div>
-            <span className="rounded-full bg-[#E7C766]/15 px-2.5 py-1 text-[10px] font-bold text-[#E7C766]">Tasa vigente</span>
+            <span className="rounded-full bg-gold/15 px-2.5 py-1 text-[10px] font-bold text-gold">Tasa vigente</span>
           </div>
-
-          {rates.isLoading ? (
-            <p className="mt-4 text-sm font-semibold text-white/60">Actualizando tasa…</p>
-          ) : currentRate > 0 ? (
+          {currentRate > 0 ? (
             <>
-              <p className="mt-3 text-xs font-semibold text-white/55">Hoy: 1 BRL = {currentRate.toFixed(2)} CUP</p>
+              <p className="mt-3 text-xs font-semibold text-muted-foreground">1 BRL = {currentRate.toFixed(2)} CUP</p>
               <div className="mt-3 grid grid-cols-3 gap-2">
                 {QUICK_AMOUNTS.map((amount) => (
-                  <a
-                    key={amount}
-                    href={quickOfferLink(amount)}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="rounded-xl border border-[#E7C766]/50 bg-[#E7C766]/10 p-3 text-center transition hover:bg-[#E7C766]/20 active:scale-95"
-                  >
-                    <div className="text-lg font-extrabold text-[#E7C766]">R${amount}</div>
-                    <div className="mt-1 text-[10px] font-semibold text-white/60">≈ {formatCUP(amount * currentRate)} CUP</div>
-                    <div className="mt-2 text-[10px] font-bold text-white">Pedir ahora →</div>
+                  <a key={amount} href={quickOfferLink(amount)} target="_blank" rel="noreferrer" className="rounded-xl border border-gold/50 bg-gold/10 p-3 text-center transition hover:bg-gold/20 active:scale-95">
+                    <div className="text-lg font-extrabold text-gold">R${amount}</div>
+                    <div className="mt-1 text-[10px] font-semibold text-muted-foreground">≈ {formatCUP(amount * currentRate)} CUP</div>
+                    <div className="mt-2 text-[10px] font-bold">Pedir ahora →</div>
                   </a>
                 ))}
               </div>
-              <p className="mt-3 text-center text-[10px] font-medium text-white/45">La oferta se calcula con la tasa vigente. Al pedirla, WhatsApp abrirá un mensaje listo para continuar.</p>
+              <a href={`https://wa.me/${WHATSAPP_NUMBER}`} target="_blank" rel="noreferrer" className="mt-3 block w-full rounded-xl bg-gradient-gold px-4 py-3 text-center text-sm font-extrabold text-primary-foreground shadow-gold">Hablar por WhatsApp</a>
+              <p className="mt-2 text-center text-[10px] font-medium text-muted-foreground">El monto en CUP se calcula con la tasa vigente. WhatsApp abre el pedido listo para continuar.</p>
             </>
           ) : (
-            <p className="mt-4 text-sm font-semibold text-white/60">Tasa temporalmente no disponible.</p>
+            <p className="mt-4 text-sm font-semibold text-muted-foreground">Tasa temporalmente no disponible.</p>
           )}
         </section>
 
-        <div className="mt-6 space-y-3">
-          <a href={`https://wa.me/${WHATSAPP_NUMBER}`} target="_blank" rel="noreferrer" className="block w-full rounded-xl bg-[#E7C766] px-6 py-4 text-center font-bold text-[#0B1B3A]">Hablar por WhatsApp</a>
-          <a href="/auth" className="block w-full rounded-xl border border-[#E7C766]/50 px-6 py-4 text-center font-semibold">Acceder a mi cuenta</a>
+        <section className="mt-8">
+          <div className="mb-2 flex items-center justify-between"><h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Tasas de hoy</h2><TrendingUp className="h-4 w-4 text-gold" /></div>
+          {rates.isLoading && <p className="text-sm font-semibold text-muted-foreground">Cargando tasas…</p>}
+          <div className="space-y-2">
+            {ORIGINS.map((o) => {
+              const rCup = findRate(rates.data, o.code as OriginCode, "transferencia", "CUP" as DestCurrency);
+              const rMlc = findRate(rates.data, o.code as OriginCode, "transferencia", "MLC" as DestCurrency);
+              const eCup = findRate(rates.data, o.code as OriginCode, "efectivo", "CUP" as DestCurrency);
+              const eUsd = findRate(rates.data, o.code as OriginCode, "efectivo", "USD" as DestCurrency);
+              return (
+                <div key={o.code} className="rounded-xl border border-border bg-card p-3 shadow-card">
+                  <div className="flex items-center gap-2 text-sm font-bold"><FlagIcon code={o.code} className="h-5 w-7" /> {o.name} → <FlagIcon code="CU" className="h-5 w-7" /> Cuba</div>
+                  <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
+                    <div><div className="font-semibold text-muted-foreground">1 {o.currency} · CUP</div><div className="font-display text-lg font-bold text-gold">{rCup ? rCup.rate.toFixed(2) : "—"}</div></div>
+                    <div><div className="font-semibold text-muted-foreground">1 {o.currency} · MLC</div><div className="font-display text-lg font-bold text-gold">{rMlc ? rMlc.rate.toFixed(2) : "—"}</div></div>
+                  </div>
+                  <div className="mt-2 rounded-lg border border-gold/30 bg-secondary/60 p-2">
+                    <p className="mb-1 flex items-center gap-1 text-[10px] font-extrabold uppercase text-gold"><Banknote className="h-3.5 w-3.5" /> Efectivo (entrega en mano)</p>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div><div className="font-semibold text-muted-foreground">1 {o.currency} · CUP</div><div className="font-display text-base font-bold text-foreground">{eCup ? eCup.rate.toFixed(2) : "No disponible"}</div></div>
+                      <div><div className="font-semibold text-muted-foreground">1 {o.currency} · USD</div><div className="font-display text-base font-bold text-foreground">{eUsd ? eUsd.rate.toFixed(2) : "No disponible"}</div></div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+
+        {promos.data && promos.data.length > 0 && (
+          <section className="mt-8">
+            <div className="mb-2 flex items-center justify-between"><h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Recargas Cubacel</h2><Smartphone className="h-4 w-4 text-gold" /></div>
+            <div className="grid grid-cols-2 gap-2">
+              {promos.data.map((p) => (
+                <div key={p.id} className="rounded-xl border border-border bg-card p-3 shadow-card">
+                  <div className="text-sm font-bold">{p.title}</div>
+                  {p.bonus_label && <div className="text-[11px] font-semibold text-gold">{p.bonus_label}</div>}
+                  <div className="mt-1 font-display text-base font-bold text-gold">{formatMoney(Number(p.price_brl), "BRL")}</div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        <div className="mt-10 space-y-3">
+          <Link to="/auth" search={{ next: undefined }} className="block w-full rounded-xl bg-gradient-gold px-6 py-4 text-center text-base font-bold text-primary-foreground shadow-gold">Crear cuenta gratis</Link>
+          <Link to="/auth" search={{ next: undefined }} className="block w-full rounded-xl border border-gold/50 bg-card/50 px-6 py-4 text-center text-base font-semibold text-foreground">Ya tengo cuenta</Link>
         </div>
 
         <div className="mt-12 grid grid-cols-2 gap-3">
-          <div className="rounded-xl border border-white/10 bg-white/5 p-4"><div className="font-bold">Remesas</div><div className="mt-1 text-xs text-white/60">Brasil → Cuba</div></div>
-          <div className="rounded-xl border border-white/10 bg-white/5 p-4"><div className="font-bold">Recargas</div><div className="mt-1 text-xs text-white/60">Cubacel</div></div>
-          <div className="rounded-xl border border-white/10 bg-white/5 p-4"><div className="font-bold">Tasas</div><div className="mt-1 text-xs text-white/60">Actualizadas</div></div>
-          <div className="rounded-xl border border-white/10 bg-white/5 p-4"><div className="font-bold">Seguro</div><div className="mt-1 text-xs text-white/60">Cuenta protegida</div></div>
+          {[
+            { icon: Zap, title: "En minutos", desc: "Acredita rápido", img: featMinutos, grad: "bg-gradient-sky" },
+            { icon: Shield, title: "100% seguro", desc: "Cifrado y auth", img: featSeguro, grad: "bg-gradient-emerald" },
+            { icon: Globe2, title: "4 orígenes", desc: "BR · MX · EU · US", img: featOrigenes, grad: "bg-gradient-violet" },
+            { icon: Sparkles, title: "Tasa VIP", desc: "Mejor cambio", img: featTasa, grad: "bg-gradient-gold" },
+          ].map(({ icon: Icon, title, desc, img, grad }, i) => (
+            <div key={title} style={{ animationDelay: `${i * 90}ms` }} className="animate-rise group relative overflow-hidden rounded-2xl border border-gold/30 bg-card p-4 shadow-card transition-transform hover:-translate-y-1 hover:shadow-glow">
+              <img src={img} alt="" aria-hidden loading="lazy" width={512} height={512} className="pointer-events-none absolute -bottom-4 -right-4 h-24 w-24 object-contain opacity-25 transition-transform duration-500 group-hover:scale-110 group-hover:opacity-40 animate-float" />
+              <span className={`mb-2 grid h-9 w-9 place-items-center rounded-xl text-white shadow-glow ${grad}`}><Icon className="h-4.5 w-4.5" /></span>
+              <div className="relative text-sm font-extrabold">{title}</div>
+              <div className="relative text-xs font-semibold text-muted-foreground">{desc}</div>
+            </div>
+          ))}
         </div>
-      </div>
-    </main>
+
+        <p className="mt-10 text-center text-[11px] font-bold text-muted-foreground/60">Hecho por <span className="text-gold">Aranch</span></p>
+      </main>
+    </div>
   );
 }
