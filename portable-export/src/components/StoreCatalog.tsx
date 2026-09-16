@@ -6,7 +6,7 @@ import { PixQrCode } from "@/components/PixQrCode";
 import { toast } from "sonner";
 import {
   ShoppingBag, Store, ShoppingCart, X, Plus, Minus, Trash2, Loader2, Check,
-  User, Phone, IdCard, MapPin, Plane, Copy,
+  User, Phone, IdCard, MapPin, Plane, Copy, Code2,
 } from "lucide-react";
 import catCelulares from "@/assets/cat-celulares.jpg";
 import catElectro from "@/assets/cat-electrodomesticos.jpg";
@@ -31,6 +31,7 @@ export const STORE_CATEGORIES = [
   { id: "celulares", label: "Celulares, tablets y accesorios", photo: catCelulares, grad: "bg-gradient-sky" },
   { id: "electrodomesticos", label: "Electrodomésticos", photo: catElectro, grad: "bg-gradient-violet" },
   { id: "alimentos", label: "Alimentos y combos", photo: catAlimentos, grad: "bg-gradient-emerald" },
+  { id: "digitales", label: "Productos digitales", photo: null, grad: "bg-gradient-to-br from-slate-950 via-blue-950 to-cyan-700" },
 ] as const;
 
 const CART_KEY = "vipshop-cart-v1";
@@ -191,7 +192,12 @@ export function StoreCatalog() {
   const items = (q.data ?? []).filter(
     (p) =>
       p.category === cat &&
-      (!province || !p.province || p.province === province || p.province === "Todas" || p.province === "Toda Cuba"),
+      (cat === "digitales" ||
+        !province ||
+        !p.province ||
+        p.province === province ||
+        p.province === "Todas" ||
+        p.province === "Toda Cuba"),
   );
 
   const count = cart.reduce((s, l) => s + l.qty, 0);
@@ -346,7 +352,7 @@ export function StoreCatalog() {
         </span>
       </label>
 
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         {STORE_CATEGORIES.map(({ id, label, photo, grad }, i) => (
           <button
             key={id}
@@ -411,7 +417,7 @@ export function StoreCatalog() {
                   {formatMoney(p.price_brl, "BRL")}
                 </p>
                 <span className="mt-1 inline-flex items-center gap-1 rounded-md bg-secondary px-1.5 py-0.5 text-[10px] font-extrabold text-foreground/80">
-                  <MapPin className="h-3 w-3 text-gold" /> {p.province ?? "Toda Cuba"}
+                  {p.category === "digitales" ? <><Code2 className="h-3 w-3 text-gold" /> Entrega digital</> : <><MapPin className="h-3 w-3 text-gold" /> {p.province ?? "Toda Cuba"}</>}
                 </span>
               </div>
             </button>
