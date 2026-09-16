@@ -8,7 +8,7 @@ import { createRechargeRequest } from "@/lib/orders.functions";
 import { generatePixCode, PIX_KEY } from "@/lib/remittance";
 import { PixQrCode } from "@/components/PixQrCode";
 import { StatusBadge } from "@/components/StatusBadge";
-import { Smartphone, Loader2, Sparkles, Copy } from "lucide-react";
+import { Smartphone, Loader2, Sparkles, Copy, MessageCircle } from "lucide-react";
 import { toast } from "sonner";
 import cubacelLogo from "@/assets/cubacel.png";
 import promoGift from "@/assets/promo-gift.png";
@@ -102,7 +102,16 @@ function Recargas() {
       // Server function looks up the authoritative promo (title/price) so a
       // manipulated client cannot claim a cheaper price than what admin sees.
       await submitRecharge({ data: { promoId: selected.id, phone } });
-      toast.success(`Recarga enviada. Verificamos tu pago y te avisamos (${phone}).`);
+      const message = [
+        "Hola VIP Remesas 👋",
+        "Acabo de realizar el pago de una recarga Cubacel.",
+        `📱 Número: ${phone}`,
+        `🎁 Promoción: ${selected.title}`,
+        `💰 Monto pagado: ${formatMoney(Number(selected.price_brl), "BRL")}`,
+        "Por favor, verifiquen mi pago y procesen la recarga.",
+      ].join("\n");
+      window.open(`https://wa.me/5595984405698?text=${encodeURIComponent(message)}`, "_blank", "noopener,noreferrer");
+      toast.success("Solicitud enviada. WhatsApp se abrió para confirmar el pago.");
       setDigits("");
       setStep("form");
       setPaid(false);
