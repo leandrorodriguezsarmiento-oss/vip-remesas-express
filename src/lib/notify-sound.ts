@@ -19,8 +19,9 @@ function getCtx(): AudioContext | null {
  */
 export function unlockNotificationSound() {
   if (unlocked || typeof window === "undefined") return;
-  unlocked = true;
   const arm = () => {
+    if (unlocked) return;
+    unlocked = true;
     const c = getCtx();
     if (!c) {
       window.removeEventListener("pointerdown", arm);
