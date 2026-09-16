@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { Menu, X, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { formatMoney, generatePixCode, PIX_KEY } from "@/lib/remittance";
@@ -122,6 +122,7 @@ export function StoreCatalog() {
   const [open, setOpen] = useState<StoreProduct | null>(null);
   const [opening, setOpening] = useState(true);
   const [cart, setCart] = useState<CartLine[]>([]);
+  const [sectionsOpen, setSectionsOpen] = useState(false);
 
   const [cartOpen, setCartOpen] = useState(false);
   const [checkout, setCheckout] = useState(false);
@@ -364,44 +365,40 @@ export function StoreCatalog() {
         </span>
       </label>
 
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-        {STORE_CATEGORIES.map(({ id, label, photo, grad }, i) => (
-          <button
-            key={id}
-            onClick={() => setCat(id)}
-            style={{ animationDelay: `${i * 60}ms` }}
-            className={`animate-rise overflow-hidden rounded-2xl border text-center transition active:scale-[0.97] ${
-              cat === id ? "border-gold shadow-glow" : "border-border"
-            }`}
-          >
-            <span className={`relative block aspect-square w-full ${grad}`}>
-              {photo ? (
-                <img
-                  src={photo}
-                  alt={label}
-                  loading="lazy"
-                  width={512}
-                  height={512}
-                  className="h-full w-full object-cover"
-                />
-              ) : (
-                <span className="grid h-full w-full place-items-center text-white">
-                  <span className="rounded-2xl border border-white/20 bg-white/10 p-4 shadow-lg backdrop-blur-sm">
-                    <Code2 className="h-12 w-12" />
+      <div className="relative">
+        <button type="button" onClick={() => setSectionsOpen((v) => !v)} aria-expanded={sectionsOpen}
+          aria-label="Abrir secciones de VipShop"
+          className="flex w-full items-center justify-between rounded-2xl border border-gold/30 bg-card px-4 py-3 shadow-card transition active:scale-[0.99]">
+          <span className="flex items-center gap-2">
+            <span className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-amber text-white shadow-glow">
+              {sectionsOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </span>
+            <span className="text-left">
+              <span className="block text-[10px] font-extrabold uppercase tracking-wide text-muted-foreground">Secciones de la tienda</span>
+              <span className="block text-sm font-extrabold">{STORE_CATEGORIES.find((x) => x.id === cat)?.label}</span>
+            </span>
+          </span>
+          <span className="text-xs font-extrabold text-gold">{sectionsOpen ? "Cerrar" : "Cambiar"}</span>
+        </button>
+        {sectionsOpen && (
+          <div className="animate-rise absolute inset-x-0 top-full z-30 mt-2 overflow-hidden rounded-2xl border border-gold/30 bg-card p-2 shadow-2xl">
+            {STORE_CATEGORIES.map(({ id, label, photo, grad }) => (
+              <button key={id} type="button" onClick={() => { setCat(id); setSectionsOpen(false); }}
+                className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition active:scale-[0.98] ${cat === id ? "bg-secondary border border-gold/40" : "border border-transparent hover:bg-secondary"}`}>
+                <span className={`grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-xl ${grad}`}>
+                  {photo ? <img src={photo} alt="" className="h-full w-full object-cover" /> : <Code2 className="h-6 w-6 text-white" />}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-xs font-extrabold">{label}</span>
+                  <span className="block text-[10px] font-bold text-muted-foreground">
+                    {id === "digitales" ? "Servicios y soluciones digitales" : "Productos disponibles para Cuba"}
                   </span>
                 </span>
-              )}
-              {cat === id && (
-                <span className="animate-pop absolute right-1 top-1 grid h-5 w-5 place-items-center rounded-full bg-gold text-white">
-                  <Check className="h-3 w-3" />
-                </span>
-              )}
-            </span>
-            <span className="block bg-card px-1 py-2 text-[10px] font-extrabold uppercase leading-tight">
-              {label}
-            </span>
-          </button>
-        ))}
+                {cat === id && <Check className="h-4 w-4 shrink-0 text-gold" />}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {q.isLoading && <p className="text-sm font-bold text-muted-foreground">Cargando productos…</p>}
