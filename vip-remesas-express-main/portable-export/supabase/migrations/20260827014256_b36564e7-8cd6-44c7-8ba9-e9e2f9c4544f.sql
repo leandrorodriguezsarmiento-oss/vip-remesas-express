@@ -1,1 +1,0 @@
-REVOKE ALL ON FUNCTION public.notify_admin_tx_paid() FROM PUBLIC, anon, authenticated;
