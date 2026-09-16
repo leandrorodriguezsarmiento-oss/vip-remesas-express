@@ -5,7 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { formatMoney } from "@/lib/remittance";
 import { createRechargeRequest } from "@/lib/orders.functions";
-import { generatePixCode, PIX_KEY } from "@/lib/remittance";
+import { generatePixCode } from "@/lib/remittance";
 import { PixQrCode } from "@/components/PixQrCode";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Smartphone, Loader2, Sparkles, Copy, MessageCircle } from "lucide-react";
@@ -78,17 +78,30 @@ function Recargas() {
   // Paso 1: datos → Paso 2: pagar PIX → Paso 3 (sólo al confirmar el pago): enviar
   const [step, setStep] = useState<"form" | "pay">("form");
   const [paid, setPaid] = useState(false);
+  const [rechargeId, setRechargeId] = useState<string | null>(null);
   const submitRecharge = useServerFn(createRechargeRequest);
   // PIX copia y pega con el monto de la promo ya embebido (llave VIP Remesas).
   const pixCode = selected ? generatePixCode(`recarga-${digits || "0"}`, Number(selected.price_brl)) : null;
 
-  function goToPay() {
-    if (!selected || digits.length !== 8) {
-      toast.error("El teléfono de Cuba debe tener 8 dígitos");
+  async function goToPay() {
+    if (!selected || digits.length !== 8 || loading) {
+      if (digits.length !== 8) toast.error("El teléfono de Cuba debe tener 8 dígitos");
       return;
     }
-    setPaid(false);
-    setStep("pay");
+    setLoading(true);
+    try {
+      // Igual que Remesas: primero se crea la orden pendiente de pago y,
+      // al completarse, se muestra el pago PIX con el monto exacto.
+      const res = await submitRecharge({ data: { promoId: selected.id, phone } });
+      setRechargeId(res.id);
+      setPaid(false);
+      setStep("pay");
+      toast.success("Recarga creada. Ahora genera y paga el PIX.");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "No se pudo crear la recarga");
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function recharge() {
@@ -97,11 +110,12 @@ function Recargas() {
       toast.error("Primero paga con PIX y luego confirma el pago");
       return;
     }
+    if (!rechargeId) {
+      toast.error("No hay una recarga creada. Vuelve a generar el pago.");
+      return;
+    }
     setLoading(true);
     try {
-      // Server function looks up the authoritative promo (title/price) so a
-      // manipulated client cannot claim a cheaper price than what admin sees.
-      await submitRecharge({ data: { promoId: selected.id, phone } });
       const message = [
         "Hola VIP Remesas 👋",
         "Acabo de realizar el pago de una recarga Cubacel.",
@@ -116,6 +130,7 @@ function Recargas() {
       setStep("form");
       setPaid(false);
       setSelected(null);
+      setRechargeId(null);
       await qc.invalidateQueries({ queryKey: ["recargas-mine"] });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Error");
@@ -222,10 +237,10 @@ function Recargas() {
           </label>
           {step === "form" ? (
             <>
-              <button onClick={goToPay} disabled={digits.length !== 8}
+              <button onClick={() => { void goToPay(); }} disabled={digits.length !== 8 || loading}
                 className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-gold px-4 py-3 text-sm font-semibold text-primary-foreground shadow-gold transition-transform active:scale-95 animate-glow-pulse disabled:opacity-60 disabled:animate-none">
-                <Sparkles className="h-4 w-4" />
-                Pagar {formatMoney(Number(selected.price_brl), "BRL")} con PIX
+                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                Crear recarga y generar PIX
               </button>
               <p className="text-center text-[11px] font-semibold text-muted-foreground">
                 Primero se paga: la recarga se envía después de confirmar tu pago.
@@ -261,7 +276,7 @@ function Recargas() {
               </label>
 
               <div className="flex gap-2">
-                <button onClick={() => { setStep("form"); setPaid(false); }}
+                <button onClick={() => { setStep("form"); setPaid(false); setRechargeId(null); }}
                   className="rounded-xl border border-border px-4 py-3 text-sm font-extrabold">
                   Atrás
                 </button>
