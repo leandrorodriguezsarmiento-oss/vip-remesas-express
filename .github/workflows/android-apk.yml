@@ -1,4 +1,4 @@
-name: Build VIP Remesas APK
+name: Build VIP Remesas for Google Play
 
 on:
   workflow_dispatch:
@@ -34,18 +34,77 @@ jobs:
       - name: Create Android project
         run: bunx cap add android
 
+      - name: Configure Google Play Android API 36
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('android/variables.gradle')
+          s = p.read_text()
+          s = s.replace('targetSdkVersion = 35', 'targetSdkVersion = 36')
+          s = s.replace('compileSdkVersion = 35', 'compileSdkVersion = 36')
+          p.write_text(s)
+          PY
+
       - name: Sync Capacitor
         run: bunx cap sync android
 
-      - name: Build debug APK
+      - name: Check production signing secrets
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          test -n "$KEYSTORE_B64" || (echo "Falta ANDROID_KEYSTORE_BASE64" && exit 1)
+          test -n "$KEYSTORE_PASSWORD" || (echo "Falta ANDROID_KEYSTORE_PASSWORD" && exit 1)
+          test -n "$KEY_ALIAS" || (echo "Falta ANDROID_KEY_ALIAS" && exit 1)
+          test -n "$KEY_PASSWORD" || (echo "Falta ANDROID_KEY_PASSWORD" && exit 1)
+
+      - name: Restore production keystore
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: echo "$KEYSTORE_B64" | base64 --decode > android/vip-remesas-release.jks
+
+      - name: Configure release signing
+        env:
+          STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          cat >> android/gradle.properties <<EOF
+          VIP_RELEASE_STORE_FILE=vip-remesas-release.jks
+          VIP_RELEASE_STORE_PASSWORD=$STORE_PASSWORD
+          VIP_RELEASE_KEY_ALIAS=$KEY_ALIAS
+          VIP_RELEASE_KEY_PASSWORD=$KEY_PASSWORD
+          EOF
+
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('android/app/build.gradle')
+          s = p.read_text()
+          marker = 'android {'
+          signing = '''android {\n    signingConfigs {\n        release {\n            storeFile file(project.property("VIP_RELEASE_STORE_FILE"))\n            storePassword project.property("VIP_RELEASE_STORE_PASSWORD")\n            keyAlias project.property("VIP_RELEASE_KEY_ALIAS")\n            keyPassword project.property("VIP_RELEASE_KEY_PASSWORD")\n        }\n    }'''
+          s = s.replace(marker, signing, 1)
+          s = s.replace('buildTypes {', 'buildTypes {\n        release { signingConfig signingConfigs.release }', 1)
+          p.write_text(s)
+          PY
+
+      - name: Build signed Android App Bundle
         run: |
           cd android
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon
+          ./gradlew bundleRelease --no-daemon
 
-      - name: Upload APK
+      - name: Upload Google Play AAB
         uses: actions/upload-artifact@v4
         with:
-          name: vip-remesas-debug-apk
-          path: portable-export/android/app/build/outputs/apk/debug/app-debug.apk
+          name: vip-remesas-google-play-aab
+          path: portable-export/android/app/build/outputs/bundle/release/app-release.aab
+          if-no-files-found: error
+
+      - name: Upload signed APK for direct testing
+        uses: actions/upload-artifact@v4
+        with:
+          name: vip-remesas-release-apk
+          path: portable-export/android/app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
