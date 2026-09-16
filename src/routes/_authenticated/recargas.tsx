@@ -5,7 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { formatMoney } from "@/lib/remittance";
 import { createRechargeRequest } from "@/lib/orders.functions";
-import { generatePixCode, PIX_KEY } from "@/lib/remittance";
+import { generatePixCode } from "@/lib/remittance";
 import { PixQrCode } from "@/components/PixQrCode";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Smartphone, Loader2, Sparkles, Copy, MessageCircle } from "lucide-react";
