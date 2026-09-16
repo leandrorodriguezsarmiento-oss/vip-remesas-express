@@ -448,20 +448,25 @@ export function StoreCatalog() {
                 </span>
               </div>
             </button>
-            <div className="grid grid-cols-2 gap-1.5 p-3 pt-2">
-              <button
-                onClick={() => addToCart(p)}
-                className="flex items-center justify-center gap-1 rounded-xl bg-gradient-amber px-1 py-2 text-[10px] font-extrabold text-white shadow-glow transition-transform active:scale-95"
-              >
-                <ShoppingCart className="h-3.5 w-3.5" /> Carrito
-              </button>
-              <button
-                onClick={() => buyNow(p)}
-                className="flex items-center justify-center gap-1 rounded-xl bg-gradient-emerald px-1 py-2 text-[10px] font-extrabold text-white shadow-glow transition-transform active:scale-95"
-              >
-                <Copy className="h-3.5 w-3.5" /> Pagar
-              </button>
-            </div>
+            {p.category === "digitales" ? (
+              <div className="p-3 pt-2">
+                <button
+                  onClick={() => contactDigitalProduct(p)}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-emerald px-2 py-2.5 text-[10px] font-extrabold text-white shadow-glow transition-transform active:scale-95"
+                >
+                  <MessageCircle className="h-3.5 w-3.5" /> Consultar por WhatsApp
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-1.5 p-3 pt-2">
+                <button onClick={() => addToCart(p)} className="flex items-center justify-center gap-1 rounded-xl bg-gradient-amber px-1 py-2 text-[10px] font-extrabold text-white shadow-glow transition-transform active:scale-95">
+                  <ShoppingCart className="h-3.5 w-3.5" /> Carrito
+                </button>
+                <button onClick={() => buyNow(p)} className="flex items-center justify-center gap-1 rounded-xl bg-gradient-emerald px-1 py-2 text-[10px] font-extrabold text-white shadow-glow transition-transform active:scale-95">
+                  <Copy className="h-3.5 w-3.5" /> Pagar
+                </button>
+              </div>
+            )}
           </div>
         ))}
       </div>
