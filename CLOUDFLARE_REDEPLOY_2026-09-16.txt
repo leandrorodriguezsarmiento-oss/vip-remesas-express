@@ -1,0 +1,2 @@
+Cloudflare redeploy trigger — 2026-09-16.
+Deploy latest VipShop menu, Recargas WhatsApp confirmation, and iPhone notification fixes.
