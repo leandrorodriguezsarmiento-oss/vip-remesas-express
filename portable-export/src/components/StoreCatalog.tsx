@@ -4,8 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatMoney, generatePixCode } from "@/lib/remittance";
 import { PixQrCode } from "@/components/PixQrCode";
 import { toast } from "sonner";
-import {
-  Menu, ShoppingBag, Store, ShoppingCart, X, Plus, Minus, Trash2, Loader2, Check,
+import { ShoppingBag, Store, ShoppingCart, X, Plus, Minus, Trash2, Loader2, Check,
   User, Phone, IdCard, MapPin, Plane, Copy, Code2, MessageCircle,
 } from "lucide-react";
 import catCelulares from "@/assets/cat-celulares.jpg";
@@ -381,7 +380,7 @@ export function StoreCatalog() {
           className="flex w-full items-center justify-between rounded-2xl border border-gold/30 bg-card px-4 py-3 shadow-card transition active:scale-[0.99]">
           <span className="flex items-center gap-2">
             <span className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-amber text-white shadow-glow">
-              {sectionsOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+              {sectionsOpen ? <X className="h-5 w-5" /> : <span className="grid gap-1" aria-hidden="true"><span className="block h-0.5 w-5 rounded bg-current" /><span className="block h-0.5 w-5 rounded bg-current" /><span className="block h-0.5 w-5 rounded bg-current" /></span>}
             </span>
             <span className="text-left">
               <span className="block text-[10px] font-extrabold uppercase tracking-wide text-muted-foreground">Secciones de la tienda</span>
