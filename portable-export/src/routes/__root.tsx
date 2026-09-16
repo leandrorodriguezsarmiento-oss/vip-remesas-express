@@ -13,4 +13,15 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: ReactNode }) { return <html lang="es"><head><HeadContent /></head><body>{children}<Scripts /></body></html>; }
 
-function RootComponent() { const { queryClient } = Route.useRouteContext(); useRouterState({ select: (state) => state.location.pathname }); return <QueryClientProvider client={queryClient}><SplashScreen><Outlet /></SplashScreen><Toaster theme="dark" position="top-center" richColors closeButton duration={5000} offset="calc(env(safe-area-inset-top) + 18px)" toastOptions={{ classNames: { toast: "vip-toast group rounded-2xl border border-gold/40 bg-card/95 backdrop-blur shadow-glow", title: "text-sm font-extrabold text-foreground", description: "text-xs font-bold text-foreground/75", icon: "text-gold", closeButton: "border-gold/40 bg-card text-foreground" } }} /></QueryClientProvider>; }
+function PwaRegistration() {
+  useEffect(() => {
+    if ("serviceWorker" in navigator && window.isSecureContext) {
+      void navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch((error) => {
+        console.warn("PWA service worker registration failed", error);
+      });
+    }
+  }, []);
+  return null;
+}
+
+function RootComponent() { const { queryClient } = Route.useRouteContext(); useRouterState({ select: (state) => state.location.pathname }); return <QueryClientProvider client={queryClient}><PwaRegistration /><SplashScreen><Outlet /></SplashScreen><Toaster theme="dark" position="top-center" richColors closeButton duration={5000} offset="calc(env(safe-area-inset-top) + 18px)" toastOptions={{ classNames: { toast: "vip-toast group rounded-2xl border border-gold/40 bg-card/95 backdrop-blur shadow-glow", title: "text-sm font-extrabold text-foreground", description: "text-xs font-bold text-foreground/75", icon: "text-gold", closeButton: "border-gold/40 bg-card text-foreground" } }} /></QueryClientProvider>; }
