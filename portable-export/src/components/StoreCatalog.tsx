@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { formatMoney, generatePixCode, PIX_KEY } from "@/lib/remittance";
+import { formatMoney, generatePixCode } from "@/lib/remittance";
 import { PixQrCode } from "@/components/PixQrCode";
 import { toast } from "sonner";
 import {
-  ShoppingBag, Store, ShoppingCart, X, Plus, Minus, Trash2, Loader2, Check,
+  Menu, ShoppingBag, Store, ShoppingCart, X, Plus, Minus, Trash2, Loader2, Check,
   User, Phone, IdCard, MapPin, Plane, Copy, Code2, MessageCircle,
 } from "lucide-react";
 import catCelulares from "@/assets/cat-celulares.jpg";
@@ -601,11 +601,6 @@ export function StoreCatalog() {
                 <p className="text-xs font-extrabold uppercase text-muted-foreground">
                   Paga primero por PIX — el pedido se envía al confirmar el pago
                 </p>
-                <div className="rounded-xl border border-border bg-background p-3">
-        <p className="text-[11px] font-extrabold uppercase text-muted-foreground">Llave PIX</p>
-        <p className="mt-1 break-all font-mono text-xs font-bold text-foreground">{PIX_KEY}</p>
-        <button onClick={() => { navigator.clipboard.writeText(PIX_KEY); toast.success("Llave PIX copiada"); }} className="mt-2 w-full rounded-lg border border-border px-3 py-2 text-xs font-bold hover:border-gold">Copiar llave PIX</button>
-      </div>
       <div className="rounded-xl bg-gradient-vip p-3">
                   <p className="text-[11px] font-extrabold uppercase text-muted-foreground">Monto exacto</p>
                   <p className="font-display text-2xl font-extrabold text-gold">{formatMoney(total, "BRL")}</p>
