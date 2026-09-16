@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { formatMoney, generatePixCode } from "@/lib/remittance";
+import { formatMoney, generatePixCode, PIX_KEY } from "@/lib/remittance";
 import { PixQrCode } from "@/components/PixQrCode";
 import { toast } from "sonner";
 import {
