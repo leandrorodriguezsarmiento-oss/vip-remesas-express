@@ -212,7 +212,7 @@ export function StoreCatalog() {
       p.description ? `📝 ${p.description}` : "",
       p.price_brl > 0 ? `💰 Precio publicado: ${formatMoney(p.price_brl, "BRL")}` : "",
     ].filter(Boolean).join("\n");
-    const url = `https://wa.me/5595984405698?text=${encodeURIComponent(message)}`;
+    const url = `https://wa.me/5595981006775?text=${encodeURIComponent(message)}`;
     window.open(url, "_blank", "noopener,noreferrer");
   }
 
@@ -296,6 +296,15 @@ export function StoreCatalog() {
       return data.order_no as number;
     },
     onSuccess: (orderNo) => {
+      const message = [
+        "Hola VIP Remesas 👋",
+        "Acabo de realizar el pago de un pedido de VipShop.",
+        `🛍️ Pedido: #${orderNo}`,
+        `💰 Total pagado: ${formatMoney(total, "BRL")}`,
+        `👤 Destinatario: ${rName.trim()}`,
+        `📱 Teléfono: +53${rPhone.replace(/\D/g, "")}`,
+        "Por favor, verifiquen mi pago y confirmen el pedido.",
+      ].join("\n");
       setCart([]);
       setCheckout(false);
       setPaying(false);
@@ -304,7 +313,8 @@ export function StoreCatalog() {
       setRName(""); setRPhone(""); setRCard(""); setRAddress("");
 
       qc.invalidateQueries({ queryKey: ["store-orders"] });
-      toast.success(`¡Pedido #${orderNo} recibido! Te avisamos cuando esté listo.`);
+      window.open(`https://wa.me/5595981006775?text=${encodeURIComponent(message)}`, "_blank", "noopener,noreferrer");
+      toast.success(`¡Pedido #${orderNo} enviado! WhatsApp se abrió para verificar el pago.`);
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "No se pudo enviar el pedido"),
   });
