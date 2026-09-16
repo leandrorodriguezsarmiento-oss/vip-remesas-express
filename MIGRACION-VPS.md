@@ -37,11 +37,11 @@ bun run build
 ## 5. Blindaje del panel admin
 Ya implementado en el código:
 - Solo tu correo puede tener rol `admin` (trigger `enforce_single_admin` en la base; no se puede escalar desde la app).
-- `MfaGate` pide un segundo factor en **cada apertura** de la app para staff (TOTP si está activo, si no código al correo). La llave vive en `sessionStorage`, así que muere al cerrar la app.
+- `MfaGate` ya no exige un segundo factor (TOTP/OTP) para abrir el panel de staff. El acceso sigue protegido por sesión autenticada, roles, RLS y comprobaciones de servidor.
 - Todas las acciones sensibles pasan por funciones de servidor con verificación de sesión y de rol; RLS activo en todas las tablas.
 
 Recomendado además en el VPS:
-- Activa TOTP en tu cuenta (Ajustes → seguridad) para no depender del correo.
+- Puedes activar TOTP desde Ajustes → seguridad si deseas una capa adicional de protección.
 - SSH solo con llave, `PermitRootLogin no`, fail2ban y firewall (solo 80/443/22).
 - Copias de seguridad diarias de Postgres fuera del VPS.
 - Repositorio privado y protección de rama `main` para que nadie cambie el código.
