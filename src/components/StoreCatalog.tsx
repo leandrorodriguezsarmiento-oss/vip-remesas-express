@@ -1,4 +1,4 @@
-import { Menu, X, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { formatMoney, generatePixCode, PIX_KEY } from "@/lib/remittance";
