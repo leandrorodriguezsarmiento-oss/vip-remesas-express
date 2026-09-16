@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -17,6 +17,7 @@ type RateRow = {
 };
 
 const QUICK_AMOUNTS = [100, 250, 500];
+const WHATSAPP_NUMBER = "5595981006775";
 
 function Landing() {
   const rates = useQuery<RateRow[]>({
@@ -43,6 +44,19 @@ function Landing() {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     }).format(value);
+
+  const quickOfferLink = (amount: number) => {
+    const cup = amount * currentRate;
+    const message = [
+      "Hola VIP Remesas 👋",
+      "Quiero solicitar una REMESA RÁPIDA.",
+      `💰 Envío: R$${amount}`,
+      `🇨🇺 Recibe aproximadamente: ${formatCUP(cup)} CUP`,
+      `💱 Tasa mostrada: 1 BRL = ${currentRate.toFixed(2)} CUP`,
+      "Quiero continuar con esta oferta.",
+    ].join("\n");
+    return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
+  };
 
   return (
     <main className="min-h-screen bg-[#0B1B3A] px-5 py-10 text-white">
@@ -77,19 +91,20 @@ function Landing() {
               <p className="mt-3 text-xs font-semibold text-white/55">Hoy: 1 BRL = {currentRate.toFixed(2)} CUP</p>
               <div className="mt-3 grid grid-cols-3 gap-2">
                 {QUICK_AMOUNTS.map((amount) => (
-                  <Link
+                  <a
                     key={amount}
-                    to="/auth"
-                    search={{ next: undefined }}
+                    href={quickOfferLink(amount)}
+                    target="_blank"
+                    rel="noreferrer"
                     className="rounded-xl border border-[#E7C766]/50 bg-[#E7C766]/10 p-3 text-center transition hover:bg-[#E7C766]/20 active:scale-95"
                   >
                     <div className="text-lg font-extrabold text-[#E7C766]">R${amount}</div>
                     <div className="mt-1 text-[10px] font-semibold text-white/60">≈ {formatCUP(amount * currentRate)} CUP</div>
-                    <div className="mt-2 text-[10px] font-bold text-white">Enviar →</div>
-                  </Link>
+                    <div className="mt-2 text-[10px] font-bold text-white">Pedir ahora →</div>
+                  </a>
                 ))}
               </div>
-              <p className="mt-3 text-center text-[10px] font-medium text-white/45">El valor recibido se recalcula automáticamente con la tasa vigente al cotizar.</p>
+              <p className="mt-3 text-center text-[10px] font-medium text-white/45">La oferta se calcula con la tasa vigente. Al pedirla, WhatsApp abrirá un mensaje listo para continuar.</p>
             </>
           ) : (
             <p className="mt-4 text-sm font-semibold text-white/60">Tasa temporalmente no disponible.</p>
@@ -97,8 +112,8 @@ function Landing() {
         </section>
 
         <div className="mt-6 space-y-3">
-          <Link to="/auth" search={{ next: undefined }} className="block w-full rounded-xl bg-[#E7C766] px-6 py-4 text-center font-bold text-[#0B1B3A]">Crear cuenta / Entrar</Link>
-          <Link to="/auth" search={{ next: undefined }} className="block w-full rounded-xl border border-[#E7C766]/50 px-6 py-4 text-center font-semibold">Acceder a mi cuenta</Link>
+          <a href={`https://wa.me/${WHATSAPP_NUMBER}`} target="_blank" rel="noreferrer" className="block w-full rounded-xl bg-[#E7C766] px-6 py-4 text-center font-bold text-[#0B1B3A]">Hablar por WhatsApp</a>
+          <a href="/auth" className="block w-full rounded-xl border border-[#E7C766]/50 px-6 py-4 text-center font-semibold">Acceder a mi cuenta</a>
         </div>
 
         <div className="mt-12 grid grid-cols-2 gap-3">
