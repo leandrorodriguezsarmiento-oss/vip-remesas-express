@@ -69,6 +69,7 @@ export interface RateRow {
   time_min_minutes: number;
   time_max_minutes: number;
   min_amount: number;
+  max_amount?: number | null;
   active: boolean;
 }
 
@@ -77,14 +78,31 @@ export function findRate(
   origin: OriginCode,
   method: MethodCategory,
   dest: DestCurrency,
+  amount?: number,
 ): RateRow | undefined {
-  return rates?.find(
-    (r) =>
-      r.origin_country === origin &&
-      r.method_category === method &&
-      r.dest_currency === dest &&
-      r.active,
-  );
+  const candidates = (rates ?? [])
+    .filter(
+      (r) =>
+        r.origin_country === origin &&
+        r.method_category === method &&
+        r.dest_currency === dest &&
+        r.active,
+    )
+    .sort((a, b) => Number(a.min_amount ?? 0) - Number(b.min_amount ?? 0));
+
+  if (!candidates.length) return undefined;
+
+  if (amount != null && Number.isFinite(amount) && amount > 0) {
+    return candidates
+      .filter((r) => {
+        const min = Number(r.min_amount ?? 0);
+        const max = r.max_amount == null ? null : Number(r.max_amount);
+        return amount >= min && (max == null || amount <= max);
+      })
+      .sort((a, b) => Number(b.min_amount ?? 0) - Number(a.min_amount ?? 0))[0];
+  }
+
+  return candidates[0];
 }
 
 export interface Quote {
