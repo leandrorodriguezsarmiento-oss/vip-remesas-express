@@ -15,6 +15,7 @@ export const createTransaction = createServerFn({ method: "POST" })
         method: z.enum(["transferencia", "efectivo"]),
         currency: z.enum(["CUP", "MLC", "USD"]),
         amount: z.number().positive().max(1_000_000),
+        deliveryLocation: z.string().trim().max(120).optional().nullable(),
         recipient: z.object({
           name: z.string().trim().min(1).max(120),
           phone: z.string().trim().min(3).max(40),
@@ -28,10 +29,28 @@ export const createTransaction = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    // Cash deliveries require the recipient's street address.
+    // Cash deliveries require an enabled delivery location and the recipient's street address.
     const address = data.recipient.address?.trim() || "";
-    if (data.method === "efectivo" && address.length < 8) {
-      throw new Error("La dirección de entrega es obligatoria para remesas en efectivo");
+    let deliveryLocation: string | null = null;
+    if (data.method === "efectivo") {
+      if (address.length < 8) {
+        throw new Error("La dirección de entrega es obligatoria para remesas en efectivo");
+      }
+      const requestedLocation = data.deliveryLocation?.trim() || "";
+      if (!requestedLocation) {
+        throw new Error("Selecciona el municipio o zona de entrega");
+      }
+      const { data: locationRow, error: locationError } = await supabaseAdmin
+        .from("cash_delivery_locations")
+        .select("municipality")
+        .eq("municipality", requestedLocation)
+        .eq("active", true)
+        .maybeSingle();
+      if (locationError) throw locationError;
+      if (!locationRow) {
+        throw new Error("Ese municipio o zona ya no está disponible para entrega en efectivo");
+      }
+      deliveryLocation = locationRow.municipality;
     }
 
     // 1) Look up the authoritative rate server-side, including amount brackets.
@@ -85,6 +104,7 @@ export const createTransaction = createServerFn({ method: "POST" })
         recipient_name: data.recipient.name,
         recipient_phone: data.recipient.phone,
         recipient_card: data.recipient.card || null,
+        delivery_location: deliveryLocation,
         notes: [address ? `Dirección de entrega: ${address}` : null, data.recipient.notes || null]
           .filter(Boolean)
           .join(" | ") || null,
