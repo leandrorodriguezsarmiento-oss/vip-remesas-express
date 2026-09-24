@@ -102,7 +102,9 @@ export function findRate(
       .sort((a, b) => Number(b.min_amount ?? 0) - Number(a.min_amount ?? 0))[0];
   }
 
-  return candidates[0];
+  // En tarjetas públicas mostramos la tasa más alta disponible.
+  // Cuando el cliente introduce un monto, se aplica el tramo real correspondiente.
+  return [...candidates].sort((a, b) => Number(b.rate) - Number(a.rate))[0];
 }
 
 export interface Quote {
