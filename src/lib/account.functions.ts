@@ -3,7 +3,18 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { normalizeAlias, syntheticEmail, isEmailLike } from "@/lib/alias";
 import { z } from "zod";
 
-const registerSchema = z.object({ fullName: z.string().trim().min(2).max(80), username: z.string().trim().min(3).max(24).regex(/^[a-zA-Z0-9._-]+$/), phone: z.string().trim().max(24).optional(), email: z.string().trim().email().max(255), cpf: z.string().trim().optional(), country: z.string().trim().min(2).max(4).optional(), password: z.string().min(6).max(72) });
+const registerSchema = z.object({
+  fullName: z.string().trim().min(2).max(80),
+  username: z.string().trim().min(3).max(24).regex(/^[a-zA-Z0-9._-]+$/),
+  phone: z.string().trim().max(24).refine((v) => {
+    const digits = v.replace(/\D/g, "");
+    return digits.length >= 8 && digits.length <= 15;
+  }, "Teléfono inválido. Incluye el código de país"),
+  email: z.string().trim().email().max(255),
+  cpf: z.string().trim().optional(),
+  country: z.string().trim().min(2).max(4).optional(),
+  password: z.string().min(6).max(72),
+});
 
 export const resolveLoginIdentifier = createServerFn({ method: "POST" }).inputValidator((input: { identifier: string }) => z.object({ identifier: z.string().trim().min(3).max(255) }).parse(input)).handler(async ({ data }) => {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -22,25 +33,25 @@ export const resolveLoginIdentifier = createServerFn({ method: "POST" }).inputVa
 
 export const registerAccount = createServerFn({ method: "POST" }).inputValidator((input: unknown) => registerSchema.parse(input)).handler(async ({ data }) => {
   const username = normalizeAlias("username", data.username);
-  const phone = data.phone ? normalizeAlias("phone", data.phone) : "";
+  const phone = normalizeAlias("phone", data.phone);
   const cpf = data.cpf ? normalizeAlias("cpf", data.cpf) : "";
   const contactEmail = data.email.trim().toLowerCase();
   if (username.length < 3) throw new Error("Nombre de usuario inválido");
-  if (phone && phone.length < 8) throw new Error("Teléfono inválido");
+  if (phone.length < 8 || phone.length > 15) throw new Error("Teléfono inválido. Incluye el código de país");
   if (cpf && cpf.length !== 11) throw new Error("El CPF debe tener 11 dígitos");
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const aliases = [{ alias: username, kind: "username" as const }, ...(phone ? [{ alias: phone, kind: "phone" as const }] : []), { alias: contactEmail, kind: "email" as const }, ...(cpf ? [{ alias: cpf, kind: "cpf" as const }] : [])];
+  const aliases = [{ alias: username, kind: "username" as const }, { alias: phone, kind: "phone" as const }, { alias: contactEmail, kind: "email" as const }, ...(cpf ? [{ alias: cpf, kind: "cpf" as const }] : [])];
   const takenMessage = (kind: string) => kind === "username" ? "Ese nombre de usuario ya está en uso" : kind === "phone" ? "Ese teléfono ya tiene una cuenta" : kind === "email" ? "Ese correo ya tiene una cuenta" : "Ese CPF ya tiene una cuenta";
   for (const a of aliases) {
     const { data: taken } = await supabaseAdmin.from("login_aliases").select("id").ilike("alias", a.alias).maybeSingle();
     if (taken) throw new Error(takenMessage(a.kind));
   }
   const authEmail = syntheticEmail(username);
-  const { data: created, error } = await supabaseAdmin.auth.admin.createUser({ email: authEmail, password: data.password, email_confirm: true, user_metadata: { full_name: data.fullName.trim(), phone: data.phone?.trim() ?? "", username, cpf, country: data.country ?? "BR", contact_email: contactEmail } });
+  const { data: created, error } = await supabaseAdmin.auth.admin.createUser({ email: authEmail, password: data.password, email_confirm: true, user_metadata: { full_name: data.fullName.trim(), phone: data.phone.trim(), username, cpf, country: data.country ?? "BR", contact_email: contactEmail } });
   if (error || !created.user) throw new Error(error?.message ?? "No se pudo crear la cuenta");
   const { error: aliasErr } = await supabaseAdmin.from("login_aliases").insert(aliases.map((a) => ({ alias: a.alias, kind: a.kind, auth_email: authEmail, user_id: created.user.id })));
   if (aliasErr) { await supabaseAdmin.auth.admin.deleteUser(created.user.id); const dup = aliases.find((a) => aliasErr.message?.includes(a.alias)); throw new Error(dup ? takenMessage(dup.kind) : "Esos datos ya están registrados. Revisa usuario, teléfono, correo o CPF."); }
-  const { error: profileError } = await supabaseAdmin.from("profiles").upsert({ id: created.user.id, full_name: data.fullName.trim(), username, phone: data.phone?.trim() || null, email: contactEmail }, { onConflict: "id" });
+  const { error: profileError } = await supabaseAdmin.from("profiles").upsert({ id: created.user.id, full_name: data.fullName.trim(), username, phone: data.phone.trim(), email: contactEmail }, { onConflict: "id" });
   if (profileError) { await supabaseAdmin.from("login_aliases").delete().eq("user_id", created.user.id); await supabaseAdmin.auth.admin.deleteUser(created.user.id); throw new Error(`No se pudo guardar el perfil: ${profileError.message}`); }
   return { email: authEmail };
 });
