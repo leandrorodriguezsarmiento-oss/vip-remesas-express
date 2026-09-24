@@ -93,12 +93,14 @@ function SendFlow() {
   });
   const myUsername = myProfile.data?.username ?? myProfile.data?.full_name ?? user.email ?? user.id;
 
-  const rate = useMemo(
-    () => origin && method && currency ? findRate(rates.data, origin, method, currency) : undefined,
-    [rates.data, origin, method, currency],
-  );
-
   const amountNum = Number(amount.replace(",", ".")) || 0;
+
+  const rate = useMemo(
+    () => origin && method && currency
+      ? findRate(rates.data, origin, method, currency, amountNum > 0 ? amountNum : undefined)
+      : undefined,
+    [rates.data, origin, method, currency, amountNum],
+  );
   const quote = useMemo(() => (rate && amountNum > 0 ? calcQuote(amountNum, rate) : null), [rate, amountNum]);
   const originOpt = origin ? getOrigin(origin) : null;
   const minAmount = Number(rate?.min_amount ?? 20);
