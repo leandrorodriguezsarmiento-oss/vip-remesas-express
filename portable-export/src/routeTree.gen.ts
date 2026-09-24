@@ -10,18 +10,22 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthIndexRouteImport } from './routes/auth.index'
+import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as AuthenticatedTiendaRouteImport } from './routes/_authenticated/tienda'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedSendRouteImport } from './routes/_authenticated/send'
 import { Route as AuthenticatedRecargasRouteImport } from './routes/_authenticated/recargas'
 import { Route as AuthenticatedPasajesRouteImport } from './routes/_authenticated/pasajes'
+import { Route as AuthenticatedOrganizerPermissionsRouteImport } from './routes/_authenticated/organizer-permissions'
 import { Route as AuthenticatedMigrantesRouteImport } from './routes/_authenticated/migrantes'
 import { Route as AuthenticatedHistoryRouteImport } from './routes/_authenticated/history'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as AuthenticatedAdminUsersRouteImport } from './routes/_authenticated/admin-users'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedTransactionIdRouteImport } from './routes/_authenticated/transaction.$id'
 import { Route as ApiPublicRecargasWebhookRouteImport } from './routes/api/public/recargas.webhook'
@@ -31,6 +35,11 @@ import { Route as ApiPublicMercadopagoWebhookRouteImport } from './routes/api/pu
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
   path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthRoute = AuthRouteImport.update({
@@ -50,6 +59,11 @@ const IndexRoute = IndexRouteImport.update({
 const AuthIndexRoute = AuthIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => AuthRoute,
+} as any)
+const AuthCallbackRoute = AuthCallbackRouteImport.update({
+  id: '/callback',
+  path: '/callback',
   getParentRoute: () => AuthRoute,
 } as any)
 const AuthenticatedTiendaRoute = AuthenticatedTiendaRouteImport.update({
@@ -77,6 +91,12 @@ const AuthenticatedPasajesRoute = AuthenticatedPasajesRouteImport.update({
   path: '/pasajes',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedOrganizerPermissionsRoute =
+  AuthenticatedOrganizerPermissionsRouteImport.update({
+    id: '/organizer-permissions',
+    path: '/organizer-permissions',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedMigrantesRoute = AuthenticatedMigrantesRouteImport.update({
   id: '/migrantes',
   path: '/migrantes',
@@ -90,6 +110,11 @@ const AuthenticatedHistoryRoute = AuthenticatedHistoryRouteImport.update({
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedAdminUsersRoute = AuthenticatedAdminUsersRouteImport.update({
+  id: '/admin-users',
+  path: '/admin-users',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
@@ -124,16 +149,20 @@ const ApiPublicMercadopagoWebhookRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRouteWithChildren
+  '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
   '/admin': typeof AuthenticatedAdminRoute
+  '/admin-users': typeof AuthenticatedAdminUsersRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/history': typeof AuthenticatedHistoryRoute
   '/migrantes': typeof AuthenticatedMigrantesRoute
+  '/organizer-permissions': typeof AuthenticatedOrganizerPermissionsRoute
   '/pasajes': typeof AuthenticatedPasajesRoute
   '/recargas': typeof AuthenticatedRecargasRoute
   '/send': typeof AuthenticatedSendRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/tienda': typeof AuthenticatedTiendaRoute
+  '/auth/callback': typeof AuthCallbackRoute
   '/auth/': typeof AuthIndexRoute
   '/transaction/$id': typeof AuthenticatedTransactionIdRoute
   '/api/public/mercadopago/webhook': typeof ApiPublicMercadopagoWebhookRoute
@@ -142,16 +171,20 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
   '/admin': typeof AuthenticatedAdminRoute
+  '/admin-users': typeof AuthenticatedAdminUsersRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/history': typeof AuthenticatedHistoryRoute
   '/migrantes': typeof AuthenticatedMigrantesRoute
+  '/organizer-permissions': typeof AuthenticatedOrganizerPermissionsRoute
   '/pasajes': typeof AuthenticatedPasajesRoute
   '/recargas': typeof AuthenticatedRecargasRoute
   '/send': typeof AuthenticatedSendRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/tienda': typeof AuthenticatedTiendaRoute
+  '/auth/callback': typeof AuthCallbackRoute
   '/auth': typeof AuthIndexRoute
   '/transaction/$id': typeof AuthenticatedTransactionIdRoute
   '/api/public/mercadopago/webhook': typeof ApiPublicMercadopagoWebhookRoute
@@ -163,16 +196,20 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRouteWithChildren
+  '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
+  '/_authenticated/admin-users': typeof AuthenticatedAdminUsersRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/history': typeof AuthenticatedHistoryRoute
   '/_authenticated/migrantes': typeof AuthenticatedMigrantesRoute
+  '/_authenticated/organizer-permissions': typeof AuthenticatedOrganizerPermissionsRoute
   '/_authenticated/pasajes': typeof AuthenticatedPasajesRoute
   '/_authenticated/recargas': typeof AuthenticatedRecargasRoute
   '/_authenticated/send': typeof AuthenticatedSendRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/tienda': typeof AuthenticatedTiendaRoute
+  '/auth/callback': typeof AuthCallbackRoute
   '/auth/': typeof AuthIndexRoute
   '/_authenticated/transaction/$id': typeof AuthenticatedTransactionIdRoute
   '/api/public/mercadopago/webhook': typeof ApiPublicMercadopagoWebhookRoute
@@ -184,16 +221,20 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
+    | '/privacy'
     | '/reset-password'
     | '/admin'
+    | '/admin-users'
     | '/dashboard'
     | '/history'
     | '/migrantes'
+    | '/organizer-permissions'
     | '/pasajes'
     | '/recargas'
     | '/send'
     | '/settings'
     | '/tienda'
+    | '/auth/callback'
     | '/auth/'
     | '/transaction/$id'
     | '/api/public/mercadopago/webhook'
@@ -202,16 +243,20 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/privacy'
     | '/reset-password'
     | '/admin'
+    | '/admin-users'
     | '/dashboard'
     | '/history'
     | '/migrantes'
+    | '/organizer-permissions'
     | '/pasajes'
     | '/recargas'
     | '/send'
     | '/settings'
     | '/tienda'
+    | '/auth/callback'
     | '/auth'
     | '/transaction/$id'
     | '/api/public/mercadopago/webhook'
@@ -222,16 +267,20 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/auth'
+    | '/privacy'
     | '/reset-password'
     | '/_authenticated/admin'
+    | '/_authenticated/admin-users'
     | '/_authenticated/dashboard'
     | '/_authenticated/history'
     | '/_authenticated/migrantes'
+    | '/_authenticated/organizer-permissions'
     | '/_authenticated/pasajes'
     | '/_authenticated/recargas'
     | '/_authenticated/send'
     | '/_authenticated/settings'
     | '/_authenticated/tienda'
+    | '/auth/callback'
     | '/auth/'
     | '/_authenticated/transaction/$id'
     | '/api/public/mercadopago/webhook'
@@ -243,6 +292,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRouteWithChildren
+  PrivacyRoute: typeof PrivacyRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   ApiPublicMercadopagoWebhookRoute: typeof ApiPublicMercadopagoWebhookRoute
   ApiPublicPushDispatchRoute: typeof ApiPublicPushDispatchRoute
@@ -256,6 +306,13 @@ declare module '@tanstack/react-router' {
       path: '/reset-password'
       fullPath: '/reset-password'
       preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth': {
@@ -284,6 +341,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/auth/'
       preLoaderRoute: typeof AuthIndexRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/auth/callback': {
+      id: '/auth/callback'
+      path: '/callback'
+      fullPath: '/auth/callback'
+      preLoaderRoute: typeof AuthCallbackRouteImport
       parentRoute: typeof AuthRoute
     }
     '/_authenticated/tienda': {
@@ -321,6 +385,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPasajesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/organizer-permissions': {
+      id: '/_authenticated/organizer-permissions'
+      path: '/organizer-permissions'
+      fullPath: '/organizer-permissions'
+      preLoaderRoute: typeof AuthenticatedOrganizerPermissionsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/migrantes': {
       id: '/_authenticated/migrantes'
       path: '/migrantes'
@@ -340,6 +411,13 @@ declare module '@tanstack/react-router' {
       path: '/dashboard'
       fullPath: '/dashboard'
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/admin-users': {
+      id: '/_authenticated/admin-users'
+      path: '/admin-users'
+      fullPath: '/admin-users'
+      preLoaderRoute: typeof AuthenticatedAdminUsersRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/admin': {
@@ -382,9 +460,11 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminRoute: typeof AuthenticatedAdminRoute
+  AuthenticatedAdminUsersRoute: typeof AuthenticatedAdminUsersRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedHistoryRoute: typeof AuthenticatedHistoryRoute
   AuthenticatedMigrantesRoute: typeof AuthenticatedMigrantesRoute
+  AuthenticatedOrganizerPermissionsRoute: typeof AuthenticatedOrganizerPermissionsRoute
   AuthenticatedPasajesRoute: typeof AuthenticatedPasajesRoute
   AuthenticatedRecargasRoute: typeof AuthenticatedRecargasRoute
   AuthenticatedSendRoute: typeof AuthenticatedSendRoute
@@ -395,9 +475,12 @@ interface AuthenticatedRouteRouteChildren {
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminRoute: AuthenticatedAdminRoute,
+  AuthenticatedAdminUsersRoute: AuthenticatedAdminUsersRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedHistoryRoute: AuthenticatedHistoryRoute,
   AuthenticatedMigrantesRoute: AuthenticatedMigrantesRoute,
+  AuthenticatedOrganizerPermissionsRoute:
+    AuthenticatedOrganizerPermissionsRoute,
   AuthenticatedPasajesRoute: AuthenticatedPasajesRoute,
   AuthenticatedRecargasRoute: AuthenticatedRecargasRoute,
   AuthenticatedSendRoute: AuthenticatedSendRoute,
@@ -410,10 +493,12 @@ const AuthenticatedRouteRouteWithChildren =
   AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
 
 interface AuthRouteChildren {
+  AuthCallbackRoute: typeof AuthCallbackRoute
   AuthIndexRoute: typeof AuthIndexRoute
 }
 
 const AuthRouteChildren: AuthRouteChildren = {
+  AuthCallbackRoute: AuthCallbackRoute,
   AuthIndexRoute: AuthIndexRoute,
 }
 
@@ -423,6 +508,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRouteWithChildren,
+  PrivacyRoute: PrivacyRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   ApiPublicMercadopagoWebhookRoute: ApiPublicMercadopagoWebhookRoute,
   ApiPublicPushDispatchRoute: ApiPublicPushDispatchRoute,
