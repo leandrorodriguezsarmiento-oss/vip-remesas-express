@@ -39,9 +39,10 @@ function formatCard(v: string): string {
 }
 
 type Recipient = { name: string; phone: string; card: string; address: string; notes: string };
+type CashLocation = { id: string; municipality: string; sort_order: number };
 type Saved = {
   id: string; full_name: string; phone: string; account_details: string | null;
-  delivery_method: string; country: string;
+  delivery_method: string; country: string; delivery_location: string | null;
 };
 
 function SendFlow() {
@@ -59,6 +60,7 @@ function SendFlow() {
   const [currency, setCurrency] = useState<DestCurrency | null>(null);
   const [amount, setAmount] = useState("");
   const [recipient, setRecipient] = useState<Recipient>({ name: "", phone: "", card: "", address: "", notes: "" });
+  const [deliveryLocation, setDeliveryLocation] = useState("");
   const [saveRecipient, setSaveRecipient] = useState(true);
   const [tracking, setTracking] = useState<string | null>(null);
   const [pixCode, setPixCode] = useState<string | null>(null);
@@ -70,6 +72,21 @@ function SendFlow() {
       const { data, error } = await supabase.from("rates").select("*").eq("active", true);
       if (error) throw error;
       return data as unknown as RateRow[];
+    },
+  });
+
+  const cashLocations = useQuery<CashLocation[]>({
+    queryKey: ["cash-delivery-locations"],
+    enabled: method === "efectivo",
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("cash_delivery_locations")
+        .select("id, municipality, sort_order")
+        .eq("active", true)
+        .order("sort_order", { ascending: true })
+        .order("municipality", { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as CashLocation[];
     },
   });
 
@@ -143,6 +160,7 @@ function SendFlow() {
       `Destinatario: ${recipient.name}`,
       `Teléfono: ${recipient.phone}`,
       recipient.card ? `Tarjeta / Cuenta: ${recipient.card}` : null,
+      method === "efectivo" && deliveryLocation ? `Municipio / zona: ${deliveryLocation}` : null,
       recipient.address ? `Dirección de entrega: ${recipient.address}` : null,
       recipient.notes ? `Notas: ${recipient.notes}` : null,
     ].filter(Boolean);
@@ -160,6 +178,7 @@ function SendFlow() {
           method,
           currency,
           amount: amountNum,
+          deliveryLocation: method === "efectivo" ? deliveryLocation : null,
           recipient: {
             name: recipient.name,
             phone: recipient.phone,
@@ -178,6 +197,7 @@ function SendFlow() {
           country: "CU",
           delivery_method: `${method}·${currency}`,
           account_details: recipient.card || null,
+          delivery_location: method === "efectivo" ? deliveryLocation : null,
         });
       }
 
@@ -264,7 +284,7 @@ function SendFlow() {
           <div className="space-y-2">
             {METHOD_CATEGORIES.map((m, i) => (
               <button key={m.id} style={{ animationDelay: `${i * 90}ms` }}
-                onClick={() => { setMethod(m.id); setCurrency(null); setStep(3); }}
+                onClick={() => { setMethod(m.id); setCurrency(null); setDeliveryLocation(""); setStep(3); }}
                 className={`animate-rise group relative flex w-full items-center gap-3 overflow-hidden rounded-xl border p-4 text-left transition active:scale-[0.98] ${method === m.id ? "border-gold bg-accent" : "border-border bg-card hover:border-gold/60"}`}>
                 <span aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden opacity-30">
                   <img src={m.id === "efectivo" ? bgCash : bgCard} alt="" loading="lazy" width={1200} height={640}
@@ -323,7 +343,10 @@ function SendFlow() {
               <span className="mb-1.5 block text-xs font-medium text-muted-foreground">Guardados</span>
               <div className="flex flex-wrap gap-2">
                 {savedRecipients.data.map((r) => (
-                  <button key={r.id} onClick={() => setRecipient({ name: r.full_name, phone: formatCubaPhone(r.phone), card: formatCard(r.account_details ?? ""), address: "", notes: "" })}
+                  <button key={r.id} onClick={() => {
+                    setRecipient({ name: r.full_name, phone: formatCubaPhone(r.phone), card: formatCard(r.account_details ?? ""), address: "", notes: "" });
+                    if (method === "efectivo") setDeliveryLocation(r.delivery_location ?? "");
+                  }}
                     className="rounded-full border border-border bg-card px-3 py-1 text-xs hover:border-gold">{r.full_name}</button>
                 ))}
               </div>
@@ -335,9 +358,31 @@ function SendFlow() {
             <Input label={currency === "MLC" ? "Tarjeta MLC (16 dígitos)" : currency === "USD" ? "Cuenta USD clásica (16 dígitos)" : "Tarjeta CUP (16 dígitos)"} value={recipient.card}
               onChange={(v) => setRecipient({ ...recipient, card: formatCard(v) })} placeholder="XXXX XXXX XXXX XXXX" />
           )}
-          {method === "efectivo" && <Input label="Dirección de entrega" value={recipient.address} onChange={(v) => setRecipient({ ...recipient, address: v })} placeholder="Calle, número, entre calles, municipio, provincia" />}
+          {method === "efectivo" && (
+            <>
+              <label className="block">
+                <span className="mb-1.5 block text-xs font-medium text-muted-foreground">Municipio / zona de entrega</span>
+                <select
+                  value={deliveryLocation}
+                  onChange={(e) => setDeliveryLocation(e.target.value)}
+                  disabled={cashLocations.isLoading || (cashLocations.data?.length ?? 0) === 0}
+                  className="w-full rounded-lg border border-border bg-background px-4 py-3 text-sm outline-none focus:border-gold disabled:opacity-60">
+                  <option value="">{cashLocations.isLoading ? "Cargando zonas..." : "Selecciona dónde se entrega"}</option>
+                  {cashLocations.data?.map((loc) => (
+                    <option key={loc.id} value={loc.municipality}>{loc.municipality}</option>
+                  ))}
+                </select>
+              </label>
+              {cashLocations.data && cashLocations.data.length === 0 && (
+                <p className="rounded-lg border border-destructive/40 bg-destructive/10 p-2 text-xs font-semibold text-destructive">
+                  Ahora mismo no hay municipios habilitados para entrega en efectivo.
+                </p>
+              )}
+              <Input label="Dirección de entrega" value={recipient.address} onChange={(v) => setRecipient({ ...recipient, address: v })} placeholder="Calle, número, entre calles y referencias" />
+            </>
+          )}
           <label className="flex items-center gap-2 text-sm text-muted-foreground"><input type="checkbox" checked={saveRecipient} onChange={(e) => setSaveRecipient(e.target.checked)} className="h-4 w-4 accent-[color:var(--gold)]" />Guardar destinatario para próximas remesas</label>
-          <NextBtn disabled={!recipient.name || recipient.phone.replace(/\D/g, "").length !== 10 || (method === "transferencia" && recipient.card.replace(/\D/g, "").length !== 16) || (method === "efectivo" && recipient.address.trim().length < 8)} onClick={() => setStep(5)}>Continuar</NextBtn>
+          <NextBtn disabled={!recipient.name || recipient.phone.replace(/\D/g, "").length !== 10 || (method === "transferencia" && recipient.card.replace(/\D/g, "").length !== 16) || (method === "efectivo" && (!deliveryLocation || recipient.address.trim().length < 8))} onClick={() => setStep(5)}>Continuar</NextBtn>
         </Step>
       )}
 
@@ -346,7 +391,9 @@ function SendFlow() {
         <Step title="Confirmar remesa" subtitle="Revisa antes de generar el pago">
           <div className="animate-rise rounded-xl border border-border bg-card p-4 space-y-2 text-sm shadow-card">
             <Row k="Destinatario" v={recipient.name} /><Row k="Teléfono" v={recipient.phone} />
-            {recipient.card && <Row k="Tarjeta / Cuenta" v={recipient.card} />}{recipient.address && <Row k="Dirección" v={recipient.address} />}
+            {recipient.card && <Row k="Tarjeta / Cuenta" v={recipient.card} />}
+            {method === "efectivo" && deliveryLocation && <Row k="Municipio / zona" v={deliveryLocation} />}
+            {recipient.address && <Row k="Dirección" v={recipient.address} />}
             <hr className="border-border" /><Row k="Origen" v={originOpt.name} /><Row k="Método" v={method === "transferencia" ? "Transferencia" : "Efectivo"} /><Row k="Moneda" v={currency} />
             <hr className="border-border" /><Row k="Envías" v={formatMoney(amountNum, originOpt.currency)} /><Row k="Tasa" v={`1 ${originOpt.currency} = ${rate.rate} ${currency}`} /><Row k="Tiempo" v={quote.timeLabel} /><Row k="Recibe" v={formatMoney(quote.amountDest, currency)} strong />
           </div>
