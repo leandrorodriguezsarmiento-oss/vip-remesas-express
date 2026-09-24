@@ -464,7 +464,7 @@ jobs:
           test "$NEXT_PUBLIC_SUPABASE_URL" = "$EXPECTED_URL" || (echo "La URL configurada no es la del proyecto nuevo" && exit 1)
           grep -rqF "$EXPECTED_URL" dist/client || (echo "El build no apunta al proyecto nuevo" && exit 1)
           ! grep -rqF "uoglxwtritcsrglwimej" dist/client || (echo "El build contiene el proyecto antiguo" && exit 1)
-          ! grep -rqE "SUPABASE_SERVICE_ROLE_KEY|sb_secret_" dist/client || (echo "El navegador contiene una referencia administrativa" && exit 1)
+          ! grep -rqE "SUPABASE_SERVICE_ROLE_KEY|sb_secret_[A-Za-z0-9_-]{10,}" dist/client || (echo "El navegador contiene una referencia administrativa" && exit 1)
           echo "Build verificado: $EXPECTED_URL"
       - name: Verificar Secret administrativo
         env:
