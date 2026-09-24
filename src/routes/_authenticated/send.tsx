@@ -138,6 +138,9 @@ function SendFlow() {
     return METHOD_CATEGORIES.find((m) => m.id === method)!.currencies;
   }, [method]);
 
+  const deliveryLocationAvailable = method !== "efectivo"
+    || !!cashLocations.data?.some((loc) => loc.municipality === deliveryLocation);
+
   /** Número de VIP Remesas que recibe las órdenes de MX / EE.UU. / Europa. */
   const WHATSAPP_NUMBER = "5595981006775";
   /** Sólo se muestra el código PIX REAL devuelto por PIX. */
@@ -382,7 +385,7 @@ function SendFlow() {
             </>
           )}
           <label className="flex items-center gap-2 text-sm text-muted-foreground"><input type="checkbox" checked={saveRecipient} onChange={(e) => setSaveRecipient(e.target.checked)} className="h-4 w-4 accent-[color:var(--gold)]" />Guardar destinatario para próximas remesas</label>
-          <NextBtn disabled={!recipient.name || recipient.phone.replace(/\D/g, "").length !== 10 || (method === "transferencia" && recipient.card.replace(/\D/g, "").length !== 16) || (method === "efectivo" && (!deliveryLocation || recipient.address.trim().length < 8))} onClick={() => setStep(5)}>Continuar</NextBtn>
+          <NextBtn disabled={!recipient.name || recipient.phone.replace(/\D/g, "").length !== 10 || (method === "transferencia" && recipient.card.replace(/\D/g, "").length !== 16) || (method === "efectivo" && (!deliveryLocationAvailable || recipient.address.trim().length < 8))} onClick={() => setStep(5)}>Continuar</NextBtn>
         </Step>
       )}
 
