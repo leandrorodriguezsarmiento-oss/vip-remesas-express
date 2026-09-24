@@ -37,6 +37,13 @@ const signupSchema = z.object({
     .max(24, "Usuario muy largo")
     .regex(/^[a-zA-Z0-9._-]+$/, "Usuario: sólo letras, números, . _ -"),
   email: z.string().trim().email("Correo inválido").max(255),
+  phone: z.string().trim().max(24).refine(
+    (v) => {
+      const digits = v.replace(/\D/g, "");
+      return digits.length >= 8 && digits.length <= 15;
+    },
+    "Teléfono inválido. Incluye el código de país",
+  ),
   password: z.string().min(6, "Contraseña: mínimo 6 caracteres").max(72),
 });
 
@@ -62,6 +69,7 @@ function AuthPage() {
   const [sFullName, setSFullName] = useState("");
   const [sUsername, setSUsername] = useState("");
   const [sEmail, setSEmail] = useState("");
+  const [sPhone, setSPhone] = useState("");
   const [sPassword, setSPassword] = useState("");
 
 
@@ -103,6 +111,7 @@ function AuthPage() {
       fullName: sFullName,
       username: sUsername,
       email: sEmail,
+      phone: sPhone,
       password: sPassword,
     });
     if (!parsed.success) return toast.error(parsed.error.issues[0].message);
@@ -113,6 +122,7 @@ function AuthPage() {
           fullName: sFullName,
           username: sUsername,
           email: sEmail,
+          phone: sPhone,
           password: sPassword,
         },
       });
@@ -206,6 +216,8 @@ function AuthPage() {
               <Field label="Nombre completo" value={sFullName} onChange={(v) => setSFullName(onlyLetters(v))} placeholder="João da Silva" />
               <Field label="Nombre de usuario" value={sUsername} onChange={setSUsername} placeholder="joaosilva" autoComplete="username" />
               <Field label="Correo electrónico" type="email" value={sEmail} onChange={(v) => setSEmail(v.trim())} placeholder="tu@correo.com" autoComplete="email" />
+              <Field label="WhatsApp / teléfono" value={sPhone} onChange={setSPhone} placeholder="+55 95 98100-6775" autoComplete="tel" inputMode="tel" />
+              <p className="-mt-2 text-[11px] text-muted-foreground">Incluye el código de país para que podamos contactarte por WhatsApp.</p>
               <Field label="Contraseña" type="password" value={sPassword} onChange={setSPassword} placeholder="Mínimo 6 caracteres" autoComplete="new-password" />
               <p className="text-xs text-muted-foreground">
                 Entras con tu usuario o correo y contraseña.
