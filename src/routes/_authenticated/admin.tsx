@@ -11,7 +11,7 @@ import { useLiveAdmin } from "@/hooks/use-live-admin";
 import { usePendingCounts } from "@/hooks/use-pending-counts";
 
 import { toast } from "sonner";
-import { Shield, Loader2, Trash2, Plus, Check, RefreshCw, RotateCcw, Smartphone, Zap, BarChart3, CreditCard, Copy, UserCheck, Folder, FolderOpen, ChevronDown } from "lucide-react";
+import { Shield, Loader2, Trash2, Plus, Check, RefreshCw, RotateCcw, Smartphone, Zap, BarChart3, CreditCard, Copy, UserCheck, Folder, FolderOpen, ChevronDown, MessageCircle, MapPin } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   beforeLoad: async ({ context }) => {
@@ -27,7 +27,7 @@ export const Route = createFileRoute("/_authenticated/admin")({
   component: AdminPanel,
 });
 
-type Tab = "tx" | "recargas" | "rates" | "promos" | "users" | "api" | "banners" | "payments" | "mp" | "reports" | "store" | "orders" | "myday" | "flights" | "migrantes";
+type Tab = "tx" | "recargas" | "rates" | "cash" | "promos" | "users" | "api" | "banners" | "payments" | "mp" | "reports" | "store" | "orders" | "myday" | "flights" | "migrantes";
 
 function AdminPanel() {
   const { isAdmin, user } = Route.useRouteContext();
@@ -39,7 +39,7 @@ function AdminPanel() {
   const tabs: [Tab, string][] = isAdmin
     ? [
         ["tx", "Remesas"], ["recargas", "Recargas"], ["orders", "Pedidos"], ["reports", "Reportes"],
-        ["rates", "Tasas"], ["promos", "Promos"], ["banners", "Banners"], ["flights", "Pasajes"], ["migrantes", "Migrantes"],
+        ["rates", "Tasas"], ["cash", "Efectivo"], ["promos", "Promos"], ["banners", "Banners"], ["flights", "Pasajes"], ["migrantes", "Migrantes"],
         ["store", "VipShop"],
         ["payments", "Cuentas de pago"], ["mp", "Mercado Pago"], ["users", "Usuarios"], ["api", "API"],
       ]
@@ -112,6 +112,7 @@ function AdminPanel() {
 
       {isAdmin && tab === "reports" && <ReportsTab />}
       {isAdmin && tab === "rates" && <RatesTab />}
+      {isAdmin && tab === "cash" && <CashLocationsTab />}
       {isAdmin && tab === "promos" && <PromosTab />}
       {isAdmin && tab === "banners" && <BannersTab />}
       {isAdmin && tab === "flights" && <FlightsTab />}
@@ -146,6 +147,7 @@ type AdminTx = {
   amount_dest?: number | string | null;
   dest_currency?: string | null;
   notes?: string | null;
+  delivery_location?: string | null;
 };
 
 /** Datos que el admin necesita copiar de un toque: efectivo → nombre + dirección + monto; transferencia → teléfono + tarjeta + monto. */
@@ -162,6 +164,7 @@ function CopyBlock({ tx }: { tx: AdminTx }) {
         ["Tipo de remesa", tipo],
         ["Nombre", tx.recipient_name],
         ["Teléfono", tx.recipient_phone],
+        ["Municipio / zona", tx.delivery_location || ""],
         ["Dirección", address],
         ["Monto a entregar", monto],
       ]
@@ -416,6 +419,113 @@ function TransactionsTab({ isAdmin }: { isAdmin: boolean }) {
 }
 
 
+// ----------------- Zonas de entrega en efectivo -----------------
+type CashLocationRow = {
+  id: string;
+  municipality: string;
+  active: boolean;
+  sort_order: number;
+};
+
+function CashLocationsTab() {
+  const qc = useQueryClient();
+  const [newMunicipality, setNewMunicipality] = useState("");
+
+  const q = useQuery<CashLocationRow[]>({
+    queryKey: ["admin-cash-delivery-locations"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("cash_delivery_locations")
+        .select("id, municipality, active, sort_order")
+        .order("sort_order", { ascending: true })
+        .order("municipality", { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as CashLocationRow[];
+    },
+  });
+
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: ["admin-cash-delivery-locations"] });
+    qc.invalidateQueries({ queryKey: ["cash-delivery-locations"] });
+  };
+
+  const toggle = useMutation({
+    mutationFn: async ({ id, active }: { id: string; active: boolean }) => {
+      const { error } = await supabase
+        .from("cash_delivery_locations")
+        .update({ active, updated_at: new Date().toISOString() })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Disponibilidad actualizada");
+      invalidate();
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "No se pudo actualizar"),
+  });
+
+  const add = useMutation({
+    mutationFn: async (municipality: string) => {
+      const clean = municipality.trim();
+      if (clean.length < 2) throw new Error("Escribe un municipio o zona válida");
+      const nextOrder = Math.max(0, ...(q.data ?? []).map((x) => Number(x.sort_order) || 0)) + 10;
+      const { error } = await supabase
+        .from("cash_delivery_locations")
+        .insert({ municipality: clean, active: true, sort_order: nextOrder });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      setNewMunicipality("");
+      toast.success("Municipio añadido");
+      invalidate();
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "No se pudo añadir"),
+  });
+
+  return (
+    <div className="space-y-3">
+      <div className="rounded-xl border border-gold/40 bg-card p-3 space-y-2">
+        <div className="flex items-center gap-2">
+          <MapPin className="h-4 w-4 text-gold" />
+          <div>
+            <p className="text-xs font-extrabold uppercase text-muted-foreground">Entrega en efectivo</p>
+            <p className="text-[11px] font-semibold text-muted-foreground">
+              Sólo las zonas activas aparecen al cliente cuando selecciona efectivo.
+            </p>
+          </div>
+        </div>
+        <MiniInput label="Añadir municipio / zona" value={newMunicipality} onChange={setNewMunicipality} />
+        <button
+          type="button"
+          disabled={add.isPending || newMunicipality.trim().length < 2}
+          onClick={() => add.mutate(newMunicipality)}
+          className="flex w-full items-center justify-center gap-1 rounded-lg bg-gradient-gold px-3 py-2 text-xs font-semibold text-primary-foreground shadow-gold disabled:opacity-50">
+          <Plus className="h-3 w-3" /> Añadir y activar
+        </button>
+      </div>
+
+      {q.isLoading && <p className="text-sm text-muted-foreground">Cargando zonas…</p>}
+      {q.data?.map((loc) => (
+        <div key={loc.id} className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card p-3">
+          <div className="min-w-0">
+            <p className="truncate text-sm font-extrabold">{loc.municipality}</p>
+            <p className="text-[10px] font-bold text-muted-foreground">
+              {loc.active ? "Disponible para clientes" : "No disponible"}
+            </p>
+          </div>
+          <button
+            type="button"
+            disabled={toggle.isPending}
+            onClick={() => toggle.mutate({ id: loc.id, active: !loc.active })}
+            className={`shrink-0 rounded-full px-3 py-1.5 text-[10px] font-extrabold ${loc.active ? "bg-success/20 text-success" : "bg-muted text-muted-foreground"}`}>
+            {loc.active ? "ACTIVO" : "INACTIVO"}
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ----------------- Tasas -----------------
 function RatesTab() {
   const qc = useQueryClient();
@@ -589,6 +699,21 @@ function PromosTab() {
 
 
 // ----------------- Usuarios -----------------
+function WhatsAppContactButton({ phone, name }: { phone: string | null | undefined; name: string }) {
+  const digits = (phone ?? "").replace(/\D/g, "");
+  if (digits.length < 8) return null;
+  const message = `Hola ${name || "cliente"}, te contactamos desde VIP Remesas.`;
+  return (
+    <a
+      href={`https://wa.me/${digits}?text=${encodeURIComponent(message)}`}
+      target="_blank"
+      rel="noreferrer"
+      className="flex w-full items-center justify-center gap-2 rounded-lg bg-success/15 px-3 py-2 text-[11px] font-extrabold text-success transition hover:bg-success/25">
+      <MessageCircle className="h-4 w-4" /> Contactar por WhatsApp
+    </a>
+  );
+}
+
 function UsersTab() {
   const qc = useQueryClient();
   const delUser = useServerFn(deleteUserAsAdmin);
@@ -652,6 +777,7 @@ function UsersTab() {
               </button>
             )}
           </div>
+          <WhatsAppContactButton phone={u.phone} name={u.full_name || "cliente"} />
           {!u.isAdmin && (
             <button
               onClick={() => org.mutate({ userId: u.id, enabled: !u.isOrganizer })}
