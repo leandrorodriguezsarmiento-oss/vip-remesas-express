@@ -103,7 +103,17 @@ function SendFlow() {
   );
   const quote = useMemo(() => (rate && amountNum > 0 ? calcQuote(amountNum, rate) : null), [rate, amountNum]);
   const originOpt = origin ? getOrigin(origin) : null;
-  const minAmount = Number(rate?.min_amount ?? 20);
+  const minAmount = useMemo(() => {
+    if (!origin || !method || !currency) return 20;
+    const matching = (rates.data ?? []).filter((r) =>
+      r.active &&
+      r.origin_country === origin &&
+      r.method_category === method &&
+      r.dest_currency === currency
+    );
+    if (!matching.length) return 20;
+    return Math.min(...matching.map((r) => Number(r.min_amount ?? 0)));
+  }, [rates.data, origin, method, currency]);
   const belowMin = amountNum > 0 && amountNum < minAmount;
 
   const availableCurrencies = useMemo(() => {
