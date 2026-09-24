@@ -34,21 +34,33 @@ export const createTransaction = createServerFn({ method: "POST" })
       throw new Error("La dirección de entrega es obligatoria para remesas en efectivo");
     }
 
-    // 1) Look up authoritative rate server-side.
-    const { data: rateRow, error: rateErr } = await supabaseAdmin
+    // 1) Look up the authoritative rate server-side, including amount brackets.
+    const { data: rateRowsRaw, error: rateErr } = await supabaseAdmin
       .from("rates")
       .select("*")
       .eq("origin_country", data.origin)
       .eq("method_category", data.method)
       .eq("dest_currency", data.currency)
-      .eq("active", true)
-      .maybeSingle();
+      .eq("active", true);
     if (rateErr) throw rateErr;
-    if (!rateRow) throw new Error("Tasa no disponible para esta combinación");
 
-    const minAmount = Number(rateRow.min_amount ?? 0);
-    if (data.amount < minAmount) {
-      throw new Error(`Monto mínimo: ${minAmount}`);
+    const rateRows = (rateRowsRaw ?? []) as Array<any>;
+    const rateRow = rateRows
+      .filter((row) => {
+        const min = Number(row.min_amount ?? 0);
+        const max = row.max_amount == null ? null : Number(row.max_amount);
+        return data.amount >= min && (max == null || data.amount <= max);
+      })
+      .sort((a, b) => Number(b.min_amount ?? 0) - Number(a.min_amount ?? 0))[0];
+
+    if (!rateRow) {
+      const minimum = rateRows.length
+        ? Math.min(...rateRows.map((row) => Number(row.min_amount ?? 0)))
+        : null;
+      if (minimum != null && data.amount < minimum) {
+        throw new Error(`Monto mínimo: ${minimum}`);
+      }
+      throw new Error("Tasa no disponible para este monto");
     }
 
     // 2) Recompute money values server-side. Ignore any client-supplied numbers.
