@@ -393,7 +393,7 @@ function createSupabaseClient() {
                 url: null,
               },
               error: null,
-            } as Awaited<
+            } as unknown as Awaited<
               ReturnType<
                 typeof target.signInWithOAuth
               >
@@ -408,7 +408,7 @@ function createSupabaseClient() {
                 url: null,
               },
               error: readable,
-            } as Awaited<
+            } as unknown as Awaited<
               ReturnType<
                 typeof target.signInWithOAuth
               >
