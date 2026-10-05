@@ -5,7 +5,6 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 export const savePushSubscription = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((data) =>
-
     z
       .object({
         endpoint: z.string().url().max(1000),
@@ -17,6 +16,17 @@ export const savePushSubscription = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: existing, error: existingError } = await supabaseAdmin
+      .from("push_subscriptions")
+      .select("user_id")
+      .eq("endpoint", data.endpoint)
+      .maybeSingle();
+    if (existingError) throw existingError;
+    if (existing && existing.user_id !== context.userId) {
+      throw new Error("Suscripción push no válida");
+    }
+
     const { error } = await supabaseAdmin
       .from("push_subscriptions")
       .upsert(
@@ -30,6 +40,14 @@ export const savePushSubscription = createServerFn({ method: "POST" })
         { onConflict: "endpoint" },
       );
     if (error) throw error;
+
+    const { error: cleanupError } = await supabaseAdmin
+      .from("push_subscriptions")
+      .delete()
+      .eq("user_id", context.userId)
+      .neq("endpoint", data.endpoint);
+    if (cleanupError) throw cleanupError;
+
     return { ok: true };
   });
 
