@@ -4,15 +4,19 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
+    paths:
+      - 'portable-export/**'
+      - '.github/workflows/main.yml'
 
 concurrency:
   group: deploy-production
   cancel-in-progress: true
 
 permissions:
-  contents: write
+  contents: read
 
 env:
+  APP_DIR: portable-export
   NEXT_PUBLIC_SUPABASE_URL: https://nczavdcqueebhhtkuasv.supabase.co
   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_rxqHb79-KneH3UZGHj2fDA_5ofGaUds
   VITE_VAPID_PUBLIC_KEY: ${{ vars.VITE_VAPID_PUBLIC_KEY }}
@@ -26,16 +30,10 @@ jobs:
       - name: Descargar código
         uses: actions/checkout@v4
 
-      - name: Detectar carpeta de la aplicación
+      - name: Verificar única fuente de producción
         run: |
-          if [ -f portable-export/wrangler.jsonc ]; then
-            echo "APP_DIR=portable-export" >> "$GITHUB_ENV"
-          elif [ -f wrangler.jsonc ]; then
-            echo "APP_DIR=." >> "$GITHUB_ENV"
-          else
-            echo "ERROR: No encuentro wrangler.jsonc"
-            exit 1
-          fi
+          test -f portable-export/wrangler.jsonc || (echo 'Falta portable-export/wrangler.jsonc' && exit 1)
+          test -f portable-export/package.json || (echo 'Falta portable-export/package.json' && exit 1)
 
       - name: Configurar Bun
         uses: oven-sh/setup-bun@v2
@@ -63,7 +61,7 @@ jobs:
           echo "account_id=$ACCOUNT_ID" >> "$GITHUB_OUTPUT"
 
       - name: Instalar dependencias
-        run: cd "$APP_DIR" && bun install
+        run: cd "$APP_DIR" && bun install --frozen-lockfile
 
       - name: Configurar VAPID persistente
         env:
@@ -81,6 +79,9 @@ jobs:
             printf '%s' "$PRIVATE_JWK" | bunx wrangler secret put VAPID_PRIVATE_JWK -c wrangler.jsonc
             printf '%s' "$PUBLIC_KEY" | bunx wrangler secret put VAPID_PUBLIC_KEY -c wrangler.jsonc
           fi
+
+      - name: Typecheck
+        run: cd "$APP_DIR" && bunx tsc --noEmit
 
       - name: Compilar producción
         env:
@@ -113,5 +114,5 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ steps.cloudflare-config.outputs.account_id }}
-          workingDirectory: ${{ env.APP_DIR }}
+          workingDirectory: portable-export
           command: deploy -c dist/server/wrangler.json --keep-vars
