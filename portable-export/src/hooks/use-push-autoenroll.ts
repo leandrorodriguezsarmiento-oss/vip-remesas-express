@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { VAPID_PUBLIC_KEY, urlBase64ToUint8Array } from "@/lib/push-config";
+import { ensurePushSubscription } from "@/lib/push-config";
 import { savePushSubscription } from "@/lib/push.functions";
 
 /**
@@ -26,17 +26,7 @@ export function usePushAutoEnroll(userId: string) {
           (await navigator.serviceWorker.getRegistration("/sw-push.js")) ??
           (await navigator.serviceWorker.register("/sw-push.js"));
         await navigator.serviceWorker.ready;
-        const existing = await reg.pushManager.getSubscription();
-        const keyBytes = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
-        const sub =
-          existing ??
-          (await reg.pushManager.subscribe({
-            userVisibleOnly: true,
-            applicationServerKey: keyBytes.buffer.slice(
-              keyBytes.byteOffset,
-              keyBytes.byteOffset + keyBytes.byteLength,
-            ) as ArrayBuffer,
-          }));
+        const sub = await ensurePushSubscription(reg);
         const json = sub.toJSON() as { endpoint: string; keys: { p256dh: string; auth: string } };
         await save({
           data: {
