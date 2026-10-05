@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Bell, X, Share2 } from "lucide-react";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
-import { VAPID_PUBLIC_KEY, urlBase64ToUint8Array } from "@/lib/push-config";
+import { ensurePushSubscription } from "@/lib/push-config";
 import { savePushSubscription } from "@/lib/push.functions";
 
 type Mode = "hidden" | "ask" | "ios-install";
@@ -54,16 +54,7 @@ export function PushPermissionPrompt({ userId }: { userId: string }) {
         (await navigator.serviceWorker.getRegistration("/sw-push.js")) ??
         (await navigator.serviceWorker.register("/sw-push.js"));
       await navigator.serviceWorker.ready;
-      const keyBytes = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
-      const sub =
-        (await reg.pushManager.getSubscription()) ??
-        (await reg.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: keyBytes.buffer.slice(
-            keyBytes.byteOffset,
-            keyBytes.byteOffset + keyBytes.byteLength,
-          ) as ArrayBuffer,
-        }));
+      const sub = await ensurePushSubscription(reg);
       const json = sub.toJSON() as { endpoint: string; keys: { p256dh: string; auth: string } };
       await save({
         data: {
