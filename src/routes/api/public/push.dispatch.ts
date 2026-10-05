@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { buildPushHTTPRequest } from "@pushforge/builder";
-import { timingSafeEqual } from "crypto";
+import { createHash, timingSafeEqual } from "crypto";
 
 function safeEqual(a: string, b: string): boolean {
   const x = Buffer.from(a);
@@ -8,37 +8,54 @@ function safeEqual(a: string, b: string): boolean {
   return x.length === y.length && timingSafeEqual(x, y);
 }
 
+function hashToken(value: string): string {
+  return createHash("sha256").update(value).digest("hex");
+}
+
 export const Route = createFileRoute("/api/public/push/dispatch")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        // Verify caller: the DB trigger sends the Supabase anon key as `apikey`.
-        const apiKey = request.headers.get("apikey");
-        const expectedAnon = process.env.SUPABASE_PUBLISHABLE_KEY;
-        if (!expectedAnon || !apiKey || !safeEqual(apiKey, expectedAnon)) {
-          return new Response("Unauthorized", { status: 401 });
-        }
-
-
-        const privateJwkRaw = process.env.VAPID_PRIVATE_JWK;
-        const adminContact = process.env.VAPID_SUBJECT;
-        if (!privateJwkRaw || !adminContact) {
-          return new Response("VAPID not configured", { status: 500 });
-        }
-        const privateJWK = JSON.parse(privateJwkRaw) as JsonWebKey;
-
         let body: { notification_id?: string };
         try {
           body = await request.json();
         } catch {
           return new Response("Bad request", { status: 400 });
         }
+
         const notificationId = body.notification_id;
-        if (!notificationId || typeof notificationId !== "string") {
+        if (!notificationId || !/^[0-9a-f-]{36}$/i.test(notificationId)) {
           return new Response("Missing notification_id", { status: 400 });
         }
 
+        const dispatchToken = request.headers.get("x-dispatch-token");
+        if (!dispatchToken || dispatchToken.length > 256) {
+          return new Response("Unauthorized", { status: 401 });
+        }
+
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const { data: tokenRow, error: tokenError } = await supabaseAdmin
+          .from("bot_publish_tokens")
+          .select("token_hash")
+          .eq("name", "push-dispatch")
+          .eq("active", true)
+          .maybeSingle();
+
+        if (
+          tokenError ||
+          !tokenRow?.token_hash ||
+          !safeEqual(hashToken(dispatchToken), tokenRow.token_hash)
+        ) {
+          return new Response("Unauthorized", { status: 401 });
+        }
+
+        const privateJwkRaw = process.env.VAPID_PRIVATE_JWK;
+        const adminContact = process.env.VAPID_SUBJECT;
+        if (!privateJwkRaw || !adminContact) {
+          return new Response("VAPID not configured", { status: 500 });
+        }
+
+        const privateJWK = JSON.parse(privateJwkRaw) as JsonWebKey;
 
         const { data: notif, error: nErr } = await supabaseAdmin
           .from("notifications")
@@ -78,24 +95,26 @@ export const Route = createFileRoute("/api/public/push/dispatch")({
             });
             const res = await fetch(endpoint, { method: "POST", headers, body: reqBody });
             if (res.status === 404 || res.status === 410) {
-              // Suscripción caducada — la eliminamos.
               await supabaseAdmin.from("push_subscriptions").delete().eq("id", sub.id);
             } else if (res.status >= 200 && res.status < 300) {
               sent += 1;
             } else {
               console.error("[push] fallo", res.status, await res.text().catch(() => ""));
             }
-          } catch (e) {
-            console.error("[push] error", e);
+          } catch (error) {
+            console.error("[push] error", error);
           }
         }
 
-        await supabaseAdmin
-          .from("notifications")
-          .update({ push_sent: true })
-          .eq("id", notif.id);
+        const total = subs?.length ?? 0;
+        if (sent > 0 || total === 0) {
+          await supabaseAdmin
+            .from("notifications")
+            .update({ push_sent: true })
+            .eq("id", notif.id);
+        }
 
-        return Response.json({ ok: true, sent, total: subs?.length ?? 0 });
+        return Response.json({ ok: true, sent, total });
       },
     },
   },
