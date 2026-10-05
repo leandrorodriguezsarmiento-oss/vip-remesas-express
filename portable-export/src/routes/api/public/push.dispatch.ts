@@ -15,6 +15,14 @@ function hashToken(value: string): string {
 export const Route = createFileRoute("/api/public/push/dispatch")({
   server: {
     handlers: {
+      GET: async () => {
+        const publicKey = process.env.VAPID_PUBLIC_KEY?.trim();
+        if (!publicKey) return new Response("VAPID not configured", { status: 503 });
+        return Response.json(
+          { publicKey },
+          { headers: { "Cache-Control": "public, max-age=300" } },
+        );
+      },
       POST: async ({ request }) => {
         let body: { notification_id?: string };
         try {
@@ -50,8 +58,8 @@ export const Route = createFileRoute("/api/public/push/dispatch")({
         }
 
         const privateJwkRaw = process.env.VAPID_PRIVATE_JWK;
-        const adminContact = process.env.VAPID_SUBJECT;
-        if (!privateJwkRaw || !adminContact) {
+        const adminContact = process.env.VAPID_SUBJECT?.trim() || "https://vipremesas.com";
+        if (!privateJwkRaw) {
           return new Response("VAPID not configured", { status: 500 });
         }
 
@@ -94,7 +102,7 @@ export const Route = createFileRoute("/api/public/push/dispatch")({
               },
             });
             const res = await fetch(endpoint, { method: "POST", headers, body: reqBody });
-            if (res.status === 404 || res.status === 410) {
+            if ([401, 403, 404, 410].includes(res.status)) {
               await supabaseAdmin.from("push_subscriptions").delete().eq("id", sub.id);
             } else if (res.status >= 200 && res.status < 300) {
               sent += 1;
