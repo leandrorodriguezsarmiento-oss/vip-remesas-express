@@ -22,7 +22,7 @@ function loadGoogleIdentityScript(): Promise<void> {
   if (googleScriptPromise) return googleScriptPromise;
   googleScriptPromise = new Promise((resolve, reject) => {
     const existing = document.querySelector<HTMLScriptElement>('script[data-google-identity="true"]');
-    if (existing) { existing.addEventListener('load', () => resolve(), { once: true }); existing.addEventListener('error', () => reject(new Error('No se pudo cargar Google Sign-In.')), { once: true }); return; }
+    if (existing) { const finishExisting = () => window.google?.accounts?.id ? resolve() : reject(new Error('No se pudo inicializar Google Sign-In.')); existing.addEventListener('load', finishExisting, { once: true }); existing.addEventListener('error', () => reject(new Error('No se pudo cargar Google Sign-In.')), { once: true }); window.setTimeout(finishExisting, 1500); return; }
     const script = document.createElement('script'); script.src = 'https://accounts.google.com/gsi/client'; script.async = true; script.defer = true; script.dataset.googleIdentity = 'true'; script.onload = () => resolve(); script.onerror = () => reject(new Error('No se pudo cargar Google Sign-In.')); document.head.appendChild(script);
   });
   return googleScriptPromise;
@@ -45,13 +45,27 @@ async function signInWithGoogleIdToken(redirectTo?: string): Promise<void> {
         window.location.replace(next && next.startsWith('/') && !next.startsWith('//') ? next : '/dashboard'); finish(resolve);
       } catch (error) { const readable = readableGoogleError(error); console.error('Google ID token authentication error:', readable); finish(() => reject(readable)); }
     };
-    window.google!.accounts.id.initialize({ client_id: GOOGLE_CLIENT_ID, nonce: hashedNonce, use_fedcm_for_prompt: false, callback: handleCredential });
-    window.google!.accounts.id.prompt((notification) => {
-      if (!notification.isNotDisplayed() && !notification.isSkippedMoment()) return;
-      fallbackContainer = document.createElement('div'); fallbackContainer.style.position = 'fixed'; fallbackContainer.style.inset = '0'; fallbackContainer.style.zIndex = '2147483647'; fallbackContainer.style.display = 'flex'; fallbackContainer.style.alignItems = 'center'; fallbackContainer.style.justifyContent = 'center'; fallbackContainer.style.background = 'rgba(0,0,0,0.45)';
-      fallbackContainer.innerHTML = '<div style="background:white;border-radius:16px;padding:24px;box-shadow:0 20px 60px rgba(0,0,0,.25);min-width:300px;text-align:center"><div style="font:600 16px system-ui;margin-bottom:16px;color:#111">Continuar con Google</div><div data-google-button></div><button type="button" data-google-cancel style="margin-top:14px;border:0;background:transparent;color:#666;font:500 13px system-ui;cursor:pointer">Cancelar</button></div>';
-      document.body.appendChild(fallbackContainer); const buttonHost = fallbackContainer.querySelector<HTMLElement>('[data-google-button]'); const cancel = fallbackContainer.querySelector<HTMLButtonElement>('[data-google-cancel]'); cancel?.addEventListener('click', () => finish(() => reject(new Error('Inicio con Google cancelado.'))), { once: true }); if (buttonHost) window.google!.accounts.id.renderButton(buttonHost, { type: 'standard', theme: 'outline', size: 'large', text: 'continue_with', shape: 'rectangular', logo_alignment: 'left', width: 280 });
+    window.google!.accounts.id.initialize({
+      client_id: GOOGLE_CLIENT_ID,
+      nonce: hashedNonce,
+      callback: handleCredential,
     });
+
+    fallbackContainer = document.createElement('div');
+    fallbackContainer.style.position = 'fixed';
+    fallbackContainer.style.inset = '0';
+    fallbackContainer.style.zIndex = '2147483647';
+    fallbackContainer.style.display = 'flex';
+    fallbackContainer.style.alignItems = 'center';
+    fallbackContainer.style.justifyContent = 'center';
+    fallbackContainer.style.background = 'rgba(0,0,0,0.45)';
+    fallbackContainer.innerHTML = '<div style="background:white;border-radius:16px;padding:24px;box-shadow:0 20px 60px rgba(0,0,0,.25);min-width:300px;text-align:center"><div style="font:600 16px system-ui;margin-bottom:16px;color:#111">Continuar con Google</div><div data-google-button></div><button type="button" data-google-cancel style="margin-top:14px;border:0;background:transparent;color:#666;font:500 13px system-ui;cursor:pointer">Cancelar</button></div>';
+    document.body.appendChild(fallbackContainer);
+    const buttonHost = fallbackContainer.querySelector<HTMLElement>('[data-google-button]');
+    const cancel = fallbackContainer.querySelector<HTMLButtonElement>('[data-google-cancel]');
+    cancel?.addEventListener('click', () => finish(() => reject(new Error('Inicio con Google cancelado.'))), { once: true });
+    if (!buttonHost) { finish(() => reject(new Error('No se pudo mostrar el botón de Google.'))); return; }
+    window.google!.accounts.id.renderButton(buttonHost, { type: 'standard', theme: 'outline', size: 'large', text: 'continue_with', shape: 'rectangular', logo_alignment: 'left', width: 280 });
   });
 }
 function isNewSupabaseApiKey(value: string): boolean { return value.startsWith('sb_publishable_') || value.startsWith('sb_secret_'); }
