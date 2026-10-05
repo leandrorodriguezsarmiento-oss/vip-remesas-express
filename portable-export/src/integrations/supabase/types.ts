@@ -68,6 +68,60 @@ export type Database = {
         }
         Relationships: []
       }
+      bot_publish_tokens: {
+        Row: {
+          active: boolean
+          created_at: string
+          id: string
+          name: string
+          token_hash: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          name: string
+          token_hash: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          name?: string
+          token_hash?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      cash_delivery_locations: {
+        Row: {
+          active: boolean
+          created_at: string
+          id: string
+          municipality: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          municipality: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          municipality?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       flights: {
         Row: {
           active: boolean
@@ -256,7 +310,9 @@ export type Database = {
           internal_status: string
           mp_payment_id: string | null
           mp_status: string | null
+          order_id: string | null
           preference_id: string | null
+          qr_code: string | null
           tracking_id: string
           transaction_id: string
           updated_at: string
@@ -271,7 +327,9 @@ export type Database = {
           internal_status?: string
           mp_payment_id?: string | null
           mp_status?: string | null
+          order_id?: string | null
           preference_id?: string | null
+          qr_code?: string | null
           tracking_id: string
           transaction_id: string
           updated_at?: string
@@ -286,7 +344,9 @@ export type Database = {
           internal_status?: string
           mp_payment_id?: string | null
           mp_status?: string | null
+          order_id?: string | null
           preference_id?: string | null
+          qr_code?: string | null
           tracking_id?: string
           transaction_id?: string
           updated_at?: string
@@ -390,6 +450,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      organizer_permissions: {
+        Row: {
+          created_at: string
+          permission: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          permission: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          permission?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       payment_methods: {
         Row: {
@@ -552,6 +630,7 @@ export type Database = {
           active: boolean
           dest_currency: string
           id: string
+          max_amount: number | null
           method_category: string
           min_amount: number
           origin_country: string
@@ -565,6 +644,7 @@ export type Database = {
           active?: boolean
           dest_currency: string
           id?: string
+          max_amount?: number | null
           method_category: string
           min_amount?: number
           origin_country: string
@@ -578,6 +658,7 @@ export type Database = {
           active?: boolean
           dest_currency?: string
           id?: string
+          max_amount?: number | null
           method_category?: string
           min_amount?: number
           origin_country?: string
@@ -684,6 +765,7 @@ export type Database = {
           address: string | null
           country: string
           created_at: string
+          delivery_location: string | null
           delivery_method: string
           full_name: string
           id: string
@@ -695,6 +777,7 @@ export type Database = {
           address?: string | null
           country: string
           created_at?: string
+          delivery_location?: string | null
           delivery_method: string
           full_name: string
           id?: string
@@ -706,6 +789,7 @@ export type Database = {
           address?: string | null
           country?: string
           created_at?: string
+          delivery_location?: string | null
           delivery_method?: string
           full_name?: string
           id?: string
@@ -908,6 +992,7 @@ export type Database = {
           amount_dest: number
           assigned_to: string | null
           created_at: string
+          delivery_location: string | null
           delivery_method: string
           dest_currency: string
           destination_country: string
@@ -940,6 +1025,7 @@ export type Database = {
           amount_dest: number
           assigned_to?: string | null
           created_at?: string
+          delivery_location?: string | null
           delivery_method: string
           dest_currency: string
           destination_country: string
@@ -972,6 +1058,7 @@ export type Database = {
           amount_dest?: number
           assigned_to?: string | null
           created_at?: string
+          delivery_location?: string | null
           delivery_method?: string
           dest_currency?: string
           destination_country?: string
@@ -1055,6 +1142,30 @@ export type Database = {
         }
         Relationships: []
       }
+      vipcell_cloud_backups: {
+        Row: {
+          created_at: string
+          payload: Json
+          secret_hash: string
+          sync_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          payload?: Json
+          secret_hash: string
+          sync_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          payload?: Json
+          secret_hash?: string
+          sync_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -1069,6 +1180,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      has_organizer_permission: {
+        Args: { _permission: string; _user_id: string }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -1076,6 +1191,16 @@ export type Database = {
         }
         Returns: boolean
       }
+      notify_admins_for_user_action: {
+        Args: {
+          _body: string
+          _title: string
+          _tx_id?: string
+          _user_id: string
+        }
+        Returns: undefined
+      }
+      publish_bot_rates_atomic: { Args: { p_rates: Json }; Returns: Json }
       reset_rate_limit: { Args: { _key: string }; Returns: undefined }
       transition_transaction_workflow: {
         Args: {
