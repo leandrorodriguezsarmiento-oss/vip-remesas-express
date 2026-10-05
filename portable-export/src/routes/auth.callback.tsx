@@ -55,7 +55,7 @@ function AuthCallbackPage() {
           <>
             <h1 className="mb-2 text-xl font-bold">No se pudo iniciar sesión</h1>
             <p className="mb-5 max-w-md text-sm text-muted-foreground">{error}</p>
-            <a href="/auth/login" className="font-medium underline">
+            <a href="/auth" className="font-medium underline">
               Volver al inicio de sesión
             </a>
           </>
