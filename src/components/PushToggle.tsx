@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Bell, BellOff, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
-import { VAPID_PUBLIC_KEY, urlBase64ToUint8Array } from "@/lib/push-config";
+import { ensurePushSubscription } from "@/lib/push-config";
 import { savePushSubscription, deletePushSubscription } from "@/lib/push.functions";
 
 type State = "unsupported" | "denied" | "off" | "on" | "loading";
@@ -12,8 +12,21 @@ export function PushToggle({ hideWhenBlocked = false }: { hideWhenBlocked?: bool
   const save = useServerFn(savePushSubscription);
   const remove = useServerFn(deletePushSubscription);
 
+  async function persistSubscription(sub: PushSubscription) {
+    const json = sub.toJSON() as { endpoint: string; keys: { p256dh: string; auth: string } };
+    await save({
+      data: {
+        endpoint: json.endpoint,
+        p256dh: json.keys.p256dh,
+        auth: json.keys.auth,
+        userAgent: navigator.userAgent.slice(0, 400),
+      },
+    });
+  }
+
   useEffect(() => {
     let cancelled = false;
+
     async function check() {
       if (typeof window === "undefined") return;
       if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) {
@@ -24,25 +37,31 @@ export function PushToggle({ hideWhenBlocked = false }: { hideWhenBlocked?: bool
         if (!cancelled) setState("denied");
         return;
       }
+
       try {
         const reg =
           (await navigator.serviceWorker.getRegistration("/sw-push.js")) ??
           (await navigator.serviceWorker.register("/sw-push.js"));
-        const sub = await reg?.pushManager.getSubscription();
-        if (!cancelled) setState(sub ? "on" : "off");
-        // Si el usuario ya dio permiso, re-activamos la suscripción automáticamente
-        if (!sub && Notification.permission === "granted" && !cancelled) {
-          void enable();
+
+        if (Notification.permission === "granted") {
+          const sub = await ensurePushSubscription(reg);
+          await persistSubscription(sub);
+          if (!cancelled) setState("on");
+          return;
         }
+
+        const sub = await reg.pushManager.getSubscription();
+        if (!cancelled) setState(sub ? "on" : "off");
       } catch {
         if (!cancelled) setState("off");
       }
     }
-    check();
+
+    void check();
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [save]);
 
   async function enable() {
     setState("loading");
@@ -53,25 +72,15 @@ export function PushToggle({ hideWhenBlocked = false }: { hideWhenBlocked?: bool
         setState(perm === "denied" ? "denied" : "off");
         return;
       }
-      const reg = await navigator.serviceWorker.register("/sw-push.js");
+
+      const reg =
+        (await navigator.serviceWorker.getRegistration("/sw-push.js")) ??
+        (await navigator.serviceWorker.register("/sw-push.js"));
       await navigator.serviceWorker.ready;
-      const keyBytes = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
-      const sub = await reg.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: keyBytes.buffer.slice(
-          keyBytes.byteOffset,
-          keyBytes.byteOffset + keyBytes.byteLength,
-        ) as ArrayBuffer,
-      });
-      const json = sub.toJSON() as { endpoint: string; keys: { p256dh: string; auth: string } };
-      await save({
-        data: {
-          endpoint: json.endpoint,
-          p256dh: json.keys.p256dh,
-          auth: json.keys.auth,
-          userAgent: navigator.userAgent.slice(0, 400),
-        },
-      });
+
+      const sub = await ensurePushSubscription(reg);
+      await persistSubscription(sub);
+
       setState("on");
       toast.success("Notificaciones activadas");
     } catch (e) {
