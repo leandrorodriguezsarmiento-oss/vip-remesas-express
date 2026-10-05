@@ -47,15 +47,22 @@ export const sendTransactionStatusEmail = createServerFn({ method: "POST" })
     if (error) throw error;
     if (!tx) return { sent: false, reason: "not_found" };
 
-    const { data: userRes } = await supabaseAdmin.auth.admin.getUserById(tx.user_id);
-    const email = userRes?.user?.email;
-    if (!email) return { sent: false, reason: "no_email" };
+    const [{ data: userRes }, { data: profile }] = await Promise.all([
+      supabaseAdmin.auth.admin.getUserById(tx.user_id),
+      supabaseAdmin.from("profiles").select("email,full_name").eq("id", tx.user_id).maybeSingle(),
+    ]);
+    const authEmail = userRes?.user?.email ?? "";
+    const contactEmail =
+      (profile?.email as string | null) ||
+      (userRes?.user?.user_metadata?.contact_email as string | undefined) ||
+      (!authEmail.endsWith("@vipremesas.app") ? authEmail : "");
+    if (!contactEmail) return { sent: false, reason: "no_contact_email" };
 
     const info = STATUS_TEXT[data.status];
     const { sendEmailJs } = await import("./emailjs.server");
     return sendEmailJs({
-      to_email: email,
-      to_name: (userRes?.user?.user_metadata?.full_name as string | undefined) ?? "",
+      to_email: contactEmail,
+      to_name: (profile?.full_name as string | null) ?? (userRes?.user?.user_metadata?.full_name as string | undefined) ?? "",
       subject: `VIP Remesas · Remesa ${info.label}`,
       message: [
         `Estado: ${info.label}`,

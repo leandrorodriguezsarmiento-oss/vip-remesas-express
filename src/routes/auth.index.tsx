@@ -7,6 +7,7 @@ import { registerAccount, resolveLoginIdentifier } from "@/lib/account.functions
 
 import { Loader2 } from "lucide-react";
 import { BrandMark } from "@/components/BrandMark";
+import { PasswordResetFlow } from "@/components/PasswordResetFlow";
 import { toast } from "sonner";
 import { z } from "zod";
 
@@ -158,7 +159,7 @@ function AuthPage() {
       setLoading(false);
     }
   }
-  if (showForgot) return <ForgotPassword onBack={() => setShowForgot(false)} />;
+  if (showForgot) return <PasswordResetFlow onBack={() => setShowForgot(false)} />;
 
   return (
 

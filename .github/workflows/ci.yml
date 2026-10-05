@@ -1,0 +1,49 @@
+name: Validate VIPRemesas
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  NEXT_PUBLIC_SUPABASE_URL: https://nczavdcqueebhhtkuasv.supabase.co
+  NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_rxqHb79-KneH3UZGHj2fDA_5ofGaUds
+  VITE_VAPID_PUBLIC_KEY: ${{ vars.VITE_VAPID_PUBLIC_KEY }}
+  VITE_PIX_KEY: ${{ vars.VITE_PIX_KEY }}
+
+jobs:
+  validate:
+    name: Typecheck and build portable production
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar código
+        uses: actions/checkout@v4
+
+      - name: Configurar Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Instalar dependencias
+        run: cd portable-export && bun install --frozen-lockfile
+
+      - name: Typecheck
+        run: cd portable-export && bunx tsc --noEmit
+
+      - name: Compilar producción
+        env:
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: cd portable-export && bun run build
+
+      - name: Verificar build y seguridad
+        env:
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          cd portable-export
+          test -d dist/client || exit 1
+          if grep -rqF "uoglxwtritcsrglwimej" dist/client; then exit 1; fi
+          grep -rqF "https://nczavdcqueebhhtkuasv.supabase.co" dist/client || exit 1
+          if grep -rqF "$SUPABASE_SERVICE_ROLE_KEY" dist/client; then echo "Clave admin en navegador"; exit 1; fi

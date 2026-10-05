@@ -79,7 +79,7 @@ function createSupabaseClient() {
   const originalAuth = client.auth;
   const originalSignInWithIdToken = originalAuth.signInWithIdToken.bind(originalAuth);
   const authProxy = new Proxy(originalAuth, { get(target, prop, receiver) {
-    if (prop === 'signInWithOAuth') return async (credentials: Parameters<typeof target.signInWithOAuth>[0]) => { if (credentials.provider !== 'google' || typeof window === 'undefined') return target.signInWithOAuth(credentials); try { await signInWithGoogleIdToken(credentials.options?.redirectTo); return { data: { provider: 'google', url: null }, error: null } as Awaited<ReturnType<typeof target.signInWithOAuth>>; } catch (error) { const readable = readableGoogleError(error); return { data: { provider: 'google', url: null }, error: readable } as Awaited<ReturnType<typeof target.signInWithOAuth>>; } };
+    if (prop === 'signInWithOAuth') return async (credentials: Parameters<typeof target.signInWithOAuth>[0]) => { if (credentials.provider !== 'google' || typeof window === 'undefined') return target.signInWithOAuth(credentials); try { await signInWithGoogleIdToken(credentials.options?.redirectTo); return { data: { provider: 'google', url: null }, error: null } as unknown as Awaited<ReturnType<typeof target.signInWithOAuth>>; } catch (error) { const readable = readableGoogleError(error); return { data: { provider: 'google', url: null }, error: readable } as unknown as Awaited<ReturnType<typeof target.signInWithOAuth>>; } };
     if (prop === 'signInWithIdToken') return originalSignInWithIdToken;
     return Reflect.get(target, prop, receiver);
   } });
