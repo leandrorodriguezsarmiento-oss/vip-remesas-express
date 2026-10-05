@@ -65,6 +65,23 @@ jobs:
       - name: Instalar dependencias
         run: cd "$APP_DIR" && bun install
 
+      - name: Configurar VAPID persistente
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ steps.cloudflare-config.outputs.account_id }}
+        run: |
+          cd "$APP_DIR"
+          SECRET_LIST="$(bunx wrangler secret list -c wrangler.jsonc 2>/dev/null || true)"
+          if ! printf '%s' "$SECRET_LIST" | grep -q 'VAPID_PRIVATE_JWK' || ! printf '%s' "$SECRET_LIST" | grep -q 'VAPID_PUBLIC_KEY'; then
+            KEYS="$(bunx @pushforge/builder vapid)"
+            PUBLIC_KEY="$(printf '%s\n' "$KEYS" | awk '/^Public Key:/{getline; print; exit}')"
+            PRIVATE_JWK="$(printf '%s\n' "$KEYS" | awk '/^Private Key \(JWK\):/{getline; print; exit}')"
+            test -n "$PUBLIC_KEY" || (echo "No se pudo generar VAPID public key" && exit 1)
+            test -n "$PRIVATE_JWK" || (echo "No se pudo generar VAPID private JWK" && exit 1)
+            printf '%s' "$PRIVATE_JWK" | bunx wrangler secret put VAPID_PRIVATE_JWK -c wrangler.jsonc
+            printf '%s' "$PUBLIC_KEY" | bunx wrangler secret put VAPID_PUBLIC_KEY -c wrangler.jsonc
+          fi
+
       - name: Compilar producción
         env:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
