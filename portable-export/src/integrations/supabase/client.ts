@@ -83,12 +83,18 @@ function loadGoogleIdentityScript(): Promise<void> {
       );
 
     if (existing) {
-      existing.addEventListener('load', () => resolve(), { once: true });
+      const finishExisting = () => {
+        if (window.google?.accounts?.id) resolve();
+        else reject(new Error('No se pudo inicializar Google Sign-In.'));
+      };
+
+      existing.addEventListener('load', finishExisting, { once: true });
       existing.addEventListener(
         'error',
         () => reject(new Error('No se pudo cargar Google Sign-In.')),
         { once: true },
       );
+      window.setTimeout(finishExisting, 1500);
       return;
     }
 
@@ -233,84 +239,46 @@ async function signInWithGoogleIdToken(
     window.google!.accounts.id.initialize({
       client_id: GOOGLE_CLIENT_ID,
       nonce: hashedNonce,
-      use_fedcm_for_prompt: false,
       callback: handleCredential,
     });
 
-    window.google!.accounts.id.prompt((notification) => {
-      if (
-        !notification.isNotDisplayed() &&
-        !notification.isSkippedMoment()
-      ) {
-        return;
-      }
+    fallbackContainer = document.createElement('div');
+    fallbackContainer.style.position = 'fixed';
+    fallbackContainer.style.inset = '0';
+    fallbackContainer.style.zIndex = '2147483647';
+    fallbackContainer.style.display = 'flex';
+    fallbackContainer.style.alignItems = 'center';
+    fallbackContainer.style.justifyContent = 'center';
+    fallbackContainer.style.background = 'rgba(0,0,0,0.45)';
+    fallbackContainer.innerHTML =
+      '<div style="background:white;border-radius:16px;padding:24px;box-shadow:0 20px 60px rgba(0,0,0,.25);min-width:300px;text-align:center"><div style="font:600 16px system-ui;margin-bottom:16px;color:#111">Continuar con Google</div><div data-google-button></div><button type="button" data-google-cancel style="margin-top:14px;border:0;background:transparent;color:#666;font:500 13px system-ui;cursor:pointer">Cancelar</button></div>';
 
-      fallbackContainer = document.createElement('div');
+    document.body.appendChild(fallbackContainer);
 
-      fallbackContainer.style.position = 'fixed';
-      fallbackContainer.style.inset = '0';
-      fallbackContainer.style.zIndex = '2147483647';
-      fallbackContainer.style.display = 'flex';
-      fallbackContainer.style.alignItems = 'center';
-      fallbackContainer.style.justifyContent = 'center';
-      fallbackContainer.style.background =
-        'rgba(0,0,0,0.45)';
+    const buttonHost =
+      fallbackContainer.querySelector<HTMLElement>('[data-google-button]');
+    const cancel =
+      fallbackContainer.querySelector<HTMLButtonElement>('[data-google-cancel]');
 
-      fallbackContainer.innerHTML = `
-        <div style="background:white;border-radius:16px;padding:24px;box-shadow:0 20px 60px rgba(0,0,0,.25);min-width:300px;text-align:center">
-          <div style="font:600 16px system-ui;margin-bottom:16px;color:#111">
-            Continuar con Google
-          </div>
+    cancel?.addEventListener(
+      'click',
+      () => finish(() => reject(new Error('Inicio con Google cancelado.'))),
+      { once: true },
+    );
 
-          <div data-google-button></div>
+    if (!buttonHost) {
+      finish(() => reject(new Error('No se pudo mostrar el botón de Google.')));
+      return;
+    }
 
-          <button
-            type="button"
-            data-google-cancel
-            style="margin-top:14px;border:0;background:transparent;color:#666;font:500 13px system-ui;cursor:pointer"
-          >
-            Cancelar
-          </button>
-        </div>
-      `;
-
-      document.body.appendChild(fallbackContainer);
-
-      const buttonHost =
-        fallbackContainer.querySelector<HTMLElement>(
-          '[data-google-button]',
-        );
-
-      const cancel =
-        fallbackContainer.querySelector<HTMLButtonElement>(
-          '[data-google-cancel]',
-        );
-
-      cancel?.addEventListener(
-        'click',
-        () =>
-          finish(() =>
-            reject(
-              new Error('Inicio con Google cancelado.'),
-            ),
-          ),
-        { once: true },
-      );
-
-      if (buttonHost) {
-        window.google!.accounts.id.renderButton(
-          buttonHost,
-          {
-            type: 'standard',
-            theme: 'outline',
-            size: 'large',
-            text: 'continue_with',
-            shape: 'rectangular',
-            logo_alignment: 'left',
-            width: 280,
-          },
-        );
-      }
+    window.google!.accounts.id.renderButton(buttonHost, {
+      type: 'standard',
+      theme: 'outline',
+      size: 'large',
+      text: 'continue_with',
+      shape: 'rectangular',
+      logo_alignment: 'left',
+      width: 280,
     });
   });
 }
