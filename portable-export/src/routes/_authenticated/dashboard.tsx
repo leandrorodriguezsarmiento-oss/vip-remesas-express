@@ -5,7 +5,7 @@ import {
   ORIGINS, type OriginCode, type DestCurrency,
   type RateRow, findRate,
 } from "@/lib/remittance";
-import { Send, Smartphone, TrendingUp, Store, Sparkles, Banknote, Compass } from "lucide-react";
+import { Send, Smartphone, TrendingUp, Store, Sparkles, Banknote, Compass, MessageCircle } from "lucide-react";
 import { BannerHero } from "@/components/BannerCarousel";
 import { FlagIcon } from "@/components/FlagIcon";
 
@@ -60,6 +60,16 @@ function Dashboard() {
     <div className="space-y-6">
       <div className="animate-rise"><p className="text-sm font-bold text-muted-foreground">Hola,</p><h1 className="font-display text-2xl font-extrabold">{firstName} 👋</h1></div>
       <BannerHero><p className="text-xs font-extrabold uppercase tracking-wider text-white/90">Envía a Cuba</p><p className="mt-1 font-display text-3xl font-extrabold text-white drop-shadow">Desde 20 en 15 min</p><p className="mt-1 text-xs font-bold text-white/90">Brasil · México · Europa · EE.UU. → Cuba</p></BannerHero>
+      <a
+        href="https://chat.whatsapp.com/IJPFYGrhrc4JAddkp1ohnI?s=cl&p=a&ilr=0&amv=3"
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label="Unirse al grupo oficial de WhatsApp de VIP Remesas"
+        className="flex w-full items-center justify-center gap-3 rounded-2xl bg-gradient-emerald px-5 py-4 text-center text-sm font-extrabold text-white shadow-glow transition-transform hover:scale-[1.01] active:scale-[0.98]"
+      >
+        <MessageCircle className="h-6 w-6 shrink-0" aria-hidden="true" />
+        <span>Únete a nuestro grupo de WhatsApp</span>
+      </a>
       <div className="grid grid-cols-2 gap-3">
         {actions.map(({ to, label, sub, icon: Icon, grad }, i) => <Link key={to} to={to} style={{ animationDelay: `${i * 60}ms` }} className="animate-rise flex items-center justify-between rounded-2xl border border-border bg-card bg-dots p-4 shadow-card transition-transform hover:border-gold active:scale-[0.98]"><div><p className="font-display text-base font-extrabold">{label}</p><p className="text-[11px] font-bold text-muted-foreground">{sub}</p></div><div className={`grid h-10 w-10 place-items-center rounded-full text-white shadow-glow ${grad}`}><Icon className="h-5 w-5" /></div></Link>)}
         <Link to="/tienda" className="animate-rise relative col-span-2 flex items-center justify-between overflow-hidden rounded-2xl bg-gradient-amber p-4 text-white shadow-glow transition-transform active:scale-[0.98]"><span className="pointer-events-none absolute inset-y-0 -left-1/3 w-1/3 animate-shine bg-white/40 blur-md" /><div className="relative"><p className="font-display text-base font-extrabold">VipShop Brasil</p><p className="text-[11px] font-bold text-white/90">Celulares, electrodomésticos y alimentos</p></div><div className="relative grid h-10 w-10 place-items-center rounded-full bg-white/25"><Store className="h-5 w-5 animate-float" /></div></Link>
