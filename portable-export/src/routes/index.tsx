@@ -1,7 +1,7 @@
 import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Sparkles, Shield, Zap, Globe2, TrendingUp, Smartphone, Banknote } from "lucide-react";
+import { Sparkles, Shield, Zap, Globe2, TrendingUp, Smartphone, Banknote, MessageCircle } from "lucide-react";
 import { BrandMark } from "@/components/BrandMark";
 import { FlagIcon } from "@/components/FlagIcon";
 import { BannerCarousel } from "@/components/BannerCarousel";
@@ -93,6 +93,17 @@ function Landing() {
         <p className="mt-4 text-base font-medium text-muted-foreground">Mira las tasas de hoy y las promos de recarga. Crea tu cuenta solo cuando quieras enviar.</p>
 
         <div className="mt-6"><BannerCarousel /></div>
+
+        <a
+          href="https://chat.whatsapp.com/IJPFYGrhrc4JAddkp1ohnI?s=cl&p=a&ilr=0&amv=3"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Unirse al grupo oficial de WhatsApp de VIP Remesas"
+          className="mt-4 flex w-full items-center justify-center gap-3 rounded-2xl bg-gradient-emerald px-5 py-4 text-center text-sm font-extrabold text-white shadow-glow transition-transform hover:scale-[1.01] active:scale-[0.98]"
+        >
+          <MessageCircle className="h-6 w-6 shrink-0" aria-hidden="true" />
+          <span>Únete a nuestro grupo de WhatsApp</span>
+        </a>
 
         <section className="mt-8 rounded-2xl border border-gold/40 bg-card/70 p-4 shadow-card">
           <div className="flex items-center justify-between gap-3">
