@@ -82,6 +82,7 @@ function Recargas() {
   const submitRecharge = useServerFn(createRechargeRequest);
   // PIX copia y pega con el monto de la promo ya embebido (llave VIP Remesas).
   const pixCode = selected ? generatePixCode(`recarga-${digits || "0"}`, Number(selected.price_brl)) : null;
+  const promoPoster = promos.data?.find((p) => p.image_url && p.image_url !== "gift")?.image_url;
 
   async function goToPay() {
     if (!selected || digits.length !== 8 || loading) {
@@ -182,6 +183,12 @@ function Recargas() {
       {promos.data && promos.data.length === 0 && (
         <div className="rounded-xl border border-dashed border-border bg-card/60 p-6 text-center text-sm text-muted-foreground">
           No hay promociones activas en este momento.
+        </div>
+      )}
+
+      {promoPoster && (
+        <div className="overflow-hidden rounded-2xl border border-gold/40 bg-card shadow-card">
+          <img src={promoPoster} alt="Promoción especial de recargas Cubacel" loading="lazy" decoding="async" className="h-auto w-full object-contain" />
         </div>
       )}
 
