@@ -16,6 +16,17 @@ WHERE origin_country = 'BR'
   AND dest_currency = 'CUP'
   AND min_amount <= 150;
 
+-- If a higher bracket already exists, normalize it to the agreed 175 rate.
+UPDATE public.rates
+SET rate = 175,
+    min_amount = 150.01,
+    max_amount = NULL,
+    updated_at = now()
+WHERE origin_country = 'BR'
+  AND method_category = 'transferencia'
+  AND dest_currency = 'CUP'
+  AND min_amount > 150;
+
 -- Add the agreed higher rate for amounts greater than R$150.
 INSERT INTO public.rates (
   origin_country, origin_currency, method_category, dest_currency,
