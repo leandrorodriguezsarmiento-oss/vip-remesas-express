@@ -1,8 +1,7 @@
 import { useLocation } from "@tanstack/react-router";
 import { SUPPORT_WHATSAPP_URL } from "@/lib/alias";
 
-const WHATSAPP_MESSAGE = "Hola, equipo de VIP Remesas. Quisiera recibir información sobre sus servicios.";
-const WHATSAPP_LINK = `${SUPPORT_WHATSAPP_URL}?text=${encodeURIComponent(WHATSAPP_MESSAGE)}`;
+const WHATSAPP_LINK = SUPPORT_WHATSAPP_URL;
 
 // These pages include the fixed bottom navigation; keep the button above it.
 const APP_ROUTES = ["/dashboard", "/recargas", "/send", "/tienda", "/pasajes", "/migrantes", "/history", "/settings", "/admin"];
