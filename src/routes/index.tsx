@@ -140,26 +140,41 @@ function Landing() {
           </div>
         </section>
 
-        {/* Recargas públicas */}
-        {promos.data && promos.data.length > 0 && (
-          <section className="mt-8">
-            <div className="mb-2 flex items-center justify-between">
-              <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Recargas Cubacel</h2>
-              <Smartphone className="h-4 w-4 text-gold" />
-            </div>
+        {/* Recargas públicas: siempre visibles aunque la consulta de promociones falle */}
+        <section className="mt-8">
+          <div className="mb-2 flex items-center justify-between">
+            <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Recargas Cubacel</h2>
+            <Smartphone className="h-4 w-4 text-gold" />
+          </div>
+          {promos.isLoading ? (
+            <p className="text-sm font-semibold text-muted-foreground">Cargando promociones…</p>
+          ) : promos.data && promos.data.length > 0 ? (
             <div className="grid grid-cols-2 gap-2">
               {promos.data.map((p) => (
                 <div key={p.id} className="rounded-xl border border-border bg-card p-3 shadow-card">
                   <div className="text-sm font-bold">{p.title}</div>
                   {p.bonus_label && <div className="text-[11px] font-semibold text-gold">{p.bonus_label}</div>}
-                  <div className="mt-1 font-display text-base font-bold text-gold">
-                    {formatMoney(Number(p.price_brl), "BRL")}
-                  </div>
+                  <div className="mt-1 font-display text-base font-bold text-gold">{formatMoney(Number(p.price_brl), "BRL")}</div>
                 </div>
               ))}
             </div>
-          </section>
-        )}
+          ) : (
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { title: "Recarga 360 CUP", price: 20 },
+                { title: "Recarga 510 CUP", price: 26 },
+                { title: "Recarga 730 CUP", price: 36 },
+                { title: "Recarga 1.100 CUP", price: 52 },
+              ].map((p) => (
+                <div key={p.price} className="rounded-xl border border-border bg-card p-3 shadow-card">
+                  <div className="text-sm font-bold">{p.title}</div>
+                  <div className="mt-1 font-display text-base font-bold text-gold">{formatMoney(p.price, "BRL")}</div>
+                </div>
+              ))}
+            </div>
+          )}
+          <Link to="/recargas" className="mt-3 block rounded-xl border border-gold/40 bg-card/60 px-4 py-3 text-center text-sm font-bold text-gold">Ver promociones y solicitar recarga</Link>
+        </section>
 
         <div className="mt-10 space-y-3">
           <Link
