@@ -539,9 +539,9 @@ function RatesTab() {
     },
   });
   const upd = useMutation({
-    mutationFn: async (r: { id: string; rate: number; rate_over_150: number | null; time_min_minutes: number; time_max_minutes: number; active: boolean }) => {
+    mutationFn: async (r: { id: string; rate: number; min_amount: number; max_amount: number | null; time_min_minutes: number; time_max_minutes: number; active: boolean }) => {
       const { error } = await supabase.from("rates").update({
-        rate: r.rate, rate_over_150: r.rate_over_150, time_min_minutes: r.time_min_minutes, time_max_minutes: r.time_max_minutes, active: r.active,
+        rate: r.rate, min_amount: r.min_amount, max_amount: r.max_amount, time_min_minutes: r.time_min_minutes, time_max_minutes: r.time_max_minutes, active: r.active,
         updated_at: new Date().toISOString(),
       }).eq("id", r.id);
       if (error) throw error;
@@ -562,11 +562,12 @@ function RatesTab() {
 }
 
 function RateEditor({ row, onSave }: {
-  row: { id: string; origin_country: string; method_category: string; dest_currency: string; rate: number; rate_over_150?: number | null; time_min_minutes: number; time_max_minutes: number; active: boolean };
-  onSave: (v: { rate: number; rate_over_150: number | null; time_min_minutes: number; time_max_minutes: number; active: boolean }) => void;
+  row: { id: string; origin_country: string; method_category: string; dest_currency: string; rate: number; min_amount: number; max_amount?: number | null; time_min_minutes: number; time_max_minutes: number; active: boolean };
+  onSave: (v: { rate: number; min_amount: number; max_amount: number | null; time_min_minutes: number; time_max_minutes: number; active: boolean }) => void;
 }) {
   const [rate, setRate] = useState(String(row.rate));
-  const [rateOver150, setRateOver150] = useState(row.rate_over_150 == null ? "" : String(row.rate_over_150));
+  const [minAmount, setMinAmount] = useState(String(row.min_amount ?? 20));
+  const [maxAmount, setMaxAmount] = useState(row.max_amount == null ? "" : String(row.max_amount));
   const [tMin, setTMin] = useState(String(row.time_min_minutes));
   const [tMax, setTMax] = useState(String(row.time_max_minutes));
   const [active, setActive] = useState(row.active);
@@ -581,13 +582,14 @@ function RateEditor({ row, onSave }: {
         </label>
       </div>
       <div className="grid grid-cols-2 gap-2 text-[11px]">
-        <MiniInput label="Tasa hasta R$150" value={rate} onChange={setRate} />
-        <MiniInput label="Tasa más de R$150" value={rateOver150} onChange={setRateOver150} />
+        <MiniInput label="Tasa" value={rate} onChange={setRate} />
+        <MiniInput label="Monto mínimo (BRL)" value={minAmount} onChange={setMinAmount} />
+        <MiniInput label="Monto máximo (vacío = sin límite)" value={maxAmount} onChange={setMaxAmount} />
         <MiniInput label="Min min" value={tMin} onChange={setTMin} />
         <MiniInput label="Max min" value={tMax} onChange={setTMax} />
       </div>
       <button
-        onClick={() => onSave({ rate: Number(rate), rate_over_150: rateOver150.trim() === "" ? null : Number(rateOver150.replace(",", ".")), time_min_minutes: Number(tMin), time_max_minutes: Number(tMax), active })}
+        onClick={() => onSave({ rate: Number(rate.replace(",", ".")), min_amount: Number(minAmount.replace(",", ".")), max_amount: maxAmount.trim() === "" ? null : Number(maxAmount.replace(",", ".")), time_min_minutes: Number(tMin), time_max_minutes: Number(tMax), active })}
         className="flex w-full items-center justify-center gap-1 rounded-lg bg-gradient-gold px-3 py-1.5 text-[11px] font-semibold text-primary-foreground shadow-gold">
         <Check className="h-3 w-3" /> Guardar
       </button>
