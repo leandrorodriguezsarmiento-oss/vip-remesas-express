@@ -531,11 +531,78 @@ function PromosTab() {
   const [nt, setNt] = useState(""); const [nd, setNd] = useState("");
   const [np, setNp] = useState(""); const [nb, setNb] = useState("");
   const [gift, setGift] = useState(false);
+  const [promoPhoto, setPromoPhoto] = useState("");
+  const [uploadingPromoPhoto, setUploadingPromoPhoto] = useState(false);
+  const [applyingPreset, setApplyingPreset] = useState(false);
+
+  const isSpecialPromo = (p: { title?: string | null; description?: string | null; bonus_label?: string | null; image_url?: string | null }) =>
+    p.image_url === "gift" ||
+    /promo\s*especial/i.test(`${p.title ?? ""} ${p.description ?? ""} ${p.bonus_label ?? ""}`);
+
+  async function applyPosterPrices() {
+    if (!promoPhoto) return toast.error("Primero sube la foto de la promoción");
+    if (!q.data) return toast.error("Espera a que carguen las promociones");
+    setApplyingPreset(true);
+    try {
+      const oldRows = q.data.filter((p) => !isSpecialPromo(p));
+      const rows = [
+        { title: "Recarga 360", description: "Saldo principal Cubacel", price_brl: 20, bonus_label: "360 CUP de saldo móvil", image_url: promoPhoto, active: true },
+        { title: "Recarga 510", description: "Saldo principal Cubacel", price_brl: 26, bonus_label: "510 CUP de saldo móvil", image_url: promoPhoto, active: true },
+        { title: "Recarga 730", description: "Saldo principal Cubacel", price_brl: 36, bonus_label: "730 CUP de saldo móvil", image_url: promoPhoto, active: true },
+        { title: "Recarga 1100", description: "Saldo principal Cubacel", price_brl: 52, bonus_label: "1100 CUP de saldo móvil", image_url: promoPhoto, active: true },
+      ];
+      const { error: insertError } = await supabase.from("promos").insert(rows);
+      if (insertError) throw insertError;
+      if (oldRows.length) {
+        const { error: deleteError } = await supabase.from("promos").delete().in("id", oldRows.map((p) => p.id));
+        if (deleteError) throw deleteError;
+      }
+      toast.success("Promociones actualizadas. Se conservó la promo especial.");
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["admin-promos"] }),
+        qc.invalidateQueries({ queryKey: ["promos"] }),
+        qc.invalidateQueries({ queryKey: ["public-promos"] }),
+      ]);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "No se pudieron actualizar las promociones");
+    } finally {
+      setApplyingPreset(false);
+    }
+  }
 
   return (
     <div className="space-y-3">
       <div className="rounded-xl border border-gold/40 bg-card p-3 space-y-2">
-        <p className="text-xs font-semibold uppercase text-muted-foreground">Nueva promo</p>
+        <p className="text-xs font-semibold uppercase text-muted-foreground">Actualizar promociones desde la imagen</p>
+        <p className="text-[11px] text-muted-foreground">Sube el afiche. Se crearán R$ 20 → 360 CUP, R$ 26 → 510 CUP, R$ 36 → 730 CUP y R$ 52 → 1100 CUP. La promo especial se conserva y las demás promociones se sustituyen.</p>
+        <label className="flex w-full cursor-pointer items-center justify-center gap-1 rounded-lg border border-gold/40 bg-background px-3 py-2 text-xs font-semibold">
+          <Plus className="h-3 w-3" /> {uploadingPromoPhoto ? "Subiendo foto…" : promoPhoto ? "Foto lista · cambiar imagen" : "Subir foto de promociones"}
+          <input type="file" accept="image/*" className="hidden" disabled={uploadingPromoPhoto || applyingPreset}
+            onChange={async (e) => {
+              const file = e.currentTarget.files?.[0];
+              e.currentTarget.value = "";
+              if (!file) return;
+              setUploadingPromoPhoto(true);
+              try {
+                const url = await uploadStoreImage(file, "promos");
+                setPromoPhoto(url);
+                toast.success("Foto subida");
+              } catch (err) {
+                toast.error(err instanceof Error ? err.message : "No se pudo subir la foto");
+              } finally {
+                setUploadingPromoPhoto(false);
+              }
+            }} />
+        </label>
+        {promoPhoto && <img src={promoPhoto} alt="Foto de las promociones" className="max-h-64 w-full rounded-lg object-contain" />}
+        <button onClick={() => void applyPosterPrices()} disabled={!promoPhoto || uploadingPromoPhoto || applyingPreset || q.isLoading}
+          className="flex w-full items-center justify-center gap-1 rounded-lg bg-gradient-gold px-3 py-2 text-xs font-semibold text-primary-foreground shadow-gold disabled:opacity-50">
+          {applyingPreset ? "Actualizando…" : "Aplicar los 4 precios y conservar promo especial"}
+        </button>
+      </div>
+
+      <div className="rounded-xl border border-border bg-card p-3 space-y-2">
+        <p className="text-xs font-semibold uppercase text-muted-foreground">Nueva promo manual</p>
         <MiniInput label="Título" value={nt} onChange={setNt} />
         <MiniInput label="Descripción" value={nd} onChange={setNd} />
         <div className="grid grid-cols-2 gap-2">
@@ -570,6 +637,7 @@ function PromosTab() {
             </div>
             <div className="text-[11px] text-muted-foreground">{p.description}</div>
             <div className="text-[11px] font-medium text-gold">{p.bonus_label}</div>
+            {p.image_url && p.image_url !== "gift" && <img src={p.image_url} alt="" className="mt-2 max-h-20 rounded-md object-contain" />}
             <button onClick={() => toggle.mutate({ id: p.id, active: !p.active })}
               className={`mt-1 rounded-full px-2 py-0.5 text-[10px] font-extrabold ${p.active ? "bg-success/20 text-success" : "bg-muted text-muted-foreground"}`}>
               {p.active ? "Activa" : "Inactiva"}
@@ -586,7 +654,6 @@ function PromosTab() {
     </div>
   );
 }
-
 
 // ----------------- Usuarios -----------------
 function UsersTab() {
