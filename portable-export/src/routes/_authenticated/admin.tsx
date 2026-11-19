@@ -504,67 +504,64 @@ function PromosTab() {
       return data;
     },
   });
+  const [applyingPreset, setApplyingPreset] = useState(false);
+  const [edits, setEdits] = useState<Record<string, { title: string; description: string; price_brl: string; bonus_label: string }>>({});
+  const refresh = () => Promise.all([
+    qc.invalidateQueries({ queryKey: ["admin-promos"] }),
+    qc.invalidateQueries({ queryKey: ["promos"] }),
+    qc.invalidateQueries({ queryKey: ["public-promos"] }),
+  ]);
   const del = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase.from("promos").delete().eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => { toast.success("Promo eliminada"); qc.invalidateQueries({ queryKey: ["admin-promos"] }); qc.invalidateQueries({ queryKey: ["promos"] }); },
+    onSuccess: () => { toast.success("Promo eliminada"); void refresh(); },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "No se pudo eliminar"),
   });
-  const add = useMutation({
-    mutationFn: async (p: { title: string; description: string; price_brl: number; bonus_label: string; image_url: string | null }) => {
-      const { error } = await supabase.from("promos").insert(p);
+  const update = useMutation({
+    mutationFn: async (v: { id: string; title: string; description: string; price_brl: number; bonus_label: string }) => {
+      const { error } = await supabase.from("promos").update({
+        title: v.title, description: v.description, price_brl: v.price_brl, bonus_label: v.bonus_label,
+      }).eq("id", v.id);
       if (error) throw error;
     },
-    onSuccess: () => { toast.success("Promo creada"); qc.invalidateQueries({ queryKey: ["admin-promos"] }); qc.invalidateQueries({ queryKey: ["promos"] }); },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Error"),
+    onSuccess: () => { toast.success("Promo actualizada"); void refresh(); },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "No se pudo guardar"),
   });
   const toggle = useMutation({
     mutationFn: async (v: { id: string; active: boolean }) => {
       const { error } = await supabase.from("promos").update({ active: v.active }).eq("id", v.id);
       if (error) throw error;
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["admin-promos"] }); qc.invalidateQueries({ queryKey: ["promos"] }); qc.invalidateQueries({ queryKey: ["public-promos"] }); },
+    onSuccess: () => { void refresh(); },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Error"),
   });
 
-  const [nt, setNt] = useState(""); const [nd, setNd] = useState("");
-  const [np, setNp] = useState(""); const [nb, setNb] = useState("");
-  const [gift, setGift] = useState(false);
-  const [promoPhoto, setPromoPhoto] = useState("");
-  const [uploadingPromoPhoto, setUploadingPromoPhoto] = useState(false);
-  const [applyingPreset, setApplyingPreset] = useState(false);
-
   const isSpecialPromo = (p: { title?: string | null; description?: string | null; bonus_label?: string | null; image_url?: string | null }) =>
-    p.image_url === "gift" ||
-    /promo\s*especial/i.test(`${p.title ?? ""} ${p.description ?? ""} ${p.bonus_label ?? ""}`);
+    p.image_url === "gift" || /promo\\s*especial/i.test(`${p.title ?? ""} ${p.description ?? ""} ${p.bonus_label ?? ""}`);
 
-  async function applyPosterPrices() {
-    if (!promoPhoto) return toast.error("Primero sube la foto de la promoción");
+  async function applyPrices() {
     if (!q.data) return toast.error("Espera a que carguen las promociones");
     setApplyingPreset(true);
     try {
       const oldRows = q.data.filter((p) => !isSpecialPromo(p));
       const rows = [
-        { title: "Recarga 360", description: "Saldo principal Cubacel", price_brl: 20, bonus_label: "360 CUP de saldo móvil", image_url: promoPhoto, active: true },
-        { title: "Recarga 510", description: "Saldo principal Cubacel", price_brl: 26, bonus_label: "510 CUP de saldo móvil", image_url: promoPhoto, active: true },
-        { title: "Recarga 730", description: "Saldo principal Cubacel", price_brl: 36, bonus_label: "730 CUP de saldo móvil", image_url: promoPhoto, active: true },
-        { title: "Recarga 1100", description: "Saldo principal Cubacel", price_brl: 52, bonus_label: "1100 CUP de saldo móvil", image_url: promoPhoto, active: true },
+        { title: "Recarga 360 CUP", description: "Saldo principal Cubacel", price_brl: 20, bonus_label: "360 CUP de saldo móvil", image_url: null, active: true },
+        { title: "Recarga 510 CUP", description: "Saldo principal Cubacel", price_brl: 26, bonus_label: "510 CUP de saldo móvil", image_url: null, active: true },
+        { title: "Recarga 730 CUP", description: "Saldo principal Cubacel", price_brl: 36, bonus_label: "730 CUP de saldo móvil", image_url: null, active: true },
+        { title: "Recarga 1.100 CUP", description: "Saldo principal Cubacel", price_brl: 52, bonus_label: "1.100 CUP de saldo móvil", image_url: null, active: true },
       ];
-      const { error: insertError } = await supabase.from("promos").insert(rows);
-      if (insertError) throw insertError;
       if (oldRows.length) {
-        const { error: deleteError } = await supabase.from("promos").delete().in("id", oldRows.map((p) => p.id));
-        if (deleteError) throw deleteError;
+        const { error } = await supabase.from("promos").delete().in("id", oldRows.map((p) => p.id));
+        if (error) throw error;
       }
-      toast.success("Promociones actualizadas. Se conservó la promo especial.");
-      await Promise.all([
-        qc.invalidateQueries({ queryKey: ["admin-promos"] }),
-        qc.invalidateQueries({ queryKey: ["promos"] }),
-        qc.invalidateQueries({ queryKey: ["public-promos"] }),
-      ]);
+      const { error } = await supabase.from("promos").insert(rows);
+      if (error) throw error;
+      toast.success("Precios aplicados. Se conservó la promo especial.");
+      await refresh();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "No se pudieron actualizar las promociones");
+      toast.error(e instanceof Error ? e.message : "No se pudieron aplicar los precios");
     } finally {
       setApplyingPreset(false);
     }
@@ -573,84 +570,55 @@ function PromosTab() {
   return (
     <div className="space-y-3">
       <div className="rounded-xl border border-gold/40 bg-card p-3 space-y-2">
-        <p className="text-xs font-semibold uppercase text-muted-foreground">Actualizar promociones desde la imagen</p>
-        <p className="text-[11px] text-muted-foreground">Sube el afiche. Se crearán R$ 20 → 360 CUP, R$ 26 → 510 CUP, R$ 36 → 730 CUP y R$ 52 → 1100 CUP. La promo especial se conserva y las demás promociones se sustituyen.</p>
-        <label className="flex w-full cursor-pointer items-center justify-center gap-1 rounded-lg border border-gold/40 bg-background px-3 py-2 text-xs font-semibold">
-          <Plus className="h-3 w-3" /> {uploadingPromoPhoto ? "Subiendo foto…" : promoPhoto ? "Foto lista · cambiar imagen" : "Subir foto de promociones"}
-          <input type="file" accept="image/*" className="hidden" disabled={uploadingPromoPhoto || applyingPreset}
-            onChange={async (e) => {
-              const file = e.currentTarget.files?.[0];
-              e.currentTarget.value = "";
-              if (!file) return;
-              setUploadingPromoPhoto(true);
-              try {
-                const url = await uploadStoreImage(file, "promos");
-                setPromoPhoto(url);
-                toast.success("Foto subida");
-              } catch (err) {
-                toast.error(err instanceof Error ? err.message : "No se pudo subir la foto");
-              } finally {
-                setUploadingPromoPhoto(false);
-              }
-            }} />
-        </label>
-        {promoPhoto && <img src={promoPhoto} alt="Foto de las promociones" className="max-h-64 w-full rounded-lg object-contain" />}
-        <button onClick={() => void applyPosterPrices()} disabled={!promoPhoto || uploadingPromoPhoto || applyingPreset || q.isLoading}
+        <p className="text-xs font-semibold uppercase text-muted-foreground">Aplicar precios de recargas</p>
+        <p className="text-[11px] text-muted-foreground">Se aplican R$ 20 → 360 CUP, R$ 26 → 510 CUP, R$ 36 → 730 CUP y R$ 52 → 1.100 CUP. Se conserva la promo especial. No necesitas subir ninguna foto.</p>
+        <button onClick={() => void applyPrices()} disabled={applyingPreset || q.isLoading}
           className="flex w-full items-center justify-center gap-1 rounded-lg bg-gradient-gold px-3 py-2 text-xs font-semibold text-primary-foreground shadow-gold disabled:opacity-50">
-          {applyingPreset ? "Actualizando…" : "Aplicar los 4 precios y conservar promo especial"}
+          {applyingPreset ? "Aplicando…" : "Aplicar los 4 precios"}
         </button>
       </div>
 
-      <div className="rounded-xl border border-border bg-card p-3 space-y-2">
-        <p className="text-xs font-semibold uppercase text-muted-foreground">Nueva promo manual</p>
-        <MiniInput label="Título" value={nt} onChange={setNt} />
-        <MiniInput label="Descripción" value={nd} onChange={setNd} />
-        <div className="grid grid-cols-2 gap-2">
-          <MiniInput label="Precio BRL" value={np} onChange={setNp} />
-          <MiniInput label="Bono (texto)" value={nb} onChange={setNb} />
-        </div>
-        <label className="flex items-center gap-2 rounded-lg border border-border bg-background px-2 py-2">
-          <input type="checkbox" checked={gift} onChange={(e) => setGift(e.target.checked)} className="h-4 w-4 accent-[hsl(var(--gold))]" />
-          <span className="text-[11px] font-extrabold">
-            Recarga promocional 🎁 (usa el ícono de regalo en vez de Cubacel)
-          </span>
-        </label>
-        <button
-          onClick={() => {
-            if (!nt || !np) return toast.error("Título y precio requeridos");
-            add.mutate({
-              title: nt, description: nd, price_brl: Number(np), bonus_label: nb,
-              image_url: gift ? "gift" : null,
-            });
-            setNt(""); setNd(""); setNp(""); setNb(""); setGift(false);
-          }}
-          className="flex w-full items-center justify-center gap-1 rounded-lg bg-gradient-gold px-3 py-1.5 text-xs font-semibold text-primary-foreground shadow-gold">
-          <Plus className="h-3 w-3" /> Añadir
-        </button>
-      </div>
-
-      {q.data?.map((p) => (
-        <div key={p.id} className="flex items-center justify-between rounded-xl border border-border bg-card p-3">
-          <div className="min-w-0">
-            <div className="truncate text-sm font-semibold">
-              {p.image_url === "gift" ? "🎁 " : ""}{p.title}
+      <p className="text-xs font-semibold uppercase text-muted-foreground">Editar o eliminar promociones</p>
+      {q.data?.map((p) => {
+        const value = edits[p.id] ?? {
+          title: p.title ?? "",
+          description: p.description ?? "",
+          price_brl: String(p.price_brl ?? ""),
+          bonus_label: p.bonus_label ?? "",
+        };
+        return (
+          <div key={p.id} className="rounded-xl border border-border bg-card p-3 space-y-2">
+            <MiniInput label="Título" value={value.title} onChange={(v) => setEdits((old) => ({ ...old, [p.id]: { ...value, title: v } }))} />
+            <MiniInput label="Descripción" value={value.description} onChange={(v) => setEdits((old) => ({ ...old, [p.id]: { ...value, description: v } }))} />
+            <div className="grid grid-cols-2 gap-2">
+              <MiniInput label="Precio BRL" value={value.price_brl} onChange={(v) => setEdits((old) => ({ ...old, [p.id]: { ...value, price_brl: v } }))} />
+              <MiniInput label="Bono / CUP" value={value.bonus_label} onChange={(v) => setEdits((old) => ({ ...old, [p.id]: { ...value, bonus_label: v } }))} />
             </div>
-            <div className="text-[11px] text-muted-foreground">{p.description}</div>
-            <div className="text-[11px] font-medium text-gold">{p.bonus_label}</div>
-            {p.image_url && p.image_url !== "gift" && <img src={p.image_url} alt="" className="mt-2 max-h-20 rounded-md object-contain" />}
-            <button onClick={() => toggle.mutate({ id: p.id, active: !p.active })}
-              className={`mt-1 rounded-full px-2 py-0.5 text-[10px] font-extrabold ${p.active ? "bg-success/20 text-success" : "bg-muted text-muted-foreground"}`}>
-              {p.active ? "Activa" : "Inactiva"}
-            </button>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <button onClick={() => toggle.mutate({ id: p.id, active: !p.active })}
+                className={`rounded-full px-2 py-1 text-[10px] font-extrabold ${p.active ? "bg-success/20 text-success" : "bg-muted text-muted-foreground"}`}>
+                {p.active ? "Activa" : "Inactiva"}
+              </button>
+              <div className="flex gap-2">
+                <button onClick={() => {
+                  const price = Number(value.price_brl.replace(",", "."));
+                  if (!value.title.trim() || !Number.isFinite(price) || price <= 0) return toast.error("Revisa el título y el precio");
+                  update.mutate({ id: p.id, title: value.title.trim(), description: value.description, price_brl: price, bonus_label: value.bonus_label });
+                }} disabled={update.isPending}
+                  className="rounded-lg bg-gradient-gold px-3 py-1.5 text-xs font-semibold text-primary-foreground disabled:opacity-50">
+                  Guardar cambios
+                </button>
+                <button onClick={() => {
+                  if (confirm(`¿Eliminar la promoción "${p.title}"?`)) del.mutate(p.id);
+                }} disabled={del.isPending} className="rounded-lg p-2 text-destructive hover:bg-destructive/10">
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="font-display text-sm font-bold text-gold">{formatMoney(Number(p.price_brl), "BRL")}</span>
-            <button onClick={() => del.mutate(p.id)} className="rounded-md p-1 text-destructive hover:bg-destructive/10">
-              <Trash2 className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-      ))}
+        );
+      })}
+      {q.data && q.data.length === 0 && <p className="text-sm text-muted-foreground">No hay promociones. Pulsa «Aplicar los 4 precios» para crearlas.</p>}
     </div>
   );
 }
