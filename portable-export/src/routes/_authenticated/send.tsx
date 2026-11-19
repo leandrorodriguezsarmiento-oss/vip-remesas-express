@@ -91,17 +91,12 @@ function SendFlow() {
   const myUsername = myProfile.data?.username ?? myProfile.data?.full_name ?? user.email ?? user.id;
 
   const amountNum = Number(amount.replace(",", ".")) || 0;
-  const baseRate = useMemo(
-    () => origin && method && currency ? findRate(rates.data, origin, method, currency) : undefined,
-    [rates.data, origin, method, currency],
+  const rate = useMemo(
+    () => origin && method && currency
+      ? findRate(rates.data, origin, method, currency, amountNum > 0 ? amountNum : undefined)
+      : undefined,
+    [rates.data, origin, method, currency, amountNum],
   );
-  const rate = useMemo(() => {
-    if (!baseRate) return undefined;
-    if (origin === "BR" && method === "transferencia" && currency === "CUP" && amountNum > 150 && baseRate.rate_over_150 != null) {
-      return { ...baseRate, rate: Number(baseRate.rate_over_150) };
-    }
-    return baseRate;
-  }, [baseRate, amountNum, origin, method, currency]);
   const quote = useMemo(() => (rate && amountNum > 0 ? calcQuote(amountNum, rate) : null), [rate, amountNum]);
   const originOpt = origin ? getOrigin(origin) : null;
   const minAmount = Number(rate?.min_amount ?? 20);
