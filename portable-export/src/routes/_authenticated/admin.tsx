@@ -508,8 +508,29 @@ function PromosTab() {
       return data;
     },
   });
-  const [applyingPreset, setApplyingPreset] = useState(false);
+  const [newPromo, setNewPromo] = useState({ title: "", description: "", price_brl: "", bonus_label: "" });
   const [edits, setEdits] = useState<Record<string, { title: string; description: string; price_brl: string; bonus_label: string }>>({});
+  const create = useMutation({
+    mutationFn: async () => {
+      const price = Number(newPromo.price_brl.replace(",", "."));
+      if (!newPromo.title.trim() || !Number.isFinite(price) || price <= 0) throw new Error("Escribe un título y un precio válido");
+      const { error } = await supabase.from("promos").insert({
+        title: newPromo.title.trim(),
+        description: newPromo.description.trim(),
+        price_brl: price,
+        bonus_label: newPromo.bonus_label.trim(),
+        image_url: null,
+        active: true,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Nueva promoción creada");
+      setNewPromo({ title: "", description: "", price_brl: "", bonus_label: "" });
+      void refresh();
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "No se pudo crear la promoción"),
+  });
   const refresh = () => Promise.all([
     qc.invalidateQueries({ queryKey: ["admin-promos"] }),
     qc.invalidateQueries({ queryKey: ["promos"] }),
@@ -542,43 +563,20 @@ function PromosTab() {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Error"),
   });
 
-  const isSpecialPromo = (p: { title?: string | null; description?: string | null; bonus_label?: string | null; image_url?: string | null }) =>
-    p.image_url === "gift" || /promo\\s*especial/i.test(`${p.title ?? ""} ${p.description ?? ""} ${p.bonus_label ?? ""}`);
-
-  async function applyPrices() {
-    if (!q.data) return toast.error("Espera a que carguen las promociones");
-    setApplyingPreset(true);
-    try {
-      const oldRows = q.data.filter((p) => !isSpecialPromo(p));
-      const rows = [
-        { title: "Recarga 360 CUP", description: "Saldo principal Cubacel", price_brl: 20, bonus_label: "360 CUP de saldo móvil", image_url: null, active: true },
-        { title: "Recarga 510 CUP", description: "Saldo principal Cubacel", price_brl: 26, bonus_label: "510 CUP de saldo móvil", image_url: null, active: true },
-        { title: "Recarga 730 CUP", description: "Saldo principal Cubacel", price_brl: 36, bonus_label: "730 CUP de saldo móvil", image_url: null, active: true },
-        { title: "Recarga 1.100 CUP", description: "Saldo principal Cubacel", price_brl: 52, bonus_label: "1.100 CUP de saldo móvil", image_url: null, active: true },
-      ];
-      if (oldRows.length) {
-        const { error } = await supabase.from("promos").delete().in("id", oldRows.map((p) => p.id));
-        if (error) throw error;
-      }
-      const { error } = await supabase.from("promos").insert(rows);
-      if (error) throw error;
-      toast.success("Precios aplicados. Se conservó la promo especial.");
-      await refresh();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "No se pudieron aplicar los precios");
-    } finally {
-      setApplyingPreset(false);
-    }
-  }
 
   return (
     <div className="space-y-3">
       <div className="rounded-xl border border-gold/40 bg-card p-3 space-y-2">
-        <p className="text-xs font-semibold uppercase text-muted-foreground">Aplicar precios de recargas</p>
-        <p className="text-[11px] text-muted-foreground">Se aplican R$ 20 → 360 CUP, R$ 26 → 510 CUP, R$ 36 → 730 CUP y R$ 52 → 1.100 CUP. Se conserva la promo especial. No necesitas subir ninguna foto.</p>
-        <button onClick={() => void applyPrices()} disabled={applyingPreset || q.isLoading}
-          className="flex w-full items-center justify-center gap-1 rounded-lg bg-gradient-gold px-3 py-2 text-xs font-semibold text-primary-foreground shadow-gold disabled:opacity-50">
-          {applyingPreset ? "Aplicando…" : "Aplicar los 4 precios"}
+        <p className="text-xs font-semibold uppercase text-muted-foreground">Crear nueva promoción o recarga</p>
+        <MiniInput label="Título" value={newPromo.title} onChange={(v) => setNewPromo((old) => ({ ...old, title: v }))} />
+        <MiniInput label="Descripción" value={newPromo.description} onChange={(v) => setNewPromo((old) => ({ ...old, description: v }))} />
+        <div className="grid grid-cols-2 gap-2">
+          <MiniInput label="Precio BRL" value={newPromo.price_brl} onChange={(v) => setNewPromo((old) => ({ ...old, price_brl: v }))} />
+          <MiniInput label="Bono / CUP" value={newPromo.bonus_label} onChange={(v) => setNewPromo((old) => ({ ...old, bonus_label: v }))} />
+        </div>
+        <button onClick={() => create.mutate()} disabled={create.isPending}
+          className="flex w-full items-center justify-center rounded-lg bg-gradient-gold px-3 py-2 text-xs font-semibold text-primary-foreground disabled:opacity-50">
+          {create.isPending ? "Creando…" : "Crear promoción"}
         </button>
       </div>
 
@@ -622,7 +620,7 @@ function PromosTab() {
           </div>
         );
       })}
-      {q.data && q.data.length === 0 && <p className="text-sm text-muted-foreground">No hay promociones. Pulsa «Aplicar los 4 precios» para crearlas.</p>}
+      {q.data && q.data.length === 0 && <p className="text-sm text-muted-foreground">Todavía no hay promociones creadas.</p>}
     </div>
   );
 }
