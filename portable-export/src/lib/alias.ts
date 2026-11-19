@@ -35,4 +35,4 @@ export const COUNTRIES = [
 ] as const;
 
 export const SUPPORT_WHATSAPP = "5595984405698";
-export const SUPPORT_WHATSAPP_URL = `https://wa.me/${SUPPORT_WHATSAPP}`;
+export const SUPPORT_WHATSAPP_URL = "https://whatsapp.com/channel/0029Vb9wVGfBqbr6mDtQMC1z";
