@@ -66,7 +66,6 @@ export interface RateRow {
   method_category: string;
   dest_currency: string;
   rate: number;
-  rate_over_150?: number | null;
   time_min_minutes: number;
   time_max_minutes: number;
   min_amount: number;
